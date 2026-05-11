@@ -485,7 +485,7 @@ Cesium took inspiration from:
 - [@trq212's tweet](https://x.com/trq212/status/2052809885763747935) on
   letting agents respond with HTML instead of dumping markdown into the
   terminal — the seed idea for the whole project.
-- **Octto** — for the model of an agent that publishes a live, browser-served
+- [Octto](https://github.com/vtemian/octto) — for the model of an agent that publishes a live, browser-served
   surface alongside the terminal, rather than replacing it.
 
 ## License
