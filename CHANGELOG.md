@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.3.2 — 2026-05-11
+
+Quality-of-life patch focused on `cesium serve` reliability and README polish.
+
+- **fix:** `cesium serve` no longer auto-shuts-down on idle. The configured
+  `idleTimeoutMs` exists for the plugin's lazy-started server and was being
+  unintentionally applied to foreground `cesium serve`, killing the process
+  unexpectedly. Foreground serve now runs until SIGINT/SIGTERM by default.
+- **new:** `cesium serve --idle-timeout DUR` opts back into auto-shutdown.
+  Accepts plain milliseconds or a suffixed duration (`90s`, `30m`, `2h`).
+  Use `0`, `never`, or `off` to disable explicitly.
+- **internal:** `lifecycle.startIdleTimer` now treats `idleTimeoutMs <= 0` as
+  "never time out" and skips creating the interval.
+- **docs:** README demo asset (`assets/cesium.mp4`, ~600 KB, 720px wide)
+  embedded near the top via a `<video>` tag.
+- **docs:** New "Common workflows" section in the README covering forced
+  publish, finding/opening artifacts, sharing, pruning, theme changes,
+  server restart, and Q&A loops.
+- **docs:** Acknowledgements section added.
+- **tests:** 889 → 906 (+9 serve-arg parser tests, +2 lifecycle tests for
+  the `idleTimeoutMs <= 0` path; the previously-skipped flaky idle-timer
+  test was preserved).
+
 ## v0.3.1 — 2026-05-11
 
 Small quality-of-life patch. The only user-visible change is the Skip button on

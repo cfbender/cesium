@@ -10,6 +10,11 @@ v0.3.0 adds **interactive Q&A artifacts** — the agent can now publish a questi
 form, wait for the user to answer in their browser, and receive the structured
 responses before continuing work.
 
+<video src="assets/cesium.mp4" autoplay loop muted playsinline width="720">
+  Demo video — see <a href="assets/cesium.mp4">assets/cesium.mp4</a> if it
+  doesn't play inline (some markdown viewers strip <code>&lt;video&gt;</code>).
+</video>
+
 ## Examples
 
 See [`examples/plan.html`](examples/plan.html) ·
@@ -192,6 +197,89 @@ ssh -L 3030:localhost:3030 your-host
 Then open `http://localhost:3030/` on your local machine. Cesium prints this hint
 automatically when it detects `$SSH_CONNECTION`.
 
+## Common workflows
+
+### Force a publish for the current response
+
+The agent decides per-response whether to publish, but you can override:
+
+- **"/cesium"** or **"publish this"** — publish even if the response is short.
+- **"in terminal"** or **"don't make a doc"** — stay in the terminal.
+
+For sessions where you always want HTML, use the dedicated `@cesium` agent
+(see [Optional: dedicated `@cesium` agent](#optional-dedicated-cesium-agent)).
+
+### Find an old artifact
+
+```bash
+cesium ls                      # current project
+cesium ls --all                # everywhere
+```
+
+Or open `http://localhost:3030/` in the browser — both the per-project and
+global index pages have a search box that matches title **and** body text.
+Useful when you remember a phrase but not the title.
+
+### Open an artifact by id
+
+The id prefix is the short suffix on each filename (e.g. `a7K9pQ`):
+
+```bash
+cesium open a7K9          # open in the browser
+cesium open a7K9 --print  # just print the URL
+```
+
+### Share an artifact
+
+Each artifact is a single self-contained `.html` file — no external resources.
+Three ways to share:
+
+- **Same machine** — copy or attach the `file://` path printed in the terminal.
+- **Over SSH** — forward the port with `ssh -L 3030:localhost:3030 your-host`,
+  then send the `http://localhost:3030/...` URL.
+- **On a trusted LAN** — set `"hostname": "0.0.0.0"` in `cesium.json` and share
+  the LAN URL. Only do this on networks you trust.
+
+### Clean up old artifacts
+
+```bash
+cesium prune --older-than 90d         # dry run — list what would be deleted
+cesium prune --older-than 90d --yes   # actually delete
+```
+
+### Change the look
+
+Edit `~/.config/opencode/cesium.json`:
+
+```json
+{ "themePreset": "warm" }
+```
+
+Then apply it. Existing artifacts pick up the new theme on next reload via the
+shared `theme.css`:
+
+```bash
+cesium theme apply
+cesium theme apply --rewrite-artifacts   # only needed for artifacts pre-v0.2.1
+```
+
+### Restart the server after a config change
+
+The HTTP server caches config at start. After editing `cesium.json`:
+
+```bash
+cesium stop
+```
+
+The next publish (or `cesium serve`) will start a fresh server with the new
+config. You can also ask the agent to call `cesium_stop` directly.
+
+### Use interactive Q&A in an agent loop
+
+When the agent needs your input mid-task, it can publish a question artifact
+with `cesium_ask`, block on `cesium_wait`, and continue once you've submitted
+the form. See [Interactive Q&A](#interactive-qa) for the full flow.
+
 ## CLI
 
 Once installed (see [Install](#install) above), the `cesium` binary is
@@ -205,9 +293,10 @@ cesium ls --json                 # JSON output
 cesium open <id-prefix>          # open an artifact by id prefix in the browser
 cesium open abc123 --print       # print the URL instead of opening
 
-cesium serve                     # run the local HTTP server in foreground
+cesium serve                     # run the local HTTP server in foreground (no idle timeout)
 cesium serve --port 4000         # override the configured port
 cesium serve --hostname 0.0.0.0  # bind on all interfaces
+cesium serve --idle-timeout 30m  # auto-shutdown after 30 min of inactivity (default: never)
 
 cesium stop                      # stop the running server (cross-process via PID file)
 cesium stop --force              # SIGKILL immediately, skip the SIGTERM grace
@@ -238,7 +327,7 @@ Optional `~/.config/opencode/cesium.json`:
 | `port`          | number | `3030`                  | First port to try for the local HTTP server                                              |
 | `portMax`       | number | `3050`                  | Upper bound when scanning for free ports                                                 |
 | `hostname`      | string | `127.0.0.1`             | Bind address. Use `0.0.0.0` to expose on the LAN                                         |
-| `idleTimeoutMs` | number | `1800000`               | Server idle-shutdown threshold (30 min)                                                  |
+| `idleTimeoutMs` | number | `1800000`               | Plugin server idle-shutdown threshold (30 min). Does not apply to foreground `cesium serve` |
 | `themePreset`   | string | `"claret-dark"`         | Named color palette (`claret-dark`/`claret-light`/`claret`/`warm`/`cool`/`mono`/`paper`) |
 | `theme`         | object | (claret-dark palette)   | Per-token color overrides (stacked on preset)                                            |
 
@@ -325,7 +414,17 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.3.0 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.3.2 — see [`CHANGELOG.md`](CHANGELOG.md).
+
+## Acknowledgements
+
+Cesium took inspiration from:
+
+- [@trq212's tweet](https://x.com/trq212/status/2052809885763747935) on
+  letting agents respond with HTML instead of dumping markdown into the
+  terminal — the seed idea for the whole project.
+- **Octto** — for the model of an agent that publishes a live, browser-served
+  surface alongside the terminal, rather than replacing it.
 
 ## License
 

@@ -101,6 +101,9 @@ function clearIdleTimer(): void {
 
 function startIdleTimer(idleTimeoutMs: number): void {
   clearIdleTimer();
+  // 0 (or negative) means "never time out" — used by `cesium serve` in the
+  // foreground, where the user expects the server to live until they Ctrl-C.
+  if (idleTimeoutMs <= 0) return;
   // Check every 10% of the timeout (but at least every 5s, at most every 60s)
   const checkMs = Math.max(5_000, Math.min(60_000, Math.floor(idleTimeoutMs / 10)));
   const interval = setInterval(() => {

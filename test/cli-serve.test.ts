@@ -96,3 +96,73 @@ test("parseServeArgs unknown option returns null and writes error", () => {
   expect(result).toBeNull();
   expect(io.err).not.toBe("");
 });
+
+test("parseServeArgs no --idle-timeout leaves idleTimeoutMs undefined (default: never)", () => {
+  const io = captureIo();
+  const result = parseServeArgs([], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBeUndefined();
+});
+
+test("parseServeArgs --idle-timeout 0 sets idleTimeoutMs to 0", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "0"], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBe(0);
+});
+
+test("parseServeArgs --idle-timeout never sets idleTimeoutMs to 0", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "never"], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBe(0);
+});
+
+test("parseServeArgs --idle-timeout 30m parses minutes", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "30m"], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBe(30 * 60_000);
+});
+
+test("parseServeArgs --idle-timeout 90s parses seconds", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "90s"], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBe(90_000);
+});
+
+test("parseServeArgs --idle-timeout 2h parses hours", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "2h"], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBe(2 * 3_600_000);
+});
+
+test("parseServeArgs --idle-timeout with bare number treats as ms", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "5000"], io);
+  if (result === null || result === "help") throw new Error("expected options");
+  expect(result.idleTimeoutMs).toBe(5000);
+});
+
+test("parseServeArgs --idle-timeout garbage returns null and writes error", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "tomorrow"], io);
+  expect(result).toBeNull();
+  expect(io.err).toContain("--idle-timeout");
+});
+
+test("parseServeArgs --idle-timeout negative returns null and writes error", () => {
+  const io = captureIo();
+  const result = parseServeArgs(["--idle-timeout", "-5m"], io);
+  expect(result).toBeNull();
+  expect(io.err).toContain("--idle-timeout");
+});
+
+test("parseServeArgs --help mentions idle-timeout default", () => {
+  const io = captureIo();
+  parseServeArgs(["--help"], io);
+  expect(io.out).toContain("--idle-timeout");
+  expect(io.out.toLowerCase()).toContain("never");
+});

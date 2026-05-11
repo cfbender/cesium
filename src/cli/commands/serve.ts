@@ -21,6 +21,27 @@ function defaultCtx(): ServeContext {
 export interface ServeOptions {
   port?: number;
   hostname?: string;
+  /**
+   * Idle timeout in milliseconds. 0 (the default for `cesium serve`) means the
+   * server runs forever until SIGINT/SIGTERM. Override with --idle-timeout to
+   * opt back into auto-shutdown — useful for long-lived dev sessions that
+   * should still recycle eventually.
+   */
+  idleTimeoutMs?: number;
+}
+
+/** Parse a duration string like "30m", "2h", "90s", "0", "never". Returns ms or null. */
+function parseDuration(input: string): number | null {
+  const trimmed = input.trim().toLowerCase();
+  if (trimmed === "0" || trimmed === "never" || trimmed === "off") return 0;
+  const match = /^(\d+(?:\.\d+)?)(ms|s|m|h)?$/.exec(trimmed);
+  if (match === null) return null;
+  const n = parseFloat(match[1] ?? "");
+  if (!isFinite(n) || n < 0) return null;
+  const unit = match[2] ?? "ms";
+  const mul =
+    unit === "ms" ? 1 : unit === "s" ? 1000 : unit === "m" ? 60_000 : /* h */ 3_600_000;
+  return Math.floor(n * mul);
 }
 
 /** Parse the argv for serve. Returns null on error (already written to stderr). */
@@ -28,7 +49,12 @@ export function parseServeArgs(
   argv: string[],
   ctx: Pick<ServeContext, "stdout" | "stderr">,
 ): ServeOptions | null | "help" {
-  let values: { port: string | undefined; hostname: string | undefined; help: boolean };
+  let values: {
+    port: string | undefined;
+    hostname: string | undefined;
+    "idle-timeout": string | undefined;
+    help: boolean;
+  };
 
   try {
     const parsed = parseArgs({
@@ -36,6 +62,7 @@ export function parseServeArgs(
       options: {
         port: { type: "string", short: "p" },
         hostname: { type: "string", short: "H" },
+        "idle-timeout": { type: "string" },
         help: { type: "boolean", short: "h", default: false },
       },
       allowPositionals: false,
@@ -45,7 +72,7 @@ export function parseServeArgs(
   } catch (err) {
     const e = err as Error;
     ctx.stderr.write(`cesium serve: ${e.message}\n`);
-    ctx.stderr.write(`Usage: cesium serve [--port N] [--hostname H]\n`);
+    ctx.stderr.write(`Usage: cesium serve [--port N] [--hostname H] [--idle-timeout DUR]\n`);
     return null;
   }
 
@@ -55,12 +82,19 @@ export function parseServeArgs(
         "Usage: cesium serve [options]",
         "",
         "Options:",
-        "  --port, -p N      Override configured port (default: 3030)",
-        "  --hostname, -H H  Override configured bind address (default: 127.0.0.1)",
-        "  --help, -h        Show this help message",
+        "  --port, -p N        Override configured port (default: 3030)",
+        "  --hostname, -H H    Override configured bind address (default: 127.0.0.1)",
+        "  --idle-timeout DUR  Auto-shutdown after DUR of inactivity. Accepts plain",
+        "                      milliseconds or a suffixed value (90s, 30m, 2h).",
+        "                      Use 0 / never / off to disable. Default: 0 (never).",
+        "  --help, -h          Show this help message",
         "",
         "Starts the cesium HTTP server in the foreground. Press Ctrl-C to stop.",
         "Uses the same config as the opencode plugin (~/.config/opencode/cesium.json).",
+        "",
+        "Note: foreground `cesium serve` ignores the configured idleTimeoutMs by",
+        "default — the timeout exists for the plugin's lazy-started server, not",
+        "for a server you launched explicitly.",
         "",
       ].join("\n"),
     );
@@ -86,6 +120,17 @@ export function parseServeArgs(
     opts.hostname = values.hostname;
   }
 
+  if (values["idle-timeout"] !== undefined) {
+    const ms = parseDuration(values["idle-timeout"]);
+    if (ms === null) {
+      ctx.stderr.write(
+        `cesium serve: --idle-timeout must be a duration like "30m", "2h", "90s", or "0"/"never" to disable\n`,
+      );
+      return null;
+    }
+    opts.idleTimeoutMs = ms;
+  }
+
   return opts;
 }
 
@@ -99,11 +144,18 @@ export async function serveCommand(argv: string[], ctx?: Partial<ServeContext>):
   const opts = parseResult;
   const cfg = (resolved.loadConfig ?? loadConfig)();
 
+  // Foreground `cesium serve` defaults to NO idle timeout — when the user
+  // launches the server explicitly, they want it to live until they Ctrl-C.
+  // The configured idleTimeoutMs only applies to the plugin's lazy-started
+  // server. --idle-timeout opts back into auto-shutdown.
+  const effectiveIdleTimeoutMs = opts.idleTimeoutMs ?? 0;
+
   // Apply overrides from CLI flags
   const effectiveCfg = {
     ...cfg,
     ...(opts.port !== undefined ? { port: opts.port, portMax: opts.port } : {}),
     ...(opts.hostname !== undefined ? { hostname: opts.hostname } : {}),
+    idleTimeoutMs: effectiveIdleTimeoutMs,
   };
 
   let serverInfo: { port: number; url: string };
@@ -130,6 +182,14 @@ export async function serveCommand(argv: string[], ctx?: Partial<ServeContext>):
 
   resolved.stdout.write(`cesium serve · ${displayUrl}\n`);
   resolved.stdout.write(`  serving ${stateDirDisplay}\n`);
+  if (effectiveIdleTimeoutMs <= 0) {
+    resolved.stdout.write(`  no idle timeout — runs until Ctrl-C\n`);
+  } else {
+    const minutes = Math.round(effectiveIdleTimeoutMs / 60_000);
+    resolved.stdout.write(
+      `  idle timeout: ${minutes >= 1 ? `${minutes}m` : `${effectiveIdleTimeoutMs}ms`} of inactivity\n`,
+    );
+  }
   resolved.stdout.write(`  Ctrl-C to stop\n`);
 
   // If binding on all interfaces, also print the LAN URL

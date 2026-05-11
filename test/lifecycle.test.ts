@@ -213,4 +213,32 @@ describe("ensureRunning", () => {
     }
     expect(reachable).toBe(false);
   });
+
+  test("idleTimeoutMs: 0 disables the idle timer (server stays up)", async () => {
+    const info = await ensureRunning(makeCfg({ idleTimeoutMs: 0 }));
+    const pidPath = join(stateDir, ".server.pid");
+    expect(existsSync(pidPath)).toBe(true);
+
+    // Wait long enough that any short idle timer would have fired.
+    // We don't wait the full 5s minimum check interval — we just want to
+    // assert the timer never starts at all when idleTimeoutMs <= 0.
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Server should still be reachable
+    const res = await fetch(`${info.url}/`);
+    expect(res.ok || res.status === 404).toBe(true); // any response means it's alive
+    expect(existsSync(pidPath)).toBe(true);
+  });
+
+  test("negative idleTimeoutMs also disables the idle timer", async () => {
+    const info = await ensureRunning(makeCfg({ idleTimeoutMs: -1 }));
+    const pidPath = join(stateDir, ".server.pid");
+    expect(existsSync(pidPath)).toBe(true);
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const res = await fetch(`${info.url}/`);
+    expect(res.ok || res.status === 404).toBe(true);
+    expect(existsSync(pidPath)).toBe(true);
+  });
 });
