@@ -4,6 +4,8 @@ Cesium is an opencode plugin that converts substantive agent responses into self
 HTML artifacts stored on disk and served locally. This document describes the architectural
 decisions made for v1.
 
+**Status: v0.1.0 shipped.** See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
+
 ---
 
 ## Vision
@@ -197,11 +199,11 @@ When `cesium_publish` receives a `supersedes` id:
 
 ## v1 build phases
 
-| Phase | Scope                                             |
-| ----- | ------------------------------------------------- |
-| 0     | Scaffolding, configs, docs, empty stubs (this PR) |
-| 1     | Storage layer (paths, write, lock, index-cache)   |
-| 2     | Render pipeline (theme, wrap, scrub, validate)    |
-| 3     | `cesium_publish` tool + index generation          |
-| 4     | `cesium_styleguide` tool + Bun HTTP server        |
-| 5     | Reference examples, tests, release prep           |
+| Phase | Scope                                                                              | Status  |
+| ----- | ---------------------------------------------------------------------------------- | ------- |
+| 0     | Scaffolding, configs, docs, empty stubs                                            | shipped |
+| 1     | Storage + render core (paths, write, theme, wrap, scrub, validate)                 | shipped |
+| 2     | `cesium_publish` + `cesium_styleguide` tools, plugin entry, system prompt fragment | shipped |
+| 3     | Per-project + global `index.html` generation, file lock, revision chains           | shipped |
+| 4     | Lazy auto-server, port-scan, idle shutdown, SSH detection                          | shipped |
+| 5     | Reference examples, dedicated agent definition, release polish                     | shipped |

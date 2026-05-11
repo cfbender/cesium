@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "examples:bake": "bun run scripts/bake-examples.ts && oxfmt examples"
   },
   "dependencies": {
     "@opencode-ai/plugin": "latest",
