@@ -10,6 +10,7 @@ export interface CesiumConfig {
   port: number;
   portMax: number;
   idleTimeoutMs: number;
+  hostname: string;
   theme?: Partial<ThemePalette>;
 }
 
@@ -24,6 +25,7 @@ export function defaultConfig(env?: NodeJS.ProcessEnv): CesiumConfig {
     port: 3030,
     portMax: 3050,
     idleTimeoutMs: 30 * 60 * 1000,
+    hostname: "127.0.0.1",
   };
 }
 
@@ -32,6 +34,7 @@ interface RawConfig {
   port?: unknown;
   portMax?: unknown;
   idleTimeoutMs?: unknown;
+  hostname?: unknown;
   theme?: unknown;
 }
 
@@ -60,6 +63,9 @@ export function loadConfig(opts?: { configPath?: string; env?: NodeJS.ProcessEnv
   if (typeof fileConfig.port === "number") merged.port = fileConfig.port;
   if (typeof fileConfig.portMax === "number") merged.portMax = fileConfig.portMax;
   if (typeof fileConfig.idleTimeoutMs === "number") merged.idleTimeoutMs = fileConfig.idleTimeoutMs;
+  if (typeof fileConfig.hostname === "string" && fileConfig.hostname.length > 0) {
+    merged.hostname = fileConfig.hostname;
+  }
   if (
     fileConfig.theme !== null &&
     typeof fileConfig.theme === "object" &&
@@ -76,6 +82,8 @@ export function loadConfig(opts?: { configPath?: string; env?: NodeJS.ProcessEnv
   }
   const envStateDir = env["CESIUM_STATE_DIR"];
   if (envStateDir !== undefined) merged.stateDir = envStateDir;
+  const envHost = env["CESIUM_HOSTNAME"];
+  if (envHost !== undefined && envHost.length > 0) merged.hostname = envHost;
 
   return merged;
 }

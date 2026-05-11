@@ -93,15 +93,20 @@ automatically when it detects `$SSH_CONNECTION`.
 
 Optional `~/.config/opencode/cesium.json`:
 
-| Key             | Type   | Default                      | Description                                 |
-| --------------- | ------ | ---------------------------- | ------------------------------------------- |
-| `stateDir`      | string | `~/.local/state/cesium`      | Where artifacts and indexes live            |
-| `port`          | number | `3030`                       | First port to try for the local HTTP server |
-| `portMax`       | number | `3050`                       | Upper bound when scanning for free ports    |
-| `idleTimeoutMs` | number | `1800000`                    | Server idle-shutdown threshold (30 min)     |
-| `theme`         | object | (default ivory / clay / oat) | Color token overrides                       |
+| Key             | Type   | Default                      | Description                                      |
+| --------------- | ------ | ---------------------------- | ------------------------------------------------ |
+| `stateDir`      | string | `~/.local/state/cesium`      | Where artifacts and indexes live                 |
+| `port`          | number | `3030`                       | First port to try for the local HTTP server      |
+| `portMax`       | number | `3050`                       | Upper bound when scanning for free ports         |
+| `hostname`      | string | `127.0.0.1`                  | Bind address. Use `0.0.0.0` to expose on the LAN |
+| `idleTimeoutMs` | number | `1800000`                    | Server idle-shutdown threshold (30 min)          |
+| `theme`         | object | (default ivory / clay / oat) | Color token overrides                            |
 
-Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`.
+Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`, `CESIUM_HOSTNAME`.
+
+> **Default is `127.0.0.1` — localhost only.** Setting `hostname` to `0.0.0.0`
+> binds on all interfaces, making artifacts reachable from other devices on
+> your LAN. Only do this on networks you trust.
 
 ## Optional: dedicated `@cesium` agent
 

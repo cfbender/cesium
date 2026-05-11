@@ -25,6 +25,7 @@ function makeOverrides(stateDir: string, nanoid?: () => string): PublishToolOver
       port: 3030,
       portMax: 3050,
       idleTimeoutMs: 1800000,
+      hostname: "127.0.0.1",
     }),
     now: () => new Date("2026-05-11T14:22:09Z"),
     nanoid: nanoid ?? (() => "abc123"),
@@ -93,7 +94,7 @@ test("basic publish: result has expected id and URL fields", async () => {
   expect(typeof result["filePath"]).toBe("string");
   expect(existsSync(result["filePath"] as string)).toBe(true);
   expect((result["fileUrl"] as string).startsWith("file://")).toBe(true);
-  expect((result["httpUrl"] as string).startsWith("http://127.0.0.1:3030/projects/")).toBe(true);
+  expect((result["httpUrl"] as string).startsWith("http://localhost:3030/projects/")).toBe(true);
 });
 
 test("wrapped output is well-formed HTML with correct title and meta block", async () => {
@@ -377,7 +378,7 @@ test("terminalSummary contains title, kind, httpUrl, fileUrl on separate lines",
   expect(lines[0]).toContain("Cesium ·");
 
   // Should contain httpUrl
-  expect(summary).toContain("http://127.0.0.1:3030");
+  expect(summary).toContain("http://localhost:3030");
   // Should contain fileUrl (file:// prefix)
   expect(summary).toContain("file://");
 });

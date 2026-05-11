@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.1 — 2026-05-11
+
+### Added
+
+- `hostname` config field (default `127.0.0.1`) lets the local HTTP server bind
+  to any address, including `0.0.0.0` for LAN access. `CESIUM_HOSTNAME` env var
+  is honored as an override.
+- Display URLs in `terminalSummary` now resolve sensibly: `127.0.0.1` becomes
+  `localhost`, `0.0.0.0` becomes the first non-loopback IPv4 interface address,
+  named hosts pass through verbatim. Generated http URLs are always reachable.
+
+### Changed
+
+- `terminalSummary` URLs now show `http://localhost:3030/...` by default
+  (previously `http://127.0.0.1:3030/...`). Functionally equivalent on a single
+  machine; consistent with how URLs are rendered when binding to other hosts.
+
 ## v0.1.0 — 2026-05-11
 
 Initial release.

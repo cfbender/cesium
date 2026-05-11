@@ -1,6 +1,7 @@
 // Tool handler for cesium_publish — validates input, delegates to render + storage.
 
 import { createHash } from "node:crypto";
+import { networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
@@ -299,8 +300,9 @@ export function createPublishTool(
       });
 
       // 20. Start server (best-effort) and build URLs
-      let httpUrl = `http://127.0.0.1:${config.port}${paths.serverPath}`;
-      let indexUrl = `http://127.0.0.1:${config.port}/projects/${identity.slug}/index.html`;
+      const displayHost = resolveDisplayHost(config.hostname);
+      let httpUrl = `http://${displayHost}:${config.port}${paths.serverPath}`;
+      let indexUrl = `http://${displayHost}:${config.port}/projects/${identity.slug}/index.html`;
       let serverInfo: RunningInfo | null = null;
 
       try {
@@ -309,11 +311,13 @@ export function createPublishTool(
           port: config.port,
           portMax: config.portMax,
           idleTimeoutMs: config.idleTimeoutMs,
+          hostname: config.hostname,
         });
         if (maybeInfo !== null) {
           serverInfo = maybeInfo;
-          httpUrl = `${serverInfo.url}${paths.serverPath}`;
-          indexUrl = `${serverInfo.url}/projects/${identity.slug}/index.html`;
+          const liveDisplay = resolveDisplayHost(config.hostname);
+          httpUrl = `http://${liveDisplay}:${serverInfo.port}${paths.serverPath}`;
+          indexUrl = `http://${liveDisplay}:${serverInfo.port}/projects/${identity.slug}/index.html`;
         }
       } catch {
         // Server failed to start — proceed without; user can still use file:// URL.
@@ -365,4 +369,26 @@ function buildProjectSummaries(entries: IndexEntry[]) {
   return [...bySlug.entries()].map(([slug, { name, entries: es }]) =>
     summarizeProject({ slug, name, entries: es }),
   );
+}
+
+// Pick a host for display URLs. When binding 0.0.0.0 (any-interface), substitute
+// the first non-loopback IPv4 we can find so the URL is actually reachable from
+// other machines on the LAN. For loopback/named bindings, just translate
+// 127.0.0.1 to "localhost" for friendliness; everything else is used verbatim.
+export function resolveDisplayHost(bindHost: string): string {
+  if (bindHost === "0.0.0.0" || bindHost === "::") {
+    const ifaces = networkInterfaces();
+    for (const list of Object.values(ifaces)) {
+      for (const iface of list ?? []) {
+        if (iface.family === "IPv4" && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return "localhost";
+  }
+  if (bindHost === "127.0.0.1" || bindHost === "::1") {
+    return "localhost";
+  }
+  return bindHost;
 }
