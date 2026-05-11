@@ -7,7 +7,7 @@ import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
 import { loadConfig, type CesiumConfig } from "../config.ts";
 import { scrub } from "../render/scrub.ts";
-import { defaultTheme, mergeTheme } from "../render/theme.ts";
+import { themeFromPreset, mergeTheme } from "../render/theme.ts";
 import { validatePublishInput, htmlBodyWarnings, PUBLISH_KINDS } from "../render/validate.ts";
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
@@ -216,7 +216,7 @@ export function createPublishTool(
       }
 
       // 12. Build theme + wrap document
-      const theme = mergeTheme(defaultTheme(), config.theme);
+      const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
       const fullHtml = wrapDocument({ body: scrubbed.html, meta, theme, warnings });
 
       // 13. Atomic write

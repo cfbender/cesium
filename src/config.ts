@@ -11,6 +11,7 @@ export interface CesiumConfig {
   portMax: number;
   idleTimeoutMs: number;
   hostname: string;
+  themePreset?: string;
   theme?: Partial<ThemePalette>;
 }
 
@@ -35,6 +36,7 @@ interface RawConfig {
   portMax?: unknown;
   idleTimeoutMs?: unknown;
   hostname?: unknown;
+  themePreset?: unknown;
   theme?: unknown;
 }
 
@@ -73,6 +75,7 @@ export function loadConfig(opts?: { configPath?: string; env?: NodeJS.ProcessEnv
   ) {
     merged.theme = fileConfig.theme as Partial<ThemePalette>;
   }
+  if (typeof fileConfig.themePreset === "string") merged.themePreset = fileConfig.themePreset;
 
   // Env overrides
   const envPort = env["CESIUM_PORT"];
@@ -84,6 +87,8 @@ export function loadConfig(opts?: { configPath?: string; env?: NodeJS.ProcessEnv
   if (envStateDir !== undefined) merged.stateDir = envStateDir;
   const envHost = env["CESIUM_HOSTNAME"];
   if (envHost !== undefined && envHost.length > 0) merged.hostname = envHost;
+  const envThemePreset = env["CESIUM_THEME_PRESET"];
+  if (envThemePreset !== undefined) merged.themePreset = envThemePreset;
 
   return merged;
 }

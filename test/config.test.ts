@@ -58,3 +58,29 @@ test("resolveDisplayHost on 0.0.0.0 returns a usable host", () => {
   expect(result).not.toBe("0.0.0.0");
   expect(result.length).toBeGreaterThan(0);
 });
+
+test("defaultConfig does not set themePreset (undefined)", () => {
+  const cfg = defaultConfig({});
+  expect(cfg.themePreset).toBeUndefined();
+});
+
+test("loadConfig reads themePreset from file", () => {
+  const path = join(workDir, "cesium.json");
+  writeFileSync(path, JSON.stringify({ themePreset: "paper" }));
+  const cfg = loadConfig({ configPath: path, env: {} });
+  expect(cfg.themePreset).toBe("paper");
+});
+
+test("CESIUM_THEME_PRESET env overrides file config", () => {
+  const path = join(workDir, "cesium.json");
+  writeFileSync(path, JSON.stringify({ themePreset: "paper" }));
+  const cfg = loadConfig({ configPath: path, env: { CESIUM_THEME_PRESET: "mono" } });
+  expect(cfg.themePreset).toBe("mono");
+});
+
+test("invalid themePreset value is stored as-is (validated at use site)", () => {
+  const path = join(workDir, "cesium.json");
+  writeFileSync(path, JSON.stringify({ themePreset: "rainbow-unicorn" }));
+  const cfg = loadConfig({ configPath: path, env: {} });
+  expect(cfg.themePreset).toBe("rainbow-unicorn");
+});

@@ -107,8 +107,9 @@ write and returned as tool errors.
 | `--code-bg`   | `#141413` | code panel bg         |
 | `--code-fg`   | `#E8E6DE` | code panel fg         |
 
-User theme overrides: `~/.config/opencode/cesium.json` → `theme` field (v1 does not ship
-multiple presets).
+User theme overrides: `~/.config/opencode/cesium.json` → `theme` field (per-token overrides
+stack on top of the active preset). Four named presets are shipped (`warm`, `cool`, `mono`,
+`paper`) selectable via `themePreset` — see README for the full preset reference.
 
 **Type stack:** system fonts only (`ui-serif`, `system-ui`, `ui-monospace`) — strict
 portability requires no remote font loads.

@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v0.1.3 — 2026-05-11
+
+### Added
+
+- Four theme presets (`warm`, `cool`, `mono`, `paper`) selectable via `themePreset`
+  in `~/.config/opencode/cesium.json`. `CESIUM_THEME_PRESET` env honored.
+- Per-token `theme: {...}` overrides now stack on top of the chosen preset.
+
 ## v0.1.2 — 2026-05-11
 
 ### Added

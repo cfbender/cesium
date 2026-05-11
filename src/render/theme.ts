@@ -26,28 +26,91 @@ export interface ThemeTokens {
   fonts: ThemeFonts;
 }
 
-export function defaultTheme(): ThemeTokens {
+export type ThemePresetName = "warm" | "cool" | "mono" | "paper";
+
+const STANDARD_FONTS: ThemeFonts = {
+  serif: 'ui-serif, Georgia, "Times New Roman", serif',
+  sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, Monaco, monospace',
+};
+
+export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
+  // Warm: ivory/clay/oat — the html-effectiveness reference palette.
+  warm: {
+    bg: "#FAF9F5",
+    surface: "#FFFFFF",
+    surface2: "#F0EEE6",
+    oat: "#E3DACC",
+    rule: "#D1CFC5",
+    ink: "#141413",
+    inkSoft: "#3D3D3A",
+    muted: "#87867F",
+    accent: "#D97757",
+    olive: "#788C5D",
+    codeBg: "#141413",
+    codeFg: "#E8E6DE",
+  },
+  // Cool: desaturated blue-grey — technical, trustworthy.
+  cool: {
+    bg: "#F4F6F9",
+    surface: "#FFFFFF",
+    surface2: "#E8ECF2",
+    oat: "#D8DFE8",
+    rule: "#C2C9D4",
+    ink: "#141820",
+    inkSoft: "#343B47",
+    muted: "#7A8496",
+    accent: "#3A7BB8",
+    olive: "#4E8A6A",
+    codeBg: "#1B2333",
+    codeFg: "#D8E0ED",
+  },
+  // Mono: black/white/grey — editorial, high-contrast.
+  mono: {
+    bg: "#FBFAF8",
+    surface: "#FFFFFF",
+    surface2: "#F2F2F0",
+    oat: "#E4E4E1",
+    rule: "#CECECA",
+    ink: "#111111",
+    inkSoft: "#3A3A3A",
+    muted: "#888884",
+    accent: "#C0392B",
+    olive: "#5A7A5A",
+    codeBg: "#111111",
+    codeFg: "#EBEBEB",
+  },
+  // Paper: sepia/cream — soft, book-like, warm and aged.
+  paper: {
+    bg: "#F5EFE0",
+    surface: "#FBF7EE",
+    surface2: "#EDE4CF",
+    oat: "#DDD0B8",
+    rule: "#C9BFAA",
+    ink: "#2A2218",
+    inkSoft: "#4A3E32",
+    muted: "#8A7E6E",
+    accent: "#B05A2A",
+    olive: "#607848",
+    codeBg: "#2A2218",
+    codeFg: "#E8DEC8",
+  },
+};
+
+export function isThemePresetName(name: string): name is ThemePresetName {
+  return name === "warm" || name === "cool" || name === "mono" || name === "paper";
+}
+
+export function themeFromPreset(name?: string): ThemeTokens {
+  const presetName: ThemePresetName = name !== undefined && isThemePresetName(name) ? name : "warm";
   return {
-    colors: {
-      bg: "#FAF9F5",
-      surface: "#FFFFFF",
-      surface2: "#F0EEE6",
-      oat: "#E3DACC",
-      rule: "#D1CFC5",
-      ink: "#141413",
-      inkSoft: "#3D3D3A",
-      muted: "#87867F",
-      accent: "#D97757",
-      olive: "#788C5D",
-      codeBg: "#141413",
-      codeFg: "#E8E6DE",
-    },
-    fonts: {
-      serif: 'ui-serif, Georgia, "Times New Roman", serif',
-      sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-      mono: 'ui-monospace, "SF Mono", Menlo, Monaco, monospace',
-    },
+    colors: THEME_PRESETS[presetName],
+    fonts: STANDARD_FONTS,
   };
+}
+
+export function defaultTheme(): ThemeTokens {
+  return themeFromPreset("warm");
 }
 
 export function mergeTheme(base: ThemeTokens, override?: Partial<ThemePalette>): ThemeTokens {
