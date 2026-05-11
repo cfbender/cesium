@@ -1,2 +1,2 @@
 // Generates index.html (per-project and global) from the index.json cache.
-export {};
+export const STUB = true;

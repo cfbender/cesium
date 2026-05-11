@@ -37,7 +37,7 @@ cesium/
 ├── .specs/               # GITIGNORED scratch — full design in 2026-05-11-cesium-design.md
 ├── package.json
 ├── tsconfig.json
-├── biome.json
+├── .oxlintrc.json
 └── .gitignore
 ```
 
@@ -49,8 +49,9 @@ cesium/
 bun install           # install dependencies
 bun test              # run test suite
 bun run typecheck     # tsc --noEmit
-bun run lint          # biome check .
-bun run format        # biome format --write .
+bun run lint          # oxlint
+bun run format        # oxfmt .
+bun run format:check  # oxfmt --check . (CI-friendly)
 ```
 
 ---
@@ -60,9 +61,11 @@ bun run format        # biome format --write .
 - **TypeScript strict mode.** `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and
   `noImplicitOverride` are all on.
 - **Never use** `as any`, `@ts-ignore`, or `@ts-expect-error`. If the types don't fit, fix
-  the types.
-- **Biome** handles formatting and linting: 2-space indent, double quotes, trailing commas,
-  100-character line width, semicolons.
+  the types. `oxlint` enforces this.
+- **Toolchain:** `oxlint` for linting, `oxfmt` for formatting. Both are part of the OXC
+  project (Rust-based, fast). Default oxfmt style: 2-space indent, double quotes, trailing
+  commas, semicolons, 100-character line width (configured implicitly via oxfmt defaults
+  and `package.json`).
 - **ESM only.** `"type": "module"` in package.json. Use `.ts` extensions in imports
   (`import { foo } from "./foo.ts"`).
 
@@ -71,6 +74,7 @@ bun run format        # biome format --write .
 ## Commit style
 
 Short, imperative, lowercase first word, no emoji. Examples:
+
 - `scaffold cesium v1 plugin project`
 - `add storage write with atomic rename`
 - `fix idle shutdown timer not resetting on request`

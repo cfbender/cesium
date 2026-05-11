@@ -1,2 +1,2 @@
 // Reads and writes the per-project and global index.json cache files.
-export {};
+export const STUB = true;

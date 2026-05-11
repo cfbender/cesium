@@ -23,12 +23,14 @@ injects a ~40-line system-prompt fragment (~600 tokens) into every agent session
 describes when to publish vs. stay in the terminal.
 
 **Publish heuristics (baked into the injected prompt):**
+
 - Response would be >= ~400 words, OR
 - Contains a comparison, decision matrix, or multi-section plan/PRD/RFC, OR
 - A code review with more than 3 findings, OR
 - Anything the user is likely to revisit or share.
 
 **Stay in terminal:**
+
 - Direct factual question, short status update, mid-tool-loop chatter.
 
 **User override always wins:** `/cesium`, "publish this", "make me an HTML report" force
@@ -49,6 +51,7 @@ Accepts the body HTML and metadata for one artifact. The plugin owns the full HT
 with revision links. The agent writes only the `<body>` inner HTML.
 
 Input fields:
+
 - `title` (string, required)
 - `kind` — `"plan" | "review" | "comparison" | "report" | "explainer" | "design" | "audit" | "rfc" | "other"`
 - `html` — body inner HTML
@@ -75,6 +78,7 @@ retrievable via `cesium_styleguide`). The agent may also use inline `style="..."
 inline `<svg>` for bespoke diagrams.
 
 **Strict portability rule:** no external resources. The scrub pass strips or rewrites:
+
 - `<link rel="stylesheet" href="...">` — removed, comment left
 - `<script src="...">` — removed, comment left
 - `url(https://...)` in style — removed
@@ -86,20 +90,20 @@ write and returned as tool errors.
 
 **Color tokens (default theme):**
 
-| Token        | Value     | Role                  |
-|------------- |-----------|-----------------------|
-| `--bg`       | `#FAF9F5` | ivory page background |
-| `--surface`  | `#FFFFFF` | card/panel surface    |
-| `--surface-2`| `#F0EEE6` | secondary surface     |
-| `--oat`      | `#E3DACC` | muted border fill     |
-| `--rule`     | `#D1CFC5` | rule / divider        |
-| `--ink`      | `#141413` | primary text          |
-| `--ink-soft` | `#3D3D3A` | secondary text        |
-| `--muted`    | `#87867F` | placeholder / caption |
-| `--accent`   | `#D97757` | clay — callout/link   |
-| `--olive`    | `#788C5D` | sage — success        |
-| `--code-bg`  | `#141413` | code panel bg         |
-| `--code-fg`  | `#E8E6DE` | code panel fg         |
+| Token         | Value     | Role                  |
+| ------------- | --------- | --------------------- |
+| `--bg`        | `#FAF9F5` | ivory page background |
+| `--surface`   | `#FFFFFF` | card/panel surface    |
+| `--surface-2` | `#F0EEE6` | secondary surface     |
+| `--oat`       | `#E3DACC` | muted border fill     |
+| `--rule`      | `#D1CFC5` | rule / divider        |
+| `--ink`       | `#141413` | primary text          |
+| `--ink-soft`  | `#3D3D3A` | secondary text        |
+| `--muted`     | `#87867F` | placeholder / caption |
+| `--accent`    | `#D97757` | clay — callout/link   |
+| `--olive`     | `#788C5D` | sage — success        |
+| `--code-bg`   | `#141413` | code panel bg         |
+| `--code-fg`   | `#E8E6DE` | code panel fg         |
 
 User theme overrides: `~/.config/opencode/cesium.json` → `theme` field (v1 does not ship
 multiple presets).
@@ -130,6 +134,7 @@ portability requires no remote font loads.
 ```
 
 **Project slug derivation (priority order):**
+
 1. Git remote `origin`, normalized: `github-com-cfb-cesium`
 2. `<cwd-basename>-<6char-hash-of-absolute-path>` — prevents collisions when multiple repos
    share the same basename
@@ -170,6 +175,7 @@ busy).
   the port. Server does NOT bind to `0.0.0.0` by default.
 
 **Terminal output after publish:**
+
 ```
 Cesium · Auth design (plan)
   http://localhost:3030/projects/github-com-cfb-cesium/artifacts/...
@@ -181,6 +187,7 @@ Cesium · Auth design (plan)
 ## Revision chains
 
 When `cesium_publish` receives a `supersedes` id:
+
 1. New artifact is written with `supersedes` populated.
 2. Previous artifact's embedded metadata is patched in-place: `supersededBy` field added.
    Visual content is untouched.
@@ -188,25 +195,13 @@ When `cesium_publish` receives a `supersedes` id:
 
 ---
 
-## Coexistence with octto
-
-Octto (port 3001) handles interactive multi-question sessions. Cesium (port 3030) handles
-one-way publish artifacts. Both run side-by-side during v1. The cesium system-prompt fragment
-tells the agent: "For interactive multi-question forms, use octto. For one-way artifacts,
-use cesium."
-
-Octto will be retired when cesium v2 absorbs interactive Q&A. Config files, ports, and
-prompt fragments are kept separate to make this transition clean.
-
----
-
 ## v1 build phases
 
-| Phase | Scope                                              |
-|-------|----------------------------------------------------|
-| 0     | Scaffolding, configs, docs, empty stubs (this PR)  |
-| 1     | Storage layer (paths, write, lock, index-cache)    |
-| 2     | Render pipeline (theme, wrap, scrub, validate)     |
-| 3     | `cesium_publish` tool + index generation           |
-| 4     | `cesium_styleguide` tool + Bun HTTP server         |
-| 5     | Reference examples, tests, release prep            |
+| Phase | Scope                                             |
+| ----- | ------------------------------------------------- |
+| 0     | Scaffolding, configs, docs, empty stubs (this PR) |
+| 1     | Storage layer (paths, write, lock, index-cache)   |
+| 2     | Render pipeline (theme, wrap, scrub, validate)    |
+| 3     | `cesium_publish` tool + index generation          |
+| 4     | `cesium_styleguide` tool + Bun HTTP server        |
+| 5     | Reference examples, tests, release prep           |

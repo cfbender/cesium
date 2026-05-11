@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn",
+    "style": "off"
+  },
+  "rules": {
+    "no-explicit-any": "error",
+    "ban-ts-comment": "error",
+    "no-non-null-assertion": "warn"
+  },
+  "ignorePatterns": ["node_modules", "dist", ".specs", "bun.lock"]
+}
