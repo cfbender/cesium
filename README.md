@@ -97,7 +97,30 @@ automatically when it detects `$SSH_CONNECTION`.
 
 ## CLI
 
-Cesium ships a `cesium` binary for use outside opencode sessions:
+Cesium ships a `cesium` binary for use outside opencode sessions.
+
+### Install
+
+From a local checkout — picks up your edits live:
+
+```bash
+cd /path/to/cesium
+bun link
+```
+
+Or pinned to a published tag:
+
+```bash
+bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.2.1
+```
+
+Either approach symlinks `~/.bun/bin/cesium`. Make sure `~/.bun/bin` is on your
+`PATH` (Bun adds this on install — if `which cesium` fails, add
+`export PATH="$HOME/.bun/bin:$PATH"` to your shell rc).
+
+To uninstall: `bun unlink cesium` (from the repo) or `rm ~/.bun/bin/cesium`.
+
+### Usage
 
 ```bash
 cesium ls                        # list artifacts in the current project
