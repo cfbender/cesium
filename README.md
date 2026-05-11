@@ -461,7 +461,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.3.3 — see [`CHANGELOG.md`](CHANGELOG.md). Now published to npm as
+v0.3.4 — see [`CHANGELOG.md`](CHANGELOG.md). Now published to npm as
 [`@cfbender/cesium`](https://www.npmjs.com/package/@cfbender/cesium).
 
 ## Acknowledgements

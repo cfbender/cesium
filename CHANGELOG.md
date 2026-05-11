@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.4 — 2026-05-11
+
+Smoke test for the npm publish GitHub Action (OIDC trusted-publisher flow).
+First release published from CI.
+
+- **fix:** Removed `publishConfig.provenance: true` from `package.json`. The
+  field forces `--provenance` even on local publishes, where it fails with
+  `Automatic provenance generation not supported for provider: null`. The
+  GitHub Action passes `--provenance` explicitly, so CI publishes still
+  ship with an npm provenance attestation.
+- **docs:** Bootstrap step in README "Releasing" no longer passes
+  `--provenance` (it can't work locally).
+
 ## v0.3.3 — 2026-05-11
 
 First release published to npm as **`@cfbender/cesium`**. No runtime behavior
