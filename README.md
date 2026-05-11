@@ -1,4 +1,7 @@
-# Cesium
+<h1>
+  <img src="assets/favicon.svg" alt="" width="48" height="48" align="left" style="margin-right: 12px; vertical-align: middle;">
+  Cesium
+</h1>
 
 Cesium publishes substantive opencode agent responses — plans, code reviews,
 comparisons, explainers, audits, RFCs — as self-contained beautiful HTML artifacts
@@ -51,19 +54,37 @@ unreleased changes).
 
 ### CLI
 
+The CLI puts a `cesium` binary on your `PATH` for browsing, opening, and
+managing artifacts (`cesium ls`, `cesium open`, `cesium serve`, `cesium prune`,
+`cesium theme`).
+
+**Recommended: install with [mise](https://mise.jdx.dev/)** so cesium is pinned
+in your config and tracks with the rest of your toolchain. Add to your
+`~/.config/mise/config.toml` (or a project-local `mise.toml`):
+
+```toml
+[tools]
+"npm:@cfbender/cesium" = "latest"
+```
+
+Then run `mise install` (or `mise use -g npm:@cfbender/cesium@latest` for the
+one-liner equivalent). Pin to a specific release with `"0.3.6"` instead of
+`"latest"`. Upgrade with `mise upgrade npm:@cfbender/cesium`.
+
+**Alternative: install with bun directly:**
+
 ```bash
 bun install -g @cfbender/cesium
 ```
 
-This puts a `cesium` binary on your `PATH` (at `~/.bun/bin/cesium`). If
-`which cesium` returns nothing, add `~/.bun/bin` to your shell rc:
+This puts the binary at `~/.bun/bin/cesium`. If `which cesium` returns nothing,
+add `~/.bun/bin` to your shell rc:
 
 ```bash
 export PATH="$HOME/.bun/bin:$PATH"
 ```
 
-Upgrade later with `bun update -g @cfbender/cesium` (or via your version
-manager — e.g. `mise use -g npm:@cfbender/cesium@latest`). To uninstall:
+Upgrade with `bun update -g @cfbender/cesium`. Uninstall with
 `bun remove -g @cfbender/cesium`.
 
 ### Developing on cesium itself
