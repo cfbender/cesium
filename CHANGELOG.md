@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.3 — 2026-05-11
+
+First release published to npm as **`@cfbender/cesium`**. No runtime behavior
+changes; only packaging and release infrastructure.
+
+- **packaging:** Renamed package from `cesium` to `@cfbender/cesium` (scoped,
+  public). Install with `bun install -g @cfbender/cesium`. Old git-URL installs
+  still work but will fall behind.
+- **packaging:** Added explicit `files` allowlist to package.json — the
+  published tarball ships `src/`, `assets/styleguide.html`, `agents/`, and
+  `ARCHITECTURE.md` only. Tests, examples, scripts, design specs, and the
+  README demo video are excluded.
+- **packaging:** `engines.bun >= 1.0.0` declared (cesium runs TS directly via
+  Bun; the CLI's `#!/usr/bin/env bun` shebang requires Bun on `PATH`).
+- **packaging:** `prepublishOnly` runs `typecheck` + `test` before publish.
+- **packaging:** `publishConfig.access = "public"` and
+  `publishConfig.provenance = true` so scoped publishes work and ship with
+  npm provenance attestations.
+- **ci:** New `.github/workflows/publish.yml`. Triggers on `v*` tag push,
+  runs typecheck + tests, verifies tag-vs-package-version match, then
+  `npm publish --access public --provenance` via npm's **Trusted Publisher
+  OIDC flow** — no `NPM_TOKEN` secret required. The first release is
+  published manually so the package exists on the registry; subsequent
+  releases are tag-triggered. See README "Releasing" for the bootstrap.
+- **docs:** README install section rewritten around the npm package; mise /
+  `bun update -g` upgrade flows documented; trusted-publisher bootstrap +
+  release-via-tag flow documented.
+
 ## v0.3.2 — 2026-05-11
 
 Quality-of-life patch focused on `cesium serve` reliability and README polish.

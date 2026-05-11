@@ -1,13 +1,43 @@
 {
-  "name": "cesium",
-  "version": "0.3.2",
+  "name": "@cfbender/cesium",
+  "version": "0.3.3",
   "description": "Beautiful self-contained HTML artifacts from your opencode agent.",
   "license": "MIT",
+  "author": "Cody Bender",
+  "homepage": "https://github.com/cfbender/cesium#readme",
+  "bugs": "https://github.com/cfbender/cesium/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cfbender/cesium.git"
+  },
+  "keywords": [
+    "opencode",
+    "agent",
+    "html",
+    "artifact",
+    "plugin",
+    "cli",
+    "claret"
+  ],
   "bin": {
     "cesium": "./src/cli/index.ts"
   },
   "type": "module",
   "main": "src/index.ts",
+  "files": [
+    "src",
+    "assets/styleguide.html",
+    "agents",
+    "ARCHITECTURE.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
@@ -15,7 +45,8 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint",
     "examples:bake": "bun run scripts/bake-examples.ts && oxfmt examples",
-    "cli": "bun run src/cli/index.ts"
+    "cli": "bun run src/cli/index.ts",
+    "prepublishOnly": "bun run typecheck && bun test"
   },
   "dependencies": {
     "@opencode-ai/plugin": "latest",

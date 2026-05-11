@@ -30,7 +30,9 @@ types in action (offline banner shows when opened via `file://` — that's expec
 
 Cesium has two pieces — the opencode **plugin** (so the agent can publish for
 you) and an optional **CLI** (so you can browse/manage artifacts from any
-shell). Install one or both.
+shell). Install one or both. Cesium is published to npm as
+[`@cfbender/cesium`](https://www.npmjs.com/package/@cfbender/cesium) and
+requires **Bun ≥ 1.0**.
 
 ### Plugin
 
@@ -38,17 +40,19 @@ Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git#v0.3.0"]
+  "plugin": ["@cfbender/cesium"]
 }
 ```
 
-opencode installs the plugin automatically on next start. Pin to a tag (`#v0.3.0`)
-or omit the suffix to track `main`.
+opencode installs the plugin automatically on next start. Pin a specific
+release with `@cfbender/cesium@0.3.3`, or track an exact git ref with
+`cesium@git+https://github.com/cfbender/cesium.git#main` (useful for
+unreleased changes).
 
 ### CLI
 
 ```bash
-bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.3.0
+bun install -g @cfbender/cesium
 ```
 
 This puts a `cesium` binary on your `PATH` (at `~/.bun/bin/cesium`). If
@@ -58,8 +62,9 @@ This puts a `cesium` binary on your `PATH` (at `~/.bun/bin/cesium`). If
 export PATH="$HOME/.bun/bin:$PATH"
 ```
 
-Update with the same command and a newer tag. To uninstall:
-`rm ~/.bun/bin/cesium ~/.bun/install/global/node_modules/cesium`.
+Upgrade later with `bun update -g @cfbender/cesium` (or via your version
+manager — e.g. `mise use -g npm:@cfbender/cesium@latest`). To uninstall:
+`bun remove -g @cfbender/cesium`.
 
 ### Developing on cesium itself
 
@@ -69,6 +74,48 @@ If you've cloned the repo and want the CLI to follow your edits live:
 cd /path/to/cesium-checkout
 bun link
 ```
+
+### Releasing
+
+Cesium uses npm's **Trusted Publisher** (OIDC) flow — no long-lived `NPM_TOKEN`
+secret lives in the repo. The first release is published manually; every
+release after that goes out automatically when you push a `v*` tag.
+
+**One-time bootstrap** (already done for `@cfbender/cesium`, but keep this here
+for forks):
+
+1. Log in locally: `npm login`. Make sure you have publish access to the
+   `@cfbender` scope (`npm whoami`, `npm access ls-packages`).
+2. Publish the first version manually so the package exists on the registry:
+   ```bash
+   bun run typecheck && bun test
+   npm publish --access public
+   ```
+   _Note: no `--provenance` here. Provenance attestation requires a
+   supported CI provider (GitHub Actions, GitLab CI) and fails locally with
+   `Automatic provenance generation not supported for provider: null`. The
+   GitHub Action handles provenance for every release after this one._
+3. On [npmjs.com](https://www.npmjs.com/package/@cfbender/cesium), open
+   **Settings → Trusted Publishers → Add publisher**. Choose **GitHub Actions**
+   and fill in:
+   - Organization or user: `cfbender`
+   - Repository: `cesium`
+   - Workflow filename: `publish.yml`
+   - Environment: _(leave blank)_
+
+**Every release after that:**
+
+```bash
+# bump version in package.json + add a CHANGELOG entry, then:
+git commit -am "release vX.Y.Z: <summary>"
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin main vX.Y.Z
+```
+
+The `Publish to npm` GitHub Action picks up the tag, runs typecheck + tests,
+verifies the tag matches `package.json`'s `version`, and publishes with npm
+provenance via OIDC. The action requires `id-token: write` permission (already
+configured in the workflow) — no repo secrets needed.
 
 ## How it works
 
@@ -414,7 +461,8 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.3.2 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.3.3 — see [`CHANGELOG.md`](CHANGELOG.md). Now published to npm as
+[`@cfbender/cesium`](https://www.npmjs.com/package/@cfbender/cesium).
 
 ## Acknowledgements
 
