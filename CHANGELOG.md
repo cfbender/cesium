@@ -2,6 +2,18 @@
 
 # Changelog
 
+## v0.2.2 — 2026-05-11
+
+### Added
+
+- `cesium stop` — kills the running cesium server cross-process via its PID
+  file. Sends SIGTERM with a configurable grace period (`--timeout`, default
+  3000 ms), then SIGKILL. `--force` skips the grace. Idempotent: safe when no
+  server is running.
+- `cesium restart` — stops then re-starts the server. Replaces the calling
+  terminal with the new server (foreground, like `cesium serve`). Inherits
+  serve's `--port` / `--hostname` flags.
+
 ## v0.2.1 — 2026-05-11
 
 ### Changed

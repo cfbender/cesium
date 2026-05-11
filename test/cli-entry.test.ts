@@ -27,6 +27,8 @@ test("cesium --help prints help and exits 0", () => {
   expect(stdout).toContain("ls");
   expect(stdout).toContain("open");
   expect(stdout).toContain("serve");
+  expect(stdout).toContain("stop");
+  expect(stdout).toContain("restart");
   expect(stdout).toContain("prune");
 });
 
@@ -46,4 +48,23 @@ test("cesium ls --help exits 0 and shows ls usage", () => {
   const { stdout, exitCode } = runCli(["ls", "--help"]);
   expect(exitCode).toBe(0);
   expect(stdout).toContain("Usage: cesium ls");
+});
+
+test("cesium stop is recognized as a valid command", () => {
+  // No PID file → exits 0 with "no cesium server running"
+  const { stdout, exitCode } = runCli(["stop"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("no cesium server running");
+});
+
+test("cesium stop --help exits 0 and prints stop usage", () => {
+  const { stdout, exitCode } = runCli(["stop", "--help"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("Usage: cesium stop");
+});
+
+test("cesium restart --help exits 0 — restart inherits stop/serve help flag", () => {
+  // restart passes --help through to serve (serve renders its help)
+  const { exitCode } = runCli(["restart", "--help"]);
+  expect(exitCode).toBe(0);
 });

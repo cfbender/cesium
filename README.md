@@ -26,7 +26,7 @@ Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git#v0.2.1"]
+  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git#v0.2.2"]
 }
 ```
 
@@ -36,7 +36,7 @@ or omit the suffix to track `main`.
 ### CLI
 
 ```bash
-bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.2.1
+bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.2.2
 ```
 
 This puts a `cesium` binary on your `PATH` (at `~/.bun/bin/cesium`). If
@@ -143,6 +143,12 @@ cesium serve                     # run the local HTTP server in foreground
 cesium serve --port 4000         # override the configured port
 cesium serve --hostname 0.0.0.0  # bind on all interfaces
 
+cesium stop                      # stop the running server (cross-process via PID file)
+cesium stop --force              # SIGKILL immediately, skip the SIGTERM grace
+cesium stop --timeout 5000       # extend grace period (default 3000ms)
+
+cesium restart                   # stop + start in foreground; inherits serve's flags
+
 cesium prune --older-than 90d    # dry-run: list artifacts older than 90 days
 cesium prune --older-than 90d --yes  # actually delete them
 
@@ -247,7 +253,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.2.1 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.2.2 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 
