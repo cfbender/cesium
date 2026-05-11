@@ -9,10 +9,7 @@ on disk, instead of dumping markdown into the terminal. The browser becomes the
 reading surface; the terminal stays the control surface. Each artifact is a single
 `.html` file: portable, archivable, viewable offline, shareable as a URL over SSH.
 
-<video src="assets/cesium.mp4" autoplay loop muted playsinline width="720">
-  Demo video — see <a href="assets/cesium.mp4">assets/cesium.mp4</a> if it
-  doesn't play inline (some markdown viewers strip <code>&lt;video&gt;</code>).
-</video>
+https://github.com/user-attachments/assets/03fdf32a-c4d5-4819-84eb-d272178d35cb
 
 ## Examples
 
