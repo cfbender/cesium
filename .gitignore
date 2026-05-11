@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.cache/
+.specs/
+
+# bun
+*.tsbuildinfo
+
+# editor
+.DS_Store
+.vscode/
+.idea/
+
+# runtime artifacts (during dev)
+.cesium-state/
