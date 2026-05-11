@@ -54,7 +54,7 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     muted: "#9E9288",
     accent: "#C75B7A",
     olive: "#8FA86E",
-    codeBg: "#0F0509",
+    codeBg: "#2B1F22",
     codeFg: "#DDD3C7",
   },
   // claret-light: deep-rose-on-warm-cream — derived from claret.nvim light palette.
@@ -85,7 +85,7 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     muted: "#9E9288",
     accent: "#C75B7A",
     olive: "#8FA86E",
-    codeBg: "#0F0509",
+    codeBg: "#2B1F22",
     codeFg: "#DDD3C7",
   },
   // Warm: ivory/clay/oat — the html-effectiveness reference palette.

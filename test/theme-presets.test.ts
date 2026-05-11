@@ -79,7 +79,7 @@ describe("claret-dark preset exact hex values", () => {
   test("muted is #9E9288", () => expect(dark.muted).toBe("#9E9288"));
   test("accent is #C75B7A", () => expect(dark.accent).toBe("#C75B7A"));
   test("olive is #8FA86E", () => expect(dark.olive).toBe("#8FA86E"));
-  test("codeBg is #0F0509", () => expect(dark.codeBg).toBe("#0F0509"));
+  test("codeBg is #2B1F22", () => expect(dark.codeBg).toBe("#2B1F22"));
   test("codeFg is #DDD3C7", () => expect(dark.codeFg).toBe("#DDD3C7"));
 });
 
