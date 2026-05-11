@@ -87,12 +87,15 @@ function renderConfirmControl(q: Extract<Question, { type: "confirm" }>): string
 
 function renderAskTextControl(q: Extract<Question, { type: "ask_text" }>): string {
   const placeholder = q.placeholder !== undefined ? escapeAttr(q.placeholder) : "";
+  const idAttr = escapeAttr(q.id);
+  const skipButton =
+    q.optional === true
+      ? `\n  <div class="cs-button-row">\n    <button class="cs-submit" data-question-id="${idAttr}" disabled>Submit</button>\n    <button class="cs-skip" data-question-id="${idAttr}">Skip</button>\n  </div>`
+      : `\n  <button class="cs-submit" disabled>Submit</button>`;
   if (q.multiline === true) {
-    return `  <textarea class="cs-text" rows="4" placeholder="${placeholder}"></textarea>
-  <button class="cs-submit" disabled>Submit</button>`;
+    return `  <textarea class="cs-text" rows="4" placeholder="${placeholder}"></textarea>${skipButton}`;
   }
-  return `  <input type="text" class="cs-text" placeholder="${placeholder}">
-  <button class="cs-submit" disabled>Submit</button>`;
+  return `  <input type="text" class="cs-text" placeholder="${placeholder}">${skipButton}`;
 }
 
 function renderSliderControl(q: Extract<Question, { type: "slider" }>): string {
@@ -219,7 +222,13 @@ function renderAnsweredConfirm(
   </div>`;
 }
 
-function renderAnsweredAskText(answer: Extract<AnswerValue, { type: "ask_text" }>): string {
+function renderAnsweredAskText(
+  q: Extract<Question, { type: "ask_text" }>,
+  answer: Extract<AnswerValue, { type: "ask_text" }>,
+): string {
+  if (answer.text === "" && q.optional === true) {
+    return `  <p class="cs-answered-skipped"><em>(skipped)</em></p>`;
+  }
   const escaped = escapeHtml(answer.text);
   const withBreaks = escaped.replace(/\n/g, "<br>");
   return `  <blockquote class="cs-answered-text">${withBreaks}</blockquote>`;
@@ -272,7 +281,10 @@ export function renderAnswered(question: Question, answer: AnswerValue): string 
       break;
     }
     case "ask_text":
-      valueHtml = renderAnsweredAskText(answer);
+      valueHtml = renderAnsweredAskText(
+        question as Extract<Question, { type: "ask_text" }>,
+        answer,
+      );
       break;
     case "slider":
       valueHtml = renderAnsweredSlider(answer);

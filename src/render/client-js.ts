@@ -38,7 +38,7 @@ export function getClientJs(): string {
     document.body.insertBefore(banner, document.body.firstChild);
     // Disable all interactive controls
     var disabled = document.querySelectorAll(
-      ".cs-submit, .cs-pick, .cs-confirm, .cs-react"
+      ".cs-submit, .cs-skip, .cs-pick, .cs-confirm, .cs-react"
     );
     for (var i = 0; i < disabled.length; i++) {
       var el = disabled[i];
@@ -209,6 +209,7 @@ export function getClientJs(): string {
     var qid = section.dataset["questionId"] || "";
     var input = section.querySelector("input.cs-text, textarea.cs-text");
     var submitBtn = section.querySelector("button.cs-submit");
+    var skipBtn = section.querySelector("button.cs-skip");
 
     function updateSubmitState() {
       if (submitBtn instanceof HTMLButtonElement && input) {
@@ -232,6 +233,12 @@ export function getClientJs(): string {
           text = input.value;
         }
         submitAnswer(section, qid, { type: "ask_text", text: text });
+      });
+    }
+
+    if (skipBtn) {
+      skipBtn.addEventListener("click", function () {
+        submitAnswer(section, qid, { type: "ask_text", text: "" });
       });
     }
   }

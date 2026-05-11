@@ -204,6 +204,23 @@ function makeSlider(): InteractiveData {
   };
 }
 
+function makeAskTextOptional(optional: boolean): InteractiveData {
+  return {
+    status: "open",
+    requireAll: false,
+    expiresAt: "2099-12-31T23:59:59Z",
+    questions: [
+      {
+        type: "ask_text",
+        id: "at",
+        question: "Anything else?",
+        optional,
+      },
+    ],
+    answers: {},
+  };
+}
+
 // ─── submitAnswer — multi-question, partial completion ────────────────────────
 
 describe("submitAnswer — multi-question partial", () => {
@@ -510,7 +527,59 @@ describe("submitAnswer — concurrency", () => {
   });
 });
 
-// ─── getState ─────────────────────────────────────────────────────────────────
+// ─── submitAnswer — ask_text optional ────────────────────────────────────────
+
+describe("submitAnswer — ask_text optional", () => {
+  test("optional=true + empty text → ok: true, status complete", async () => {
+    const path = await writeArtifact("artifact.html", makeAskTextOptional(true));
+    const outcome = await submitAnswer({
+      artifactPath: path,
+      questionId: "at",
+      value: { type: "ask_text", text: "" },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error("expected ok");
+    expect(outcome.status).toBe("complete");
+  });
+
+  test("optional=false + empty text → invalid-value", async () => {
+    const path = await writeArtifact("artifact.html", makeAskTextOptional(false));
+    const outcome = await submitAnswer({
+      artifactPath: path,
+      questionId: "at",
+      value: { type: "ask_text", text: "" },
+    });
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) throw new Error("expected error");
+    expect(outcome.reason).toBe("invalid-value");
+  });
+
+  test("optional=true + non-empty text → ok: true (normal path still works)", async () => {
+    const path = await writeArtifact("artifact.html", makeAskTextOptional(true));
+    const outcome = await submitAnswer({
+      artifactPath: path,
+      questionId: "at",
+      value: { type: "ask_text", text: "Some constraints here" },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error("expected ok");
+    expect(outcome.status).toBe("complete");
+  });
+
+  test("after skip, answered section renders (skipped) placeholder", async () => {
+    const path = await writeArtifact("artifact.html", makeAskTextOptional(true));
+    const outcome = await submitAnswer({
+      artifactPath: path,
+      questionId: "at",
+      value: { type: "ask_text", text: "" },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error("expected ok");
+    expect(outcome.replacementHtml).toContain("cs-answered-skipped");
+    expect(outcome.replacementHtml).toContain("(skipped)");
+    expect(outcome.replacementHtml).not.toContain("cs-answered-text");
+  });
+});
 
 describe("getState", () => {
   test("interactive artifact: returns status, answers, remaining", async () => {

@@ -138,8 +138,13 @@ function crossValidate(question: Question, value: AnswerValue): string | null {
       return null;
     }
     case "confirm":
-    case "ask_text":
       // Structural validation is sufficient
+      return null;
+    case "ask_text":
+      if (value.type !== "ask_text") return null;
+      if (value.text === "" && !question.optional) {
+        return "ask_text answer cannot be empty (question is required)";
+      }
       return null;
   }
 }

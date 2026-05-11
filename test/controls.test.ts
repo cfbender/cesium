@@ -278,6 +278,39 @@ describe("renderControl — ask_text", () => {
     const html = renderControl(makeAskText());
     expect(html).toContain('placeholder=""');
   });
+
+  test("optional=true renders cs-skip button", () => {
+    const html = renderControl(makeAskText({ optional: true }));
+    expect(html).toContain('class="cs-skip"');
+  });
+
+  test("optional=true wraps buttons in cs-button-row", () => {
+    const html = renderControl(makeAskText({ optional: true }));
+    expect(html).toContain('class="cs-button-row"');
+  });
+
+  test("optional=false (explicit) does NOT render skip button", () => {
+    const html = renderControl(makeAskText({ optional: false }));
+    expect(html).not.toContain("cs-skip");
+    expect(html).not.toContain("cs-button-row");
+  });
+
+  test("optional absent does NOT render skip button", () => {
+    const html = renderControl(makeAskText());
+    expect(html).not.toContain("cs-skip");
+    expect(html).not.toContain("cs-button-row");
+  });
+
+  test("optional=true skip button has data-question-id", () => {
+    const html = renderControl(makeAskText({ id: "myq", optional: true }));
+    expect(html).toContain('data-question-id="myq"');
+  });
+
+  test("optional=true: question text is properly HTML-escaped", () => {
+    const html = renderControl(makeAskText({ optional: true, question: "<b>Anything</b> else?" }));
+    expect(html).not.toContain("<b>Anything</b>");
+    expect(html).toContain("&lt;b&gt;Anything&lt;/b&gt;");
+  });
 });
 
 // ─── renderControl — slider ───────────────────────────────────────────────────
@@ -514,6 +547,28 @@ describe("renderAnswered — ask_text", () => {
   test("newlines converted to <br>", () => {
     const html = renderAnswered(makeAskText(), { type: "ask_text", text: "line1\nline2" });
     expect(html).toContain("line1<br>line2");
+  });
+
+  test("empty text with optional=true renders cs-answered-skipped", () => {
+    const html = renderAnswered(makeAskText({ optional: true }), { type: "ask_text", text: "" });
+    expect(html).toContain('class="cs-answered-skipped"');
+    expect(html).toContain("(skipped)");
+    expect(html).not.toContain("cs-answered-text");
+  });
+
+  test("empty text with optional=false renders blockquote (not skipped)", () => {
+    const html = renderAnswered(makeAskText({ optional: false }), { type: "ask_text", text: "" });
+    expect(html).toContain('class="cs-answered-text"');
+    expect(html).not.toContain("cs-answered-skipped");
+  });
+
+  test("non-empty text with optional=true still renders blockquote (regression)", () => {
+    const html = renderAnswered(makeAskText({ optional: true }), {
+      type: "ask_text",
+      text: "Some text",
+    });
+    expect(html).toContain('<blockquote class="cs-answered-text">Some text</blockquote>');
+    expect(html).not.toContain("cs-answered-skipped");
   });
 });
 

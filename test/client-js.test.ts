@@ -145,4 +145,17 @@ describe("getClientJs", () => {
   test("contains no import statements (inline browser script)", () => {
     expect(getClientJs()).not.toMatch(/^\s*import\s/m);
   });
+
+  test("contains cs-skip handler", () => {
+    const js = getClientJs();
+    expect(js).toContain("cs-skip");
+  });
+
+  test("skip handler POSTs ask_text with empty text string", () => {
+    const js = getClientJs();
+    // The skip handler calls submitAnswer with { type: "ask_text", text: "" }
+    expect(js).toContain('"ask_text"');
+    // The skip path explicitly sets text to empty string
+    expect(js).toContain('text: ""');
+  });
 });

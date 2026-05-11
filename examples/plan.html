@@ -578,6 +578,46 @@
         cursor: not-allowed;
       }
 
+      /* skip button — secondary, less prominent than submit */
+      .cs-skip {
+        align-self: flex-start;
+        padding: 0.6rem 1.5rem;
+        background: var(--surface-2);
+        color: var(--muted);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          border-color 120ms;
+      }
+      .cs-skip:hover:not(:disabled) {
+        opacity: 0.85;
+        border-color: var(--muted);
+      }
+      .cs-skip:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* button row — submit + skip side by side */
+      .cs-button-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+
+      /* answered-skipped placeholder */
+      .cs-answered-skipped {
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+
       /* pending / saving state */
       .cs-saving {
         opacity: 0.6;

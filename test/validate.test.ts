@@ -287,6 +287,44 @@ describe("validateQuestion — valid types", () => {
     }
   });
 
+  test("accepts ask_text with optional: true", () => {
+    const r = validateQuestion({
+      type: "ask_text",
+      id: "q4",
+      question: "Anything else?",
+      optional: true,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok && r.question.type === "ask_text") {
+      expect(r.question.optional).toBe(true);
+    }
+  });
+
+  test("accepts ask_text with optional: false", () => {
+    const r = validateQuestion({
+      type: "ask_text",
+      id: "q4",
+      question: "Tell me more.",
+      optional: false,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok && r.question.type === "ask_text") {
+      expect(r.question.optional).toBe(false);
+    }
+  });
+
+  test("accepts ask_text without optional field (defaults to absent/false)", () => {
+    const r = validateQuestion({
+      type: "ask_text",
+      id: "q4",
+      question: "What do you think?",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok && r.question.type === "ask_text") {
+      expect(r.question.optional).toBeUndefined();
+    }
+  });
+
   test("accepts slider with min < max", () => {
     const r = validateQuestion({
       type: "slider",
@@ -385,6 +423,17 @@ describe("validateQuestion — rejection cases", () => {
   test("rejects non-object input", () => {
     const r = validateQuestion("not an object");
     expect(r.ok).toBe(false);
+  });
+
+  test("rejects ask_text with optional as non-boolean", () => {
+    const r = validateQuestion({
+      type: "ask_text",
+      id: "q4",
+      question: "Anything?",
+      optional: "yes",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("optional");
   });
 });
 

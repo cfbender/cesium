@@ -290,6 +290,18 @@ describe("frameworkRulesCss — cs-* interactive control selectors", () => {
     expect(frameworkRulesCss()).toContain(".cs-saving");
   });
 
+  test("contains .cs-skip selector", () => {
+    expect(frameworkRulesCss()).toContain(".cs-skip {");
+  });
+
+  test("contains .cs-button-row selector", () => {
+    expect(frameworkRulesCss()).toContain(".cs-button-row {");
+  });
+
+  test("contains .cs-answered-skipped selector", () => {
+    expect(frameworkRulesCss()).toContain(".cs-answered-skipped {");
+  });
+
   test("cs-* rules use CSS variables (not hardcoded colors except warn red)", () => {
     const css = frameworkRulesCss();
     expect(css).toContain("var(--accent)");

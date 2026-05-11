@@ -90,7 +90,8 @@ plan branches, confirmation gates), publish an interactive artifact:
 
 Question types: pick_one, pick_many, confirm, ask_text, slider, react. The artifact
 is a permanent record of the conversation; once answered, controls freeze into a static
-markup that captures the user's decisions.
+markup that captures the user's decisions. Set `optional: true` on an `ask_text` question
+to add a Skip button (useful for "anything else?"-type follow-ups).
 
 Don't use cesium_ask for trivial yes/no questions you can ask in the terminal. Use it
 when the question deserves to live on disk as a decision record.

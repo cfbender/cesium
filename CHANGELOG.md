@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.1 — 2026-05-11
+
+Small quality-of-life patch. The only user-visible change is the Skip button on
+optional `ask_text` questions; all other v0.3.0 behavior is unchanged.
+
+- **new:** `optional?: boolean` field on `ask_text` questions (default `false`).
+  When `true`, the server accepts an empty-string answer (skipped), and the
+  answered section renders a muted "(skipped)" placeholder instead of a blockquote.
+- **new:** Skip button rendered alongside Submit for optional ask_text controls
+  (`class="cs-skip"`), wrapped in a `class="cs-button-row"` flex container.
+- **new:** Client JS `cs-skip` click handler — POSTs `{ type: "ask_text", text: "" }`
+  via the same `submitAnswer` path as Submit.
+- **examples:** `ask.html` "constraints" question is now `optional: true` — showcases
+  the Skip button.
+- **tests:** 870 → 889 (+19 new tests across validate, mutate, controls, client-js,
+  theme, system-fragment).
+
 ## v0.3.0 — 2026-05-11
 
 ### Added

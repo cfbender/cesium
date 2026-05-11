@@ -72,3 +72,14 @@ test("system-fragment.md contains trigger guidance for cesium_ask + cesium_wait"
   // Mention of interactive Q&A workflow
   expect(content).toMatch(/interactive/i);
 });
+
+test("system-fragment.md is under 4000 chars (token-budget proxy)", () => {
+  const content = readFragment();
+  expect(content.length).toBeLessThan(4000);
+});
+
+test("system-fragment.md mentions optional on ask_text", () => {
+  const content = readFragment();
+  expect(content).toContain("optional");
+  expect(content).toContain("ask_text");
+});

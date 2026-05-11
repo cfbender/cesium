@@ -823,6 +823,7 @@ const ASK_INTERACTIVE: InteractiveData = {
       id: "constraints",
       question: "Any constraints I should know about? (optional context)",
       multiline: true,
+      optional: true,
       placeholder:
         "e.g. compliance requirements, legacy SSO contracts, known blockers, team bandwidth…",
       context: "Free-form. Leave blank if nothing comes to mind.",

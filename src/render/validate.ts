@@ -81,6 +81,7 @@ export type Question =
       question: string;
       multiline?: boolean;
       placeholder?: string;
+      optional?: boolean;
       context?: string;
     }
   | {
@@ -207,6 +208,12 @@ export function validateQuestion(q: unknown): QuestionValidationResult {
       const result: Question = { type: "ask_text", id, question: questionText };
       if (typeof raw["multiline"] === "boolean") result.multiline = raw["multiline"];
       if (typeof raw["placeholder"] === "string") result.placeholder = raw["placeholder"];
+      if ("optional" in raw && raw["optional"] !== undefined) {
+        if (typeof raw["optional"] !== "boolean") {
+          return { ok: false, error: `ask_text question "${id}" optional must be a boolean` };
+        }
+        result.optional = raw["optional"];
+      }
       if (context !== undefined) result.context = context;
       return { ok: true, question: result };
     }

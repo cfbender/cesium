@@ -578,6 +578,46 @@
         cursor: not-allowed;
       }
 
+      /* skip button — secondary, less prominent than submit */
+      .cs-skip {
+        align-self: flex-start;
+        padding: 0.6rem 1.5rem;
+        background: var(--surface-2);
+        color: var(--muted);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          border-color 120ms;
+      }
+      .cs-skip:hover:not(:disabled) {
+        opacity: 0.85;
+        border-color: var(--muted);
+      }
+      .cs-skip:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* button row — submit + skip side by side */
+      .cs-button-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+
+      /* answered-skipped placeholder */
+      .cs-answered-skipped {
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+
       /* pending / saving state */
       .cs-saving {
         opacity: 0.6;
@@ -716,6 +756,7 @@
               "id": "constraints",
               "question": "Any constraints I should know about? (optional context)",
               "multiline": true,
+              "optional": true,
               "placeholder": "e.g. compliance requirements, legacy SSO contracts, known blockers, team bandwidth…",
               "context": "Free-form. Leave blank if nothing comes to mind."
             },
@@ -865,7 +906,10 @@
           rows="4"
           placeholder="e.g. compliance requirements, legacy SSO contracts, known blockers, team bandwidth…"
         ></textarea>
-        <button class="cs-submit" disabled>Submit</button>
+        <div class="cs-button-row">
+          <button class="cs-submit" data-question-id="constraints" disabled>Submit</button>
+          <button class="cs-skip" data-question-id="constraints">Skip</button>
+        </div>
       </section>
       <section class="cs-control-slider" data-question-id="risk-tolerance">
         <p class="eyebrow">
@@ -929,7 +973,9 @@
           banner.textContent = "Session ended — answers can no longer be submitted.";
           document.body.insertBefore(banner, document.body.firstChild);
           // Disable all interactive controls
-          var disabled = document.querySelectorAll(".cs-submit, .cs-pick, .cs-confirm, .cs-react");
+          var disabled = document.querySelectorAll(
+            ".cs-submit, .cs-skip, .cs-pick, .cs-confirm, .cs-react",
+          );
           for (var i = 0; i < disabled.length; i++) {
             var el = disabled[i];
             if (el instanceof HTMLButtonElement || el instanceof HTMLInputElement) {
@@ -1097,6 +1143,7 @@
           var qid = section.dataset["questionId"] || "";
           var input = section.querySelector("input.cs-text, textarea.cs-text");
           var submitBtn = section.querySelector("button.cs-submit");
+          var skipBtn = section.querySelector("button.cs-skip");
 
           function updateSubmitState() {
             if (submitBtn instanceof HTMLButtonElement && input) {
@@ -1121,6 +1168,12 @@
                 text = input.value;
               }
               submitAnswer(section, qid, { type: "ask_text", text: text });
+            });
+          }
+
+          if (skipBtn) {
+            skipBtn.addEventListener("click", function () {
+              submitAnswer(section, qid, { type: "ask_text", text: "" });
             });
           }
         }
