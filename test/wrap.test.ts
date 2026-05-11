@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
+import type { InteractiveData } from "../src/render/validate.ts";
 
 function makeMeta(overrides?: Partial<ArtifactMeta>): ArtifactMeta {
   return {
@@ -224,5 +225,494 @@ describe("wrapDocument", () => {
       themeCssHref: "",
     });
     expect(doc).toContain('<link rel="stylesheet" href="../../../theme.css">');
+  });
+});
+
+// ─── Interactive rendering ─────────────────────────────────────────────────────
+
+function makeInteractive(overrides?: Partial<InteractiveData>): InteractiveData {
+  return {
+    status: "open",
+    requireAll: true,
+    expiresAt: "2026-12-31T23:59:59Z",
+    questions: [
+      {
+        type: "pick_one",
+        id: "q1",
+        question: "Which option?",
+        options: [
+          { id: "a", label: "Option A" },
+          { id: "b", label: "Option B" },
+        ],
+      },
+      {
+        type: "confirm",
+        id: "q2",
+        question: "Are you sure?",
+        yesLabel: "Absolutely",
+        noLabel: "No way",
+      },
+    ],
+    answers: {},
+    ...overrides,
+  };
+}
+
+describe("wrapDocument — interactive absent", () => {
+  test("output is identical to non-interactive when interactive not provided", () => {
+    const docWithout = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: null,
+    });
+    // Omitting interactive entirely is equivalent to not having it
+    const optsWithoutInteractive: Parameters<typeof wrapDocument>[0] = {
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: null,
+    };
+    const docOmitted = wrapDocument(optsWithoutInteractive);
+    expect(docWithout).toBe(docOmitted);
+  });
+
+  test("does not contain cs-questions when interactive absent", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+    });
+    expect(doc).not.toContain("cs-questions");
+    expect(doc).not.toContain("cs-control-");
+    expect(doc).not.toContain("cs-answered");
+  });
+
+  test("cesium-meta JSON does not contain interactive key when absent", () => {
+    const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
+    const match = /<script type="application\/json" id="cesium-meta">([\s\S]*?)<\/script>/i.exec(
+      doc,
+    );
+    expect(match).not.toBeNull();
+    const parsed = JSON.parse(match![1]!) as Record<string, unknown>;
+    expect("interactive" in parsed).toBe(false);
+  });
+});
+
+describe("wrapDocument — interactive with 2 unanswered questions", () => {
+  test("contains cs-questions section", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+    });
+    expect(doc).toContain('<section class="cs-questions">');
+  });
+
+  test("contains 2 cs-control-* sections", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+    });
+    const controlMatches = doc.match(/class="cs-control-/g);
+    expect(controlMatches).not.toBeNull();
+    expect(controlMatches!.length).toBe(2);
+  });
+
+  test("each control section has correct data-question-id", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+    });
+    expect(doc).toContain('data-question-id="q1"');
+    expect(doc).toContain('data-question-id="q2"');
+  });
+
+  test("control sections contain QUESTION eyebrow and question text", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+    });
+    expect(doc).toContain("QUESTION");
+    expect(doc).toContain("Which option?");
+    expect(doc).toContain("Are you sure?");
+  });
+
+  test("no cs-answered sections when nothing answered", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+    });
+    expect(doc).not.toContain("cs-answered");
+  });
+
+  test("body framing content appears before cs-questions", () => {
+    const doc = wrapDocument({
+      body: "<p>framing prose</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+    });
+    const bodyPos = doc.indexOf("framing prose");
+    const questionsPos = doc.indexOf('<section class="cs-questions">');
+    expect(bodyPos).toBeGreaterThanOrEqual(0);
+    expect(questionsPos).toBeGreaterThanOrEqual(0);
+    expect(bodyPos).toBeLessThan(questionsPos);
+  });
+});
+
+describe("wrapDocument — interactive with 1 of 2 answered", () => {
+  test("contains 1 cs-control-* and 1 cs-answered", () => {
+    const interactive = makeInteractive({
+      answers: {
+        q1: {
+          value: { type: "pick_one", selected: "a" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    });
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    const controlCount = (doc.match(/class="cs-control-/g) ?? []).length;
+    const answeredCount = (doc.match(/class="cs-answered"/g) ?? []).length;
+    expect(controlCount).toBe(1);
+    expect(answeredCount).toBe(1);
+  });
+
+  test("answered section shows YOU ANSWERED eyebrow", () => {
+    const interactive = makeInteractive({
+      answers: {
+        q1: {
+          value: { type: "pick_one", selected: "a" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    });
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("YOU ANSWERED");
+  });
+
+  test("pick_one answered shows option label", () => {
+    const interactive = makeInteractive({
+      answers: {
+        q1: {
+          value: { type: "pick_one", selected: "b" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    });
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("Selected: Option B");
+  });
+
+  test("confirm answered shows yesLabel", () => {
+    const interactive = makeInteractive({
+      answers: {
+        q2: {
+          value: { type: "confirm", choice: "yes" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    });
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("Absolutely");
+  });
+
+  test("confirm answered shows noLabel", () => {
+    const interactive = makeInteractive({
+      answers: {
+        q2: {
+          value: { type: "confirm", choice: "no" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    });
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("No way");
+  });
+});
+
+describe("wrapDocument — interactive cesium-meta JSON", () => {
+  test("cesium-meta JSON contains full interactive object", () => {
+    const interactive = makeInteractive();
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    const match = /<script type="application\/json" id="cesium-meta">([\s\S]*?)<\/script>/i.exec(
+      doc,
+    );
+    expect(match).not.toBeNull();
+    const parsed = JSON.parse(match![1]!) as Record<string, unknown>;
+    expect(parsed["interactive"]).toBeDefined();
+    const embeddedInteractive = parsed["interactive"] as Record<string, unknown>;
+    expect(embeddedInteractive["status"]).toBe("open");
+    expect(embeddedInteractive["requireAll"]).toBe(true);
+    expect(embeddedInteractive["questions"]).toHaveLength(2);
+  });
+
+  test("cesium-meta interactive questions are full objects", () => {
+    const interactive = makeInteractive();
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    const match = /<script type="application\/json" id="cesium-meta">([\s\S]*?)<\/script>/i.exec(
+      doc,
+    );
+    const parsed = JSON.parse(match![1]!) as Record<string, unknown>;
+    const questions = (parsed["interactive"] as Record<string, unknown>)["questions"] as Record<
+      string,
+      unknown
+    >[];
+    expect(questions[0]?.["id"]).toBe("q1");
+    expect(questions[1]?.["id"]).toBe("q2");
+  });
+});
+
+describe("wrapDocument — interactive HTML escaping", () => {
+  test("question text with HTML special chars is escaped in control section", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [
+        {
+          type: "ask_text",
+          id: "q-xss",
+          question: '<script>alert("xss")</script>',
+        },
+      ],
+      answers: {},
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).not.toContain('<script>alert("xss")</script>');
+    expect(doc).toContain("&lt;script&gt;");
+  });
+
+  test("ask_text answer text is HTML-escaped in rendered section", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [{ type: "ask_text", id: "qt", question: "Type something" }],
+      answers: {
+        qt: {
+          value: { type: "ask_text", text: "<b>bold</b> & more" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    // The cs-answered section must use escaped HTML
+    const answeredMatch = /<section class="cs-answered"[^>]*>([\s\S]*?)<\/section>/.exec(doc);
+    expect(answeredMatch).not.toBeNull();
+    const sectionHtml = answeredMatch![1]!;
+    expect(sectionHtml).not.toContain("<b>bold</b>");
+    expect(sectionHtml).toContain("&lt;b&gt;bold&lt;/b&gt;");
+  });
+
+  test("ask_text multiline answer uses <br> for newlines", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [{ type: "ask_text", id: "qt", question: "Type something" }],
+      answers: {
+        qt: {
+          value: { type: "ask_text", text: "line one\nline two" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("line one<br>line two");
+  });
+});
+
+describe("wrapDocument — interactive answer value rendering", () => {
+  test("pick_many shows comma-joined labels", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [
+        {
+          type: "pick_many",
+          id: "pm",
+          question: "Pick some",
+          options: [
+            { id: "x", label: "X-Ray" },
+            { id: "y", label: "Yankee" },
+            { id: "z", label: "Zulu" },
+          ],
+        },
+      ],
+      answers: {
+        pm: {
+          value: { type: "pick_many", selected: ["x", "z"] },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("Selected: X-Ray, Zulu");
+  });
+
+  test("slider shows value", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [{ type: "slider", id: "sl", question: "Rate it", min: 0, max: 10 }],
+      answers: {
+        sl: {
+          value: { type: "slider", value: 8 },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("Value: 8");
+  });
+
+  test("react shows decision", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [{ type: "react", id: "rt", question: "Approve?" }],
+      answers: {
+        rt: {
+          value: { type: "react", decision: "approve" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("Decision: approve");
+  });
+
+  test("react with comment shows both decision and comment", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [{ type: "react", id: "rt", question: "Approve?", allowComment: true }],
+      answers: {
+        rt: {
+          value: { type: "react", decision: "approve", comment: "Looks great" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain("Decision: approve");
+    expect(doc).toContain("Comment: Looks great");
+  });
+
+  test("confirm with default labels falls back to Yes/No", () => {
+    const interactive: InteractiveData = {
+      status: "open",
+      requireAll: true,
+      expiresAt: "2026-12-31T23:59:59Z",
+      questions: [{ type: "confirm", id: "cf", question: "Continue?" }],
+      answers: {
+        cf: {
+          value: { type: "confirm", choice: "yes" },
+          answeredAt: "2026-05-11T15:00:00Z",
+        },
+      },
+    };
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive,
+    });
+    expect(doc).toContain(">Yes<");
+  });
+});
+
+describe("wrapDocument — ask kind footer", () => {
+  test("footer renders ask as the kind", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+    });
+    expect(doc).toContain("kind: ask");
   });
 });
