@@ -329,6 +329,89 @@
         color: var(--muted);
         text-transform: lowercase;
       }
+      .pill.accent {
+        background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* ranked list */
+      .ranked-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+        margin: 0 0 1.5em;
+        padding: 0;
+        list-style: none;
+      }
+      .ranked-item {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 22px 26px;
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 6px 24px;
+        align-items: start;
+      }
+      .ranked-item .rank-num {
+        font-family: var(--serif);
+        font-size: 2.4rem;
+        font-weight: 500;
+        color: var(--oat);
+        line-height: 1;
+        letter-spacing: -0.02em;
+        padding-top: 2px;
+      }
+      .ranked-item .rank-title {
+        font-family: var(--serif);
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin: 0 0 6px;
+        line-height: 1.3;
+      }
+      .ranked-item .rank-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .ranked-item .rank-body > p {
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        line-height: 1.65;
+        margin: 0 0 0.85em;
+      }
+      .ranked-item .rank-body > p:last-child {
+        margin-bottom: 0;
+      }
+      .ranked-item .rank-body > ul,
+      .ranked-item .rank-body > ol {
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        line-height: 1.65;
+        margin: 0 0 0.85em;
+        padding-left: 1.2em;
+      }
+      .ranked-item .rank-aside {
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        padding-left: 14px;
+        border-left: 2px solid var(--rule);
+        margin: 0;
+      }
+      .ranked-item .rank-aside-label {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-right: 6px;
+      }
 
       /* byline */
       .byline {
@@ -843,6 +926,72 @@
             <span class="tag">performance</span>
           </p>
         </div>
+      </section>
+
+      <!-- ============================================================
+       Section 13 · Ranked list
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">13 · ranked-list</p>
+        <h2 class="h-section"><span class="section-num">13</span>Ranked list</h2>
+        <p>
+          Use <code>.ranked-list</code> + <code>.ranked-item</code> for ordered recommendations,
+          findings, or rankings — anything that would otherwise be a heavy numbered
+          <code>&lt;h3&gt;</code> sequence. Each item gets a soft serif numeral on the left and a
+          calm title + meta + body on the right. Pair <code>.pill.accent</code> +
+          <code>.tag</code> in the meta row for impact and savings; use <code>.rank-aside</code> for
+          a quieter "bonus" addendum.
+        </p>
+
+        <ol class="ranked-list">
+          <li class="ranked-item">
+            <div class="rank-num">01</div>
+            <div class="rank-body">
+              <h3 class="rank-title">Replace the styleguide payload with a compact catalog</h3>
+              <div class="rank-meta">
+                <span class="pill accent">High impact</span>
+                <span class="tag">~6–8k tokens / call</span>
+              </div>
+              <p>
+                Return a structured Markdown reference of <em>class → purpose → minimal example</em>
+                instead of the full HTML framework. Realistic target: 3–5 KB / ~1k tokens, down from
+                ~7–9k.
+              </p>
+              <p class="rank-aside">
+                <span class="rank-aside-label">Bonus</span>
+                Derive the catalog from a single source so it can't drift from the framework.
+              </p>
+            </div>
+          </li>
+          <li class="ranked-item">
+            <div class="rank-num">02</div>
+            <div class="rank-body">
+              <h3 class="rank-title">Trim the system prompt fragment</h3>
+              <div class="rank-meta">
+                <span class="pill">Low impact</span>
+                <span class="tag">~400 tokens / session</span>
+              </div>
+              <p>
+                Remove redundancy with in-tool <code>description</code> strings. Nice but not
+                transformative.
+              </p>
+            </div>
+          </li>
+          <li class="ranked-item">
+            <div class="rank-num">03</div>
+            <div class="rank-body">
+              <h3 class="rank-title">Stop double-emitting CSS in <code>wrapDocument()</code></h3>
+              <div class="rank-meta">
+                <span class="pill">Disk only</span>
+                <span class="tag">~17 KB / artifact</span>
+              </div>
+              <p>
+                Inline the framework only when the linked stylesheet is unavailable; emit tokens
+                inline always.
+              </p>
+            </div>
+          </li>
+        </ol>
       </section>
 
       <!-- ============================================================

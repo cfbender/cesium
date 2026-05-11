@@ -9,10 +9,6 @@ on disk, instead of dumping markdown into the terminal. The browser becomes the
 reading surface; the terminal stays the control surface. Each artifact is a single
 `.html` file: portable, archivable, viewable offline, shareable as a URL over SSH.
 
-v0.3.0 adds **interactive Q&A artifacts** — the agent can now publish a question
-form, wait for the user to answer in their browser, and receive the structured
-responses before continuing work.
-
 <video src="assets/cesium.mp4" autoplay loop muted playsinline width="720">
   Demo video — see <a href="assets/cesium.mp4">assets/cesium.mp4</a> if it
   doesn't play inline (some markdown viewers strip <code>&lt;video&gt;</code>).
