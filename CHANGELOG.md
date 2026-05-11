@@ -1,8 +1,46 @@
 # Changelog
 
-# Changelog
+## v0.3.0 — 2026-05-11
 
-# Changelog
+### Added
+
+- **`cesium_ask`** — publish an interactive Q&A artifact and return its URL. The
+  agent calls this when it needs structured input before producing a final artifact:
+  design tradeoffs, plan choices, confirmation gates. Returns `{ id, filePath, fileUrl, httpUrl }`.
+
+- **`cesium_wait`** — block until the user finishes answering all required questions.
+  Polls disk every 500 ms reading the artifact's embedded `interactive.status`. Returns
+  the full `answers` map once complete, expired, or cancelled.
+
+- **New artifact kind: `"ask"`** — interactive Q&A artifacts. A single self-contained
+  `.html` file that embeds the question form, client JS, and answers. Server-mutated
+  atomically on each answer; crystallizes into a permanent static record once complete.
+  The same file is the form, the live session, and the archive.
+
+- **Six question types:** `pick_one` (radio group + recommended), `pick_many`
+  (checkbox group + min/max), `confirm` (yes/no with custom labels), `ask_text`
+  (free-text, optional multiline), `slider` (numeric range), `react` (thumbs reaction
+  with optional comment).
+
+- **Server: new `/api/*` routes** — `POST /api/sessions/<slug>/<file>/answers/<qid>`
+  submits an individual answer; `GET /api/sessions/<slug>/<file>/state` returns current
+  status and remaining question ids. Per-artifact file lock (`<artifactPath>.lock`).
+
+- **`examples/ask.html`** — baked demo artifact demonstrating all six question types
+  in `status: "open"` state. Open in browser to see the controls.
+
+### Changed
+
+- **Storage:** new `src/storage/mutate.ts` — atomic read-mutate-write for interactive
+  artifacts. New `src/storage/project-summaries.ts` — `buildProjectSummaries` extracted
+  from `publish.ts` and `ask.ts` into a shared module (no behavior change).
+
+- **Render:** new `src/render/controls.ts` (question control + answered renderers) and
+  `src/render/client-js.ts` (~309-line inline JS bundle for answer POSTing and UI state).
+  ~210 new `.cs-*` CSS rules in `frameworkRulesCss()`.
+
+- **Tests:** 863 → 870 (commit 1 refactor: +7 project-summaries tests). Full suite: 870
+  pass (+281 new tests since v0.2.4).
 
 ## v0.2.4 — 2026-05-11
 

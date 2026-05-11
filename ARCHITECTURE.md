@@ -4,7 +4,7 @@ Cesium is an opencode plugin that converts substantive agent responses into self
 HTML artifacts stored on disk and served locally. This document describes the architectural
 decisions made for v1.
 
-**Status: v0.1.0 shipped.** See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
+**Status: v0.3.0 shipped.** See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
 
 ---
 
@@ -198,6 +198,95 @@ When `cesium_publish` receives a `supersedes` id:
 
 ---
 
+## Interactive artifacts (v0.3.0)
+
+### The artifact-as-UI insight
+
+In v0.3.0, `ask`-kind artifacts collapse the "publish" and "interactive UI" pipelines
+into one. The artifact file IS the form. Inline JS POSTs individual answers to the
+cesium HTTP server; the server mutates the file on disk atomically; once all required
+questions are answered the status transitions to `"complete"` and the controls freeze
+into a static answered record. The same `.html` file is the form, the live conversation,
+and the permanent record — no separate UI, no database, no websocket.
+
+### Storage
+
+`ask`-kind artifacts carry an `interactive` field in the embedded
+`<script type="application/json" id="cesium-meta">` block. Shape:
+
+```ts
+type InteractiveData = {
+  status: "open" | "complete" | "expired" | "cancelled";
+  requireAll: boolean;
+  expiresAt: string; // ISO-8601
+  questions: Question[];
+  answers: Record<string, { value: AnswerValue; answeredAt: string }>;
+  completedAt?: string;
+};
+```
+
+The same atomic-write + `index.json` cache pattern as publish artifacts applies.
+`src/storage/mutate.ts` owns the read-mutate-write cycle for interactive artifacts.
+
+### Transport
+
+Answer submission:
+
+```
+POST /api/sessions/<projectSlug>/<filename>/answers/<questionId>
+Body: { "value": <AnswerValue> }
+```
+
+State query:
+
+```
+GET /api/sessions/<projectSlug>/<filename>/state
+Response: { status, remaining, answers }
+```
+
+The server uses `withLock` on `<artifactPath>.lock` for all read-mutate-write
+operations — the same lock primitive used by the index.
+
+### Tools
+
+- **`cesium_ask`** — validates input, builds the interactive artifact, writes it to
+  disk, starts the server, and returns `{ id, filePath, fileUrl, httpUrl }`.
+- **`cesium_wait`** — polls disk every 500 ms, reading the artifact's embedded
+  `interactive.status`. Returns the full `answers` map once status is non-`"open"`.
+  No subagents, no WebSockets — pure polling, pure HTTP.
+
+### Question types (v0.3.0)
+
+Six types ship in v0.3.0: `pick_one`, `pick_many`, `confirm`, `ask_text`, `slider`,
+`react`. Branching logic, ranking, and file/image inputs are deferred.
+
+Each type has a corresponding control renderer in `src/render/controls.ts` that
+produces the interactive HTML, and an answered renderer (`renderAnswered`) that
+produces the frozen read-only record once an answer is recorded.
+
+### Lifecycle
+
+Status transitions: `open` → `complete` (all required answers received) or
+`open` → `expired` (server-side check on `expiresAt`) or `open` → `cancelled`
+(explicit cancellation via API).
+
+Once status is non-`"open"`, `wrapDocument` omits the inline
+`<script data-cesium-client>` tag entirely, so the file loads without any interactive
+overhead. Controls render as `.cs-answered` read-only markup.
+
+### CSS additions
+
+`src/render/theme.ts` → `frameworkRulesCss()` gained ~210 lines of `.cs-*` rules:
+
+- `.cs-questions` — container
+- `.cs-question` — individual question block
+- `.cs-control` — wraps each input widget
+- `.cs-answered` — frozen answer display
+- `.cs-banner` / `.cs-banner-offline` / `.cs-banner-ended` — status banners
+- Per-type modifiers: `.cs-pick`, `.cs-confirm`, `.cs-slider`, `.cs-text`, `.cs-react`
+
+---
+
 ## v1 build phases
 
 | Phase | Scope                                                                              | Status  |
@@ -208,3 +297,8 @@ When `cesium_publish` receives a `supersedes` id:
 | 3     | Per-project + global `index.html` generation, file lock, revision chains           | shipped |
 | 4     | Lazy auto-server, port-scan, idle shutdown, SSH detection                          | shipped |
 | 5     | Reference examples, dedicated agent definition, release polish                     | shipped |
+| A     | Interactive artifact types + `cesium_ask` tool                                     | shipped |
+| B     | Answer submission API (`/api/sessions/…/answers/:qid`) + per-artifact file lock    | shipped |
+| C     | `cesium_wait` polling tool + client JS answer submission                           | shipped |
+| D     | Interactive lifecycle (status transitions, expiry, freeze)                         | shipped |
+| E     | `buildProjectSummaries` refactor, `examples/ask.html`, docs, v0.3.0 release        | shipped |

@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How should we ship the auth rewrite? · cesium</title>
+    <style>
+      /* reset */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 1rem;
+        line-height: 1.6;
+        padding: clamp(20px, 4vw, 56px);
+      }
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+      a:hover {
+        opacity: 0.8;
+      }
+      img,
+      svg {
+        max-width: 100%;
+        height: auto;
+      }
+      p {
+        margin-bottom: 1em;
+      }
+      ul,
+      ol {
+        padding-left: 1.5em;
+        margin-bottom: 1em;
+      }
+
+      /* layout */
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      section {
+        margin-bottom: 64px;
+      }
+
+      /* typography */
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-family: var(--serif);
+        color: var(--ink);
+        line-height: 1.2;
+        margin-bottom: 0.5em;
+      }
+
+      /* eyebrow */
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.5em;
+      }
+
+      /* headings */
+      .h-display {
+        font-family: var(--serif);
+        font-size: clamp(2rem, 5vw, 3.25rem);
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--ink);
+        margin-bottom: 0.75em;
+      }
+      .h-section {
+        font-family: var(--serif);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.5em;
+      }
+      .section-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--oat);
+        color: var(--ink-soft);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 6px;
+        padding: 2px 7px;
+        margin-right: 0.5em;
+        vertical-align: middle;
+      }
+
+      /* card */
+      .card {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 1.5em;
+      }
+
+      /* tldr */
+      .tldr {
+        background: var(--surface);
+        border-left: 4px solid var(--accent);
+        border-radius: 0 12px 12px 0;
+        padding: 16px 20px;
+        margin-bottom: 1.5em;
+        font-size: 1.05rem;
+        color: var(--ink-soft);
+      }
+
+      /* callout */
+      .callout {
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 1.25em;
+        border: 1.5px solid var(--rule);
+        background: var(--surface-2);
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+      }
+      .callout.note {
+        border-color: var(--olive);
+        background: color-mix(in srgb, var(--olive) 10%, var(--surface));
+      }
+      .callout.warn {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+      }
+      .callout.risk {
+        border-color: #b45309;
+        background: color-mix(in srgb, #b45309 10%, var(--surface));
+      }
+
+      /* code */
+      .code {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        font-family: var(--mono);
+        font-size: 0.875rem;
+        line-height: 1.6;
+        border-radius: 8px;
+        padding: 16px 20px;
+        overflow-x: auto;
+        margin-bottom: 1.25em;
+        white-space: pre;
+      }
+      .code .kw {
+        color: var(--accent);
+      }
+      .code .str {
+        color: var(--olive);
+      }
+      .code .cm {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .code .fn {
+        color: #d4a85a;
+      }
+
+      /* timeline */
+      .timeline {
+        list-style: none;
+        padding: 0;
+        position: relative;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: var(--rule);
+      }
+      .timeline li {
+        position: relative;
+        padding-left: 32px;
+        margin-bottom: 1.25em;
+      }
+      .timeline li::before {
+        content: "";
+        position: absolute;
+        left: 2px;
+        top: 6px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--oat);
+        border: 2px solid var(--accent);
+      }
+
+      /* diagram */
+      .diagram {
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 1.5em;
+        background: var(--surface);
+      }
+      .diagram figcaption {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-top: 10px;
+        font-family: var(--sans);
+      }
+
+      /* compare-table */
+      .compare-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 0.95rem;
+      }
+      .compare-table th,
+      .compare-table td {
+        border: 1.5px solid var(--rule);
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .compare-table th {
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .compare-table tr:nth-child(even) td {
+        background: var(--surface-2);
+      }
+
+      /* risk-table */
+      .risk-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 0.95rem;
+      }
+      .risk-table th,
+      .risk-table td {
+        border: 1.5px solid var(--rule);
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .risk-table th {
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-weight: 600;
+      }
+      .risk-table td:first-child {
+        font-weight: 600;
+        color: var(--ink-soft);
+      }
+
+      /* inline chips */
+      .kbd {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.8em;
+        background: var(--surface-2);
+        border: 1.5px solid var(--rule);
+        border-radius: 4px;
+        padding: 1px 6px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .pill {
+        display: inline-block;
+        font-family: var(--sans);
+        font-size: 0.8em;
+        font-weight: 500;
+        background: var(--oat);
+        border-radius: 20px;
+        padding: 2px 10px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.75em;
+        font-weight: 600;
+        background: var(--surface-2);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 2px 8px;
+        color: var(--muted);
+        text-transform: lowercase;
+      }
+
+      /* byline */
+      .byline {
+        border-top: 1.5px solid var(--rule);
+        margin-top: 64px;
+        padding-top: 18px;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1em;
+        align-items: center;
+      }
+      .byline a {
+        color: var(--muted);
+      }
+
+      /* ─── interactive controls (.cs-*) ─────────────────────────────────────────── */
+
+      /* questions container */
+      .cs-questions {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin: 2rem 0;
+      }
+
+      /* individual question sections */
+      .cs-control-pick_one,
+      .cs-control-pick_many,
+      .cs-control-confirm,
+      .cs-control-ask_text,
+      .cs-control-slider,
+      .cs-control-react {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      /* answered section — subtle left accent, slightly muted */
+      .cs-answered {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-left: 3px solid var(--olive);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        opacity: 0.85;
+      }
+
+      /* pick buttons / labels */
+      .cs-pick {
+        display: block;
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+        transition:
+          border-color 120ms,
+          transform 120ms;
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1.4;
+      }
+      .cs-pick:hover,
+      .cs-pick:focus-visible {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+        outline: none;
+      }
+      .cs-pick-desc {
+        color: var(--muted);
+        font-size: 0.9em;
+        margin-top: 0.25rem;
+      }
+      .cs-recommended {
+        border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+
+      /* final/locked pick — no hover, accent border */
+      .cs-pick-final {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+        cursor: default;
+        transform: none !important;
+      }
+      .cs-pick-final:hover {
+        transform: none;
+        border-color: var(--accent);
+      }
+
+      /* confirm buttons */
+      .cs-confirm-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .cs-confirm {
+        min-width: 120px;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        border: 1.5px solid var(--rule);
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          transform 120ms;
+      }
+      .cs-confirm:hover:not(:disabled) {
+        opacity: 0.85;
+        transform: translateY(-1px);
+      }
+      .cs-yes {
+        background: var(--accent);
+        color: var(--bg);
+        border-color: var(--accent);
+      }
+      .cs-no {
+        background: var(--surface);
+        color: var(--ink);
+        border-color: var(--rule);
+      }
+      .cs-confirm-final {
+        cursor: default;
+        transform: none !important;
+      }
+      .cs-confirm-final:hover {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* text input / textarea */
+      .cs-text {
+        display: block;
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        background: var(--surface-2);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 1rem;
+        line-height: 1.5;
+        transition: border-color 120ms;
+        resize: vertical;
+      }
+      .cs-text:focus {
+        border-color: var(--accent);
+        outline: none;
+      }
+      textarea.cs-text {
+        font-family: var(--mono);
+      }
+
+      /* answered text */
+      .cs-answered-text {
+        border-left: 3px solid var(--accent);
+        margin: 0;
+        padding: 0.5rem 1rem;
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+        border-radius: 0 8px 8px 0;
+      }
+
+      /* slider */
+      .cs-slider {
+        width: 100%;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .cs-slider-out {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: var(--surface-2);
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-weight: 600;
+        font-size: 0.9em;
+      }
+      .cs-slider-final {
+        font-size: 1rem;
+        color: var(--ink-soft);
+      }
+      .cs-slider-final strong {
+        color: var(--ink);
+        font-family: var(--mono);
+      }
+
+      /* react buttons */
+      .cs-react-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .cs-react {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1.5px solid var(--rule);
+        background: var(--surface);
+        color: var(--ink);
+        font-family: inherit;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          border-color 120ms,
+          opacity 120ms;
+      }
+      .cs-react:hover:not(:disabled) {
+        border-color: var(--accent);
+        opacity: 0.9;
+      }
+      .cs-react-comment {
+        /* same as cs-text textarea */
+      }
+
+      /* optional comment display */
+      .cs-comment {
+        color: var(--ink-soft);
+        font-size: 0.9rem;
+        font-style: italic;
+        margin-top: 0.25rem;
+      }
+
+      /* context prose */
+      .cs-context {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-bottom: 0;
+      }
+
+      /* submit button */
+      .cs-submit {
+        align-self: flex-start;
+        padding: 0.6rem 1.5rem;
+        background: var(--accent);
+        color: var(--bg);
+        border: 1.5px solid var(--accent);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 120ms;
+      }
+      .cs-submit:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+      .cs-submit:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* pending / saving state */
+      .cs-saving {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      /* inline error */
+      .cs-error {
+        color: #c93b3b;
+        padding: 0.5rem 0.75rem;
+        background: color-mix(in srgb, #c93b3b 10%, transparent);
+        border: 1.5px solid currentColor;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+
+      /* session-ended banner */
+      .cs-banner-ended {
+        position: sticky;
+        top: 0;
+        padding: 0.75rem 1.25rem;
+        background: color-mix(in srgb, var(--accent) 20%, var(--bg));
+        border-bottom: 1.5px solid var(--accent);
+        text-align: center;
+        font-weight: 600;
+        z-index: 10;
+      }
+
+      /* fallback theme tokens — used when theme.css is missing or unreachable */
+      :root {
+        --bg: #180810;
+        --surface: #211618;
+        --surface-2: #2b1f22;
+        --oat: #3a2e25;
+        --rule: #3a2e25;
+        --ink: #ddd3c7;
+        --ink-soft: #bdb3a7;
+        --muted: #9e9288;
+        --accent: #c75b7a;
+        --olive: #8fa86e;
+        --code-bg: #2b1f22;
+        --code-fg: #ddd3c7;
+        --serif: ui-serif, Georgia, "Times New Roman", serif;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+      }
+    </style>
+    <link rel="stylesheet" href="theme.css" />
+    <script type="application/json" id="cesium-meta">
+      {
+        "id": "AskE05",
+        "title": "How should we ship the auth rewrite?",
+        "kind": "ask",
+        "summary": "Sprint-kickoff Q&A: auth library, OIDC surfaces, migration risk tolerance.",
+        "tags": ["auth", "decision", "interactive"],
+        "createdAt": "2026-05-11T14:22:09.000Z",
+        "model": "claude-opus-4.7",
+        "sessionId": "ses_example",
+        "projectSlug": "github-com-cfbender-acme",
+        "projectName": "cfbender/acme",
+        "cwd": "/Users/cfb/code/github/acme",
+        "worktree": null,
+        "gitBranch": "main",
+        "gitCommit": "abc123def456abc123def456abc123def456abc1",
+        "supersedes": null,
+        "supersededBy": null,
+        "contentSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "interactive": {
+          "status": "open",
+          "requireAll": true,
+          "expiresAt": "2030-01-01T00:00:00.000Z",
+          "questions": [
+            {
+              "type": "pick_one",
+              "id": "auth-library",
+              "question": "Which auth library should we adopt?",
+              "recommended": "authjs",
+              "context": "Auth.js (v5) has first-class Next.js support and an active community. Lucia is lighter but lower-level. Build-our-own gives full control at the cost of ongoing maintenance.",
+              "options": [
+                {
+                  "id": "authjs",
+                  "label": "Auth.js (v5)",
+                  "description": "OAuth + session management out of the box; adapters for most ORMs"
+                },
+                {
+                  "id": "lucia",
+                  "label": "Lucia",
+                  "description": "Minimal, framework-agnostic, owns the session store directly"
+                },
+                {
+                  "id": "custom",
+                  "label": "Build our own",
+                  "description": "Full control, full responsibility — JWT + refresh token layer from scratch"
+                }
+              ]
+            },
+            {
+              "type": "pick_many",
+              "id": "oidc-surfaces",
+              "question": "Which surfaces need OIDC support in v1?",
+              "min": 1,
+              "context": "Select all that apply. We can defer lower-priority surfaces to v1.1.",
+              "options": [
+                {
+                  "id": "web",
+                  "label": "Web app",
+                  "description": "Next.js frontend — user-facing login"
+                },
+                {
+                  "id": "mobile",
+                  "label": "Mobile (iOS/Android)",
+                  "description": "React Native shell; currently uses magic-link"
+                },
+                {
+                  "id": "cli",
+                  "label": "CLI / developer tooling",
+                  "description": "Device-flow OAuth for the cesium CLI and internal scripts"
+                },
+                {
+                  "id": "api",
+                  "label": "API (machine-to-machine)",
+                  "description": "Service accounts + client credentials for internal API consumers"
+                }
+              ]
+            },
+            {
+              "type": "confirm",
+              "id": "block-on-audit",
+              "question": "Block the migration on the existing user data audit?",
+              "yesLabel": "Block",
+              "noLabel": "Ship in parallel",
+              "context": "The audit is ~60% done. Blocking adds ~1 week. Shipping in parallel means some migrated users may hit the audit retroactively."
+            },
+            {
+              "type": "ask_text",
+              "id": "constraints",
+              "question": "Any constraints I should know about? (optional context)",
+              "multiline": true,
+              "placeholder": "e.g. compliance requirements, legacy SSO contracts, known blockers, team bandwidth…",
+              "context": "Free-form. Leave blank if nothing comes to mind."
+            },
+            {
+              "type": "slider",
+              "id": "risk-tolerance",
+              "question": "Risk tolerance for the migration window",
+              "min": 1,
+              "max": 10,
+              "defaultValue": 5,
+              "context": "1 = ultra-conservative (feature-flag everything, 2-week canary) · 10 = move fast (flip the switch, monitor for 24h)"
+            },
+            {
+              "type": "react",
+              "id": "proposal-feeling",
+              "question": "How do you feel about the current proposal?",
+              "mode": "thumbs",
+              "allowComment": true,
+              "context": "Thumbs up = broadly agree with the direction. Thumbs down = something needs revisiting."
+            }
+          ],
+          "answers": {}
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <nav
+      class="cesium-back"
+      aria-label="cesium navigation"
+      style="
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        margin-bottom: 24px;
+        color: var(--muted);
+      "
+    >
+      <a href="../index.html" style="color: var(--muted); text-decoration: none">← cfbender/acme</a>
+      <span style="margin: 0 8px; opacity: 0.5">·</span>
+      <a href="../../../index.html" style="color: var(--muted); text-decoration: none"
+        >all projects</a
+      >
+    </nav>
+    <header style="margin-bottom: 48px; max-width: 820px">
+      <div class="eyebrow">Interactive Q&amp;A · acme/auth</div>
+      <h1 class="h-display">How should we ship the auth rewrite?</h1>
+      <div class="tldr">
+        <strong>A few decisions before sprint kickoff.</strong> The auth rewrite is scoped and ready
+        to land — we just need alignment on library choice, rollout scope, and risk tolerance before
+        the team splits into tracks. Answer below; answers are recorded and will be referenced in
+        the kickoff doc.
+      </div>
+      <div class="callout note" style="margin-top: 20px">
+        <span class="eyebrow" style="display: inline-block; margin-bottom: 4px"
+          >sprint kickoff</span
+        >
+        Responses are needed by <strong>end of day Tuesday</strong>. All six questions are required
+        before the session is marked complete.
+      </div>
+    </header>
+    <section class="cs-questions">
+      <section class="cs-control-pick_one" data-question-id="auth-library">
+        <p class="eyebrow">
+          QUESTION | Auth.js (v5) has first-class Next.js support and an active community. Lucia is
+          lighter but lower-level. Build-our-own gives full control at the cost of ongoing
+          maintenance.
+        </p>
+        <h3 class="h-section">Which auth library should we adopt?</h3>
+        <p class="cs-context">
+          Auth.js (v5) has first-class Next.js support and an active community. Lucia is lighter but
+          lower-level. Build-our-own gives full control at the cost of ongoing maintenance.
+        </p>
+        <button class="cs-pick cs-recommended" data-value="authjs">
+          <strong>Auth.js (v5)</strong>
+          <span class="eyebrow" style="color: var(--accent)">RECOMMENDED</span>
+          <p class="cs-pick-desc">
+            OAuth + session management out of the box; adapters for most ORMs
+          </p>
+        </button>
+        <button class="cs-pick" data-value="lucia">
+          <strong>Lucia</strong>
+          <p class="cs-pick-desc">Minimal, framework-agnostic, owns the session store directly</p>
+        </button>
+        <button class="cs-pick" data-value="custom">
+          <strong>Build our own</strong>
+          <p class="cs-pick-desc">
+            Full control, full responsibility — JWT + refresh token layer from scratch
+          </p>
+        </button>
+      </section>
+      <section class="cs-control-pick_many" data-question-id="oidc-surfaces">
+        <p class="eyebrow">
+          QUESTION | Select all that apply. We can defer lower-priority surfaces to v1.1.
+        </p>
+        <h3 class="h-section">Which surfaces need OIDC support in v1?</h3>
+        <p class="cs-context">
+          Select all that apply. We can defer lower-priority surfaces to v1.1.
+        </p>
+
+        <p class="eyebrow">PICK at least 1</p>
+        <label class="cs-pick">
+          <input type="checkbox" data-value="web" />
+          <strong>Web app</strong>
+          <p class="cs-pick-desc">Next.js frontend — user-facing login</p>
+        </label>
+        <label class="cs-pick">
+          <input type="checkbox" data-value="mobile" />
+          <strong>Mobile (iOS/Android)</strong>
+          <p class="cs-pick-desc">React Native shell; currently uses magic-link</p>
+        </label>
+        <label class="cs-pick">
+          <input type="checkbox" data-value="cli" />
+          <strong>CLI / developer tooling</strong>
+          <p class="cs-pick-desc">Device-flow OAuth for the cesium CLI and internal scripts</p>
+        </label>
+        <label class="cs-pick">
+          <input type="checkbox" data-value="api" />
+          <strong>API (machine-to-machine)</strong>
+          <p class="cs-pick-desc">
+            Service accounts + client credentials for internal API consumers
+          </p>
+        </label>
+        <button class="cs-submit" disabled>Submit</button>
+      </section>
+      <section class="cs-control-confirm" data-question-id="block-on-audit">
+        <p class="eyebrow">
+          QUESTION | The audit is ~60% done. Blocking adds ~1 week. Shipping in parallel means some
+          migrated users may hit the audit retroactively.
+        </p>
+        <h3 class="h-section">Block the migration on the existing user data audit?</h3>
+        <p class="cs-context">
+          The audit is ~60% done. Blocking adds ~1 week. Shipping in parallel means some migrated
+          users may hit the audit retroactively.
+        </p>
+        <div class="cs-confirm-row">
+          <button class="cs-confirm cs-yes" data-value="yes">Block</button>
+          <button class="cs-confirm cs-no" data-value="no">Ship in parallel</button>
+        </div>
+      </section>
+      <section class="cs-control-ask_text" data-question-id="constraints">
+        <p class="eyebrow">QUESTION | Free-form. Leave blank if nothing comes to mind.</p>
+        <h3 class="h-section">Any constraints I should know about? (optional context)</h3>
+        <p class="cs-context">Free-form. Leave blank if nothing comes to mind.</p>
+        <textarea
+          class="cs-text"
+          rows="4"
+          placeholder="e.g. compliance requirements, legacy SSO contracts, known blockers, team bandwidth…"
+        ></textarea>
+        <button class="cs-submit" disabled>Submit</button>
+      </section>
+      <section class="cs-control-slider" data-question-id="risk-tolerance">
+        <p class="eyebrow">
+          QUESTION | 1 = ultra-conservative (feature-flag everything, 2-week canary) · 10 = move
+          fast (flip the switch, monitor for 24h)
+        </p>
+        <h3 class="h-section">Risk tolerance for the migration window</h3>
+        <p class="cs-context">
+          1 = ultra-conservative (feature-flag everything, 2-week canary) · 10 = move fast (flip the
+          switch, monitor for 24h)
+        </p>
+        <input type="range" class="cs-slider" min="1" max="10" step="1" value="5" />
+        <output class="cs-slider-out">5</output>
+        <button class="cs-submit">Submit</button>
+      </section>
+      <section class="cs-control-react" data-question-id="proposal-feeling">
+        <p class="eyebrow">
+          QUESTION | Thumbs up = broadly agree with the direction. Thumbs down = something needs
+          revisiting.
+        </p>
+        <h3 class="h-section">How do you feel about the current proposal?</h3>
+        <p class="cs-context">
+          Thumbs up = broadly agree with the direction. Thumbs down = something needs revisiting.
+        </p>
+
+        <textarea class="cs-react-comment" placeholder="Optional comment..."></textarea>
+        <div class="cs-react-row">
+          <button class="cs-react" data-value="up">Thumbs up</button>
+          <button class="cs-react" data-value="down">Thumbs down</button>
+        </div>
+      </section>
+    </section>
+    <script data-cesium-client>
+      (function cesiumClient() {
+        "use strict";
+
+        // ─── API base URL derived from window.location.pathname ────────────────────
+        // Artifacts are served at /projects/<projectSlug>/artifacts/<filename>.html
+        // If not served via cesium HTTP server (e.g. file://), apiBase will be null.
+        var m = window.location.pathname.match(/^\/projects\/([^\/]+)\/artifacts\/([^\/]+)$/);
+        var apiBase = m ? "/api/sessions/" + m[1] + "/" + m[2] : null;
+
+        // ─── File:// / offline banner ───────────────────────────────────────────────
+        if (!apiBase) {
+          document.addEventListener("DOMContentLoaded", function () {
+            if (document.querySelector(".cs-banner-offline")) return;
+            var banner = document.createElement("div");
+            banner.className = "cs-banner cs-banner-offline";
+            banner.textContent =
+              "Interactive controls require viewing this artifact via the cesium HTTP server. " +
+              "Run cesium open or visit localhost:3030";
+            document.body.insertBefore(banner, document.body.firstChild);
+          });
+        }
+
+        // ─── Session-ended banner ───────────────────────────────────────────────────
+        function showSessionEndedBanner() {
+          if (document.querySelector(".cs-banner-ended")) return;
+          var banner = document.createElement("div");
+          banner.className = "cs-banner cs-banner-ended";
+          banner.textContent = "Session ended — answers can no longer be submitted.";
+          document.body.insertBefore(banner, document.body.firstChild);
+          // Disable all interactive controls
+          var disabled = document.querySelectorAll(".cs-submit, .cs-pick, .cs-confirm, .cs-react");
+          for (var i = 0; i < disabled.length; i++) {
+            var el = disabled[i];
+            if (el instanceof HTMLButtonElement || el instanceof HTMLInputElement) {
+              el.disabled = true;
+            }
+          }
+        }
+
+        // ─── POST answer ────────────────────────────────────────────────────────────
+        function postAnswer(qid, value) {
+          if (!apiBase) {
+            return Promise.reject(new Error("not served via cesium HTTP server"));
+          }
+          return fetch(apiBase + "/answers/" + qid, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: value }),
+          }).then(function (r) {
+            if (r.status === 410) {
+              showSessionEndedBanner();
+              throw new Error("session ended");
+            }
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+          });
+        }
+
+        // ─── Section replacement ────────────────────────────────────────────────────
+        function replaceSection(qid, replacementHtml) {
+          var section = document.querySelector('section[data-question-id="' + qid + '"]');
+          if (!section) return;
+          var tmp = document.createElement("div");
+          tmp.innerHTML = replacementHtml;
+          var newSection = tmp.firstElementChild;
+          if (newSection && section.parentNode) {
+            section.parentNode.replaceChild(newSection, section);
+          }
+        }
+
+        // ─── Pending / error state ──────────────────────────────────────────────────
+        function setPending(section, pending) {
+          if (pending) {
+            section.dataset["pending"] = "true";
+            section.classList.add("cs-saving");
+            var btns = section.querySelectorAll("button, input");
+            for (var i = 0; i < btns.length; i++) {
+              var b = btns[i];
+              if (b instanceof HTMLButtonElement || b instanceof HTMLInputElement) {
+                b.disabled = true;
+              }
+            }
+          } else {
+            delete section.dataset["pending"];
+            section.classList.remove("cs-saving");
+            var btns2 = section.querySelectorAll("button, input");
+            for (var i2 = 0; i2 < btns2.length; i2++) {
+              var b2 = btns2[i2];
+              if (b2 instanceof HTMLButtonElement || b2 instanceof HTMLInputElement) {
+                b2.disabled = false;
+              }
+            }
+          }
+        }
+
+        function showError(section, message) {
+          var existing = section.querySelector(".cs-error");
+          if (existing) existing.remove();
+          var errEl = document.createElement("p");
+          errEl.className = "cs-error";
+          errEl.setAttribute("role", "alert");
+          errEl.textContent = "Failed to save: " + message;
+          section.appendChild(errEl);
+        }
+
+        function clearError(section) {
+          var existing = section.querySelector(".cs-error");
+          if (existing) existing.remove();
+        }
+
+        // ─── Submit helper ──────────────────────────────────────────────────────────
+        function submitAnswer(section, qid, value) {
+          clearError(section);
+          setPending(section, true);
+          postAnswer(qid, value)
+            .then(function (resp) {
+              if (resp && resp.replacementHtml) {
+                replaceSection(qid, resp.replacementHtml);
+              } else {
+                setPending(section, false);
+              }
+            })
+            .catch(function (err) {
+              setPending(section, false);
+              showError(section, err instanceof Error ? err.message : String(err));
+            });
+        }
+
+        // ─── pick_one wiring ─────────────────────────────────────────────────────────
+        function wirePickOne(section) {
+          var qid = section.dataset["questionId"] || "";
+          var btns = section.querySelectorAll("button.cs-pick");
+          for (var i = 0; i < btns.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var dataValue = btn.dataset["value"] || "";
+                submitAnswer(section, qid, { type: "pick_one", selected: dataValue });
+              });
+            })(btns[i]);
+          }
+        }
+
+        // ─── pick_many wiring ────────────────────────────────────────────────────────
+        function wirePickMany(section) {
+          var qid = section.dataset["questionId"] || "";
+          var submitBtn = section.querySelector("button.cs-submit");
+          var minAttr = section.dataset["min"];
+          var maxAttr = section.dataset["max"];
+          var min = minAttr ? parseInt(minAttr, 10) : 1;
+          var max = maxAttr ? parseInt(maxAttr, 10) : Infinity;
+
+          function updateSubmitState() {
+            var checked = section.querySelectorAll("input[type=checkbox]:checked");
+            var count = checked.length;
+            if (submitBtn instanceof HTMLButtonElement) {
+              submitBtn.disabled = count < min || count > max;
+            }
+          }
+
+          var checkboxes = section.querySelectorAll("input[type=checkbox]");
+          for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].addEventListener("change", updateSubmitState);
+          }
+
+          if (submitBtn) {
+            submitBtn.addEventListener("click", function () {
+              var checked = section.querySelectorAll("input[type=checkbox]:checked");
+              var selected = [];
+              for (var i2 = 0; i2 < checked.length; i2++) {
+                var cb = checked[i2];
+                if (cb instanceof HTMLInputElement) {
+                  selected.push(cb.dataset["value"] || "");
+                }
+              }
+              submitAnswer(section, qid, { type: "pick_many", selected: selected });
+            });
+          }
+        }
+
+        // ─── confirm wiring ──────────────────────────────────────────────────────────
+        function wireConfirm(section) {
+          var qid = section.dataset["questionId"] || "";
+          var btns = section.querySelectorAll("button.cs-confirm");
+          for (var i = 0; i < btns.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var choice = btn.dataset["value"] || "";
+                submitAnswer(section, qid, { type: "confirm", choice: choice });
+              });
+            })(btns[i]);
+          }
+        }
+
+        // ─── ask_text wiring ─────────────────────────────────────────────────────────
+        function wireAskText(section) {
+          var qid = section.dataset["questionId"] || "";
+          var input = section.querySelector("input.cs-text, textarea.cs-text");
+          var submitBtn = section.querySelector("button.cs-submit");
+
+          function updateSubmitState() {
+            if (submitBtn instanceof HTMLButtonElement && input) {
+              var val =
+                input instanceof HTMLInputElement
+                  ? input.value
+                  : input instanceof HTMLTextAreaElement
+                    ? input.value
+                    : "";
+              submitBtn.disabled = val.trim() === "";
+            }
+          }
+
+          if (input) {
+            input.addEventListener("input", updateSubmitState);
+          }
+
+          if (submitBtn) {
+            submitBtn.addEventListener("click", function () {
+              var text = "";
+              if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+                text = input.value;
+              }
+              submitAnswer(section, qid, { type: "ask_text", text: text });
+            });
+          }
+        }
+
+        // ─── slider wiring ───────────────────────────────────────────────────────────
+        function wireSlider(section) {
+          var qid = section.dataset["questionId"] || "";
+          var sliderInput = section.querySelector("input.cs-slider");
+          var outputEl = section.querySelector("output.cs-slider-out");
+          var submitBtn = section.querySelector("button.cs-submit");
+
+          if (sliderInput) {
+            sliderInput.addEventListener("input", function () {
+              if (outputEl && sliderInput instanceof HTMLInputElement) {
+                outputEl.textContent = sliderInput.value;
+              }
+            });
+          }
+
+          if (submitBtn) {
+            submitBtn.addEventListener("click", function () {
+              var value = sliderInput instanceof HTMLInputElement ? Number(sliderInput.value) : 0;
+              submitAnswer(section, qid, { type: "slider", value: value });
+            });
+          }
+        }
+
+        // ─── react wiring ────────────────────────────────────────────────────────────
+        function wireReact(section) {
+          var qid = section.dataset["questionId"] || "";
+          var btns = section.querySelectorAll("button.cs-react");
+          var commentArea = section.querySelector("textarea.cs-react-comment");
+
+          for (var i = 0; i < btns.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var decision = btn.dataset["value"] || "";
+                var comment =
+                  commentArea instanceof HTMLTextAreaElement && commentArea.value !== ""
+                    ? commentArea.value
+                    : undefined;
+                var value =
+                  comment !== undefined
+                    ? { type: "react", decision: decision, comment: comment }
+                    : { type: "react", decision: decision };
+                submitAnswer(section, qid, value);
+              });
+            })(btns[i]);
+          }
+        }
+
+        // ─── Wire all sections on DOMContentLoaded ───────────────────────────────────
+        document.addEventListener("DOMContentLoaded", function () {
+          var sections = document.querySelectorAll("section[data-question-id]");
+          for (var i = 0; i < sections.length; i++) {
+            var section = sections[i];
+            if (!(section instanceof HTMLElement)) continue;
+            var cls = section.className || "";
+            if (cls.indexOf("cs-control-pick_one") !== -1) {
+              wirePickOne(section);
+            } else if (cls.indexOf("cs-control-pick_many") !== -1) {
+              wirePickMany(section);
+            } else if (cls.indexOf("cs-control-confirm") !== -1) {
+              wireConfirm(section);
+            } else if (cls.indexOf("cs-control-ask_text") !== -1) {
+              wireAskText(section);
+            } else if (cls.indexOf("cs-control-slider") !== -1) {
+              wireSlider(section);
+            } else if (cls.indexOf("cs-control-react") !== -1) {
+              wireReact(section);
+            }
+          }
+        });
+      })();
+    </script>
+    <footer class="byline">
+      <span>id: <code>AskE05</code></span>
+      <span>kind: ask</span>
+      <span>created: 2026-05-11T14:22:09.000Z</span>
+      <span>model: claude-opus-4.7</span>
+    </footer>
+  </body>
+</html>

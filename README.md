@@ -6,13 +6,20 @@ on disk, instead of dumping markdown into the terminal. The browser becomes the
 reading surface; the terminal stays the control surface. Each artifact is a single
 `.html` file: portable, archivable, viewable offline, shareable as a URL over SSH.
 
+v0.3.0 adds **interactive Q&A artifacts** — the agent can now publish a question
+form, wait for the user to answer in their browser, and receive the structured
+responses before continuing work.
+
 ## Examples
 
 See [`examples/plan.html`](examples/plan.html) ·
 [`examples/review.html`](examples/review.html) ·
 [`examples/comparison.html`](examples/comparison.html) ·
-[`examples/explainer.html`](examples/explainer.html) for hand-curated sample
+[`examples/explainer.html`](examples/explainer.html) ·
+[`examples/ask.html`](examples/ask.html) for hand-curated sample
 artifacts demonstrating the design system and content shapes cesium produces.
+Open `examples/ask.html` in your browser to see all six interactive question
+types in action (offline banner shows when opened via `file://` — that's expected).
 
 ## Install
 
@@ -26,17 +33,17 @@ Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git#v0.2.2"]
+  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git#v0.3.0"]
 }
 ```
 
-opencode installs the plugin automatically on next start. Pin to a tag (`#v0.2.1`)
+opencode installs the plugin automatically on next start. Pin to a tag (`#v0.3.0`)
 or omit the suffix to track `main`.
 
 ### CLI
 
 ```bash
-bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.2.2
+bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.3.0
 ```
 
 This puts a `cesium` binary on your `PATH` (at `~/.bun/bin/cesium`). If
@@ -80,6 +87,65 @@ fragment with a ~400 word threshold and content-shape heuristics. Short factual
 answers and status updates stay in the terminal. The agent may call
 `cesium_critique` before `cesium_publish` to self-check the artifact's structure
 and design-system adherence.
+
+## Interactive Q&A
+
+For decisions that need structured input before proceeding, use `cesium_ask` instead
+of `cesium_publish`. The agent publishes a question form, calls `cesium_wait` with the
+returned id, and receives the user's answers as soon as they're submitted in the browser.
+
+### Question types
+
+| Type        | Description                                                       |
+| ----------- | ----------------------------------------------------------------- |
+| `pick_one`  | Radio group; one selection, optional `recommended`                |
+| `pick_many` | Checkbox group; optional `min`/`max` count                        |
+| `confirm`   | Yes/No gate with custom button labels                             |
+| `ask_text`  | Free-text input; `multiline: true` for textarea                   |
+| `slider`    | Numeric range with configurable `min`/`max`/`step`/`defaultValue` |
+| `react`     | Thumbs-up/down reaction with optional comment                     |
+
+### Minimal example
+
+```js
+// In an agent tool call:
+cesium_ask({
+  title: "How should we ship the auth rewrite?",
+  body: "<p>Answers needed before sprint kickoff.</p>",
+  questions: [
+    {
+      type: "pick_one",
+      id: "library",
+      question: "Which auth library?",
+      options: [
+        { id: "authjs", label: "Auth.js" },
+        { id: "lucia", label: "Lucia" },
+      ],
+      recommended: "authjs",
+    },
+    {
+      type: "slider",
+      id: "risk",
+      question: "Migration risk tolerance (1–10)",
+      min: 1,
+      max: 10,
+      defaultValue: 5,
+    },
+  ],
+  requireAll: true,
+});
+
+// Then block until answered:
+cesium_wait({ id: "<returned-id>" });
+```
+
+The artifact is a single `.html` file with inline JS that POSTs each answer to the
+cesium HTTP server. Once all required questions are answered, the session crystallizes
+— controls freeze, the artifact becomes a permanent record of the decision.
+
+See `examples/ask.html` for a live demo of all six question types — open it in your
+browser to see the controls (the offline banner appears when viewed via `file://`,
+which is expected).
 
 ## Where artifacts live
 
@@ -221,8 +287,8 @@ when the external `theme.css` is unreachable — portability preserved.
 
 For sessions where you always want HTML output, copy `agents/cesium.md` into
 `~/.config/opencode/agents/`. Then invoke with `@cesium <request>` and the agent
-will bias heavily toward publishing. The agent has access to all four tools:
-`cesium_publish`, `cesium_styleguide`, `cesium_critique`, and `cesium_stop`.
+will bias heavily toward publishing. The agent has access to all six tools:
+`cesium_publish`, `cesium_ask`, `cesium_wait`, `cesium_styleguide`, `cesium_critique`, and `cesium_stop`.
 
 ## Design system
 
@@ -259,7 +325,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.2.2 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.3.0 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 

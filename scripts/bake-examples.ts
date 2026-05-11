@@ -1,4 +1,4 @@
-// Regenerates the four reference HTML artifacts in `examples/` from inline body
+// Regenerates the five reference HTML artifacts in `examples/` from inline body
 // templates. Run via `bun run examples:bake`.
 //
 // Each example dogfoods the cesium render pipeline: bodies are passed through
@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defaultTheme } from "../src/render/theme.ts";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
+import type { InteractiveData } from "../src/render/validate.ts";
 import { writeThemeCss } from "../src/storage/theme-write.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -52,6 +53,7 @@ interface Example {
   filename: string;
   meta: ArtifactMeta;
   body: string;
+  interactive?: InteractiveData;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -733,6 +735,122 @@ X-RateLimit-Remaining: 0
 </script>`;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ASK — interactive Q&A demonstrating all 6 question types
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ASK_BODY = `<header style="margin-bottom: 48px; max-width: 820px;">
+  <div class="eyebrow">Interactive Q&amp;A · acme/auth</div>
+  <h1 class="h-display">How should we ship the auth rewrite?</h1>
+  <div class="tldr">
+    <strong>A few decisions before sprint kickoff.</strong> The auth rewrite is
+    scoped and ready to land — we just need alignment on library choice, rollout
+    scope, and risk tolerance before the team splits into tracks. Answer below;
+    answers are recorded and will be referenced in the kickoff doc.
+  </div>
+  <div class="callout note" style="margin-top: 20px;">
+    <span class="eyebrow" style="display:inline-block;margin-bottom:4px;">sprint kickoff</span>
+    Responses are needed by <strong>end of day Tuesday</strong>. All six questions
+    are required before the session is marked complete.
+  </div>
+</header>`;
+
+const ASK_INTERACTIVE: InteractiveData = {
+  status: "open",
+  requireAll: true,
+  expiresAt: "2030-01-01T00:00:00.000Z",
+  questions: [
+    {
+      type: "pick_one",
+      id: "auth-library",
+      question: "Which auth library should we adopt?",
+      recommended: "authjs",
+      context:
+        "Auth.js (v5) has first-class Next.js support and an active community. Lucia is lighter but lower-level. Build-our-own gives full control at the cost of ongoing maintenance.",
+      options: [
+        {
+          id: "authjs",
+          label: "Auth.js (v5)",
+          description: "OAuth + session management out of the box; adapters for most ORMs",
+        },
+        {
+          id: "lucia",
+          label: "Lucia",
+          description: "Minimal, framework-agnostic, owns the session store directly",
+        },
+        {
+          id: "custom",
+          label: "Build our own",
+          description: "Full control, full responsibility — JWT + refresh token layer from scratch",
+        },
+      ],
+    },
+    {
+      type: "pick_many",
+      id: "oidc-surfaces",
+      question: "Which surfaces need OIDC support in v1?",
+      min: 1,
+      context: "Select all that apply. We can defer lower-priority surfaces to v1.1.",
+      options: [
+        { id: "web", label: "Web app", description: "Next.js frontend — user-facing login" },
+        {
+          id: "mobile",
+          label: "Mobile (iOS/Android)",
+          description: "React Native shell; currently uses magic-link",
+        },
+        {
+          id: "cli",
+          label: "CLI / developer tooling",
+          description: "Device-flow OAuth for the cesium CLI and internal scripts",
+        },
+        {
+          id: "api",
+          label: "API (machine-to-machine)",
+          description: "Service accounts + client credentials for internal API consumers",
+        },
+      ],
+    },
+    {
+      type: "confirm",
+      id: "block-on-audit",
+      question: "Block the migration on the existing user data audit?",
+      yesLabel: "Block",
+      noLabel: "Ship in parallel",
+      context:
+        "The audit is ~60% done. Blocking adds ~1 week. Shipping in parallel means some migrated users may hit the audit retroactively.",
+    },
+    {
+      type: "ask_text",
+      id: "constraints",
+      question: "Any constraints I should know about? (optional context)",
+      multiline: true,
+      placeholder:
+        "e.g. compliance requirements, legacy SSO contracts, known blockers, team bandwidth…",
+      context: "Free-form. Leave blank if nothing comes to mind.",
+    },
+    {
+      type: "slider",
+      id: "risk-tolerance",
+      question: "Risk tolerance for the migration window",
+      min: 1,
+      max: 10,
+      defaultValue: 5,
+      context:
+        "1 = ultra-conservative (feature-flag everything, 2-week canary) · 10 = move fast (flip the switch, monitor for 24h)",
+    },
+    {
+      type: "react",
+      id: "proposal-feeling",
+      question: "How do you feel about the current proposal?",
+      mode: "thumbs",
+      allowComment: true,
+      context:
+        "Thumbs up = broadly agree with the direction. Thumbs down = something needs revisiting.",
+    },
+  ],
+  answers: {},
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Bake
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -781,6 +899,20 @@ const EXAMPLES: Example[] = [
     }),
     body: EXPLAINER_BODY,
   },
+  {
+    filename: "ask.html",
+    meta: {
+      ...makeMeta({
+        id: "AskE05",
+        title: "How should we ship the auth rewrite?",
+        kind: "ask",
+        summary: "Sprint-kickoff Q&A: auth library, OIDC surfaces, migration risk tolerance.",
+        tags: ["auth", "decision", "interactive"],
+      }),
+    },
+    body: ASK_BODY,
+    interactive: ASK_INTERACTIVE,
+  },
 ];
 
 for (const example of EXAMPLES) {
@@ -789,6 +921,7 @@ for (const example of EXAMPLES) {
     meta: example.meta,
     theme: defaultTheme(),
     themeCssHref: "theme.css",
+    interactive: example.interactive,
   });
   const outPath = join(examplesDir, example.filename);
   // Trailing newline so the file is canonical for `oxfmt`.
