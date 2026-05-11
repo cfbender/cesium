@@ -1,6 +1,6 @@
 {
   "name": "@cfbender/cesium",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Beautiful self-contained HTML artifacts from your opencode agent.",
   "license": "MIT",
   "author": "Cody Bender",

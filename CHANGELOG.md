@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.5 — 2026-05-11
+
+Fixes the `Publish to npm` GitHub Action.
+
+- **fix:** Workflow now uses Node 24 (which ships with npm 11+, required for
+  the OIDC trusted-publisher flow). The previous attempt used Node 22 plus an
+  explicit `npm install -g npm@latest` step, which hit a `MODULE_NOT_FOUND`
+  on `promise-retry` in the runner's pre-cached npm. Bundled npm 11 from
+  Node 24 sidesteps the upgrade step entirely.
+
 ## v0.3.4 — 2026-05-11
 
 Smoke test for the npm publish GitHub Action (OIDC trusted-publisher flow).
