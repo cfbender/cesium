@@ -1,8 +1,11 @@
 {
   "name": "cesium",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Beautiful self-contained HTML artifacts from your opencode agent.",
   "license": "MIT",
+  "bin": {
+    "cesium": "./src/cli/index.ts"
+  },
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -11,7 +14,8 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint",
-    "examples:bake": "bun run scripts/bake-examples.ts && oxfmt examples"
+    "examples:bake": "bun run scripts/bake-examples.ts && oxfmt examples",
+    "cli": "bun run src/cli/index.ts"
   },
   "dependencies": {
     "@opencode-ai/plugin": "latest",

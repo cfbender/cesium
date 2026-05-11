@@ -2,6 +2,22 @@
 
 # Changelog
 
+## v0.2.0 — 2026-05-11
+
+This is the v0.2.0 polish release. Three smaller features shipped as 0.1.3–0.1.5
+(theme presets, cesium_critique, full-text search) and the standalone CLI lands
+here. Use `cesium <subcommand>` from any shell.
+
+### Added
+
+- Standalone `cesium` CLI with subcommands:
+  - `cesium ls [--all] [--json] [--limit N]` — list artifacts
+  - `cesium open <id-prefix> [--print]` — open an artifact in the browser
+  - `cesium serve [--port N] [--hostname H]` — run the local server in foreground
+  - `cesium prune --older-than <duration> [--yes]` — delete old artifacts
+- `package.json` `bin` field exposes the CLI when the plugin is installed via
+  bun/opencode (linked into `node_modules/.bin/cesium`).
+
 ## v0.1.5 — 2026-05-11
 
 ### Added

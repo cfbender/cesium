@@ -1,0 +1,56 @@
+#!/usr/bin/env bun
+
+import { parseArgs as _parseArgs } from "node:util";
+import { lsCommand } from "./commands/ls.ts";
+import { openCommand } from "./commands/open.ts";
+import { serveCommand } from "./commands/serve.ts";
+import { pruneCommand } from "./commands/prune.ts";
+
+const subcommand = process.argv[2];
+const rest = process.argv.slice(3);
+
+const COMMANDS: Record<string, (argv: string[]) => Promise<number>> = {
+  ls: lsCommand,
+  open: openCommand,
+  serve: serveCommand,
+  prune: pruneCommand,
+};
+
+function printHelp(): void {
+  process.stdout.write(
+    [
+      "cesium — artifact manager for opencode sessions",
+      "",
+      "Usage: cesium <command> [options]",
+      "",
+      "Commands:",
+      "  ls      List artifacts in the current project (or all with --all)",
+      "  open    Open an artifact by id prefix in the browser",
+      "  serve   Start the local HTTP server in the foreground",
+      "  prune   Delete artifacts older than a given duration",
+      "",
+      "Options:",
+      "  --help, -h  Show this help message",
+      "",
+      "Run 'cesium <command> --help' for command-specific options.",
+      "",
+    ].join("\n"),
+  );
+}
+
+async function main(): Promise<void> {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
+    printHelp();
+    process.exit(subcommand ? 0 : 1);
+  }
+  const fn = COMMANDS[subcommand];
+  if (!fn) {
+    process.stderr.write(`cesium: unknown command: ${subcommand}\n`);
+    printHelp();
+    process.exit(1);
+  }
+  const code = await fn(rest);
+  process.exit(code);
+}
+
+await main();

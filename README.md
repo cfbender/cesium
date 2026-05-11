@@ -95,6 +95,29 @@ ssh -L 3030:localhost:3030 your-host
 Then open `http://localhost:3030/` on your local machine. Cesium prints this hint
 automatically when it detects `$SSH_CONNECTION`.
 
+## CLI
+
+Cesium ships a `cesium` binary for use outside opencode sessions:
+
+```bash
+cesium ls                        # list artifacts in the current project
+cesium ls --all                  # all projects
+cesium ls --json                 # JSON output
+
+cesium open <id-prefix>          # open an artifact by id prefix in the browser
+cesium open abc123 --print       # print the URL instead of opening
+
+cesium serve                     # run the local HTTP server in foreground
+cesium serve --port 4000         # override the configured port
+cesium serve --hostname 0.0.0.0  # bind on all interfaces
+
+cesium prune --older-than 90d    # dry-run: list artifacts older than 90 days
+cesium prune --older-than 90d --yes  # actually delete them
+```
+
+The CLI uses the same `~/.config/opencode/cesium.json` config as the plugin, so
+ports, state directory, and hostname flow through.
+
 ## Configuration
 
 Optional `~/.config/opencode/cesium.json`:
@@ -175,7 +198,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.1.5 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.2.0 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 
