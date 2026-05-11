@@ -16,16 +16,47 @@ artifacts demonstrating the design system and content shapes cesium produces.
 
 ## Install
 
+Cesium has two pieces — the opencode **plugin** (so the agent can publish for
+you) and an optional **CLI** (so you can browse/manage artifacts from any
+shell). Install one or both.
+
+### Plugin
+
 Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git"]
+  "plugin": ["cesium@git+https://github.com/cfbender/cesium.git#v0.2.1"]
 }
 ```
 
-opencode installs the plugin automatically on next start. No additional setup
-required.
+opencode installs the plugin automatically on next start. Pin to a tag (`#v0.2.1`)
+or omit the suffix to track `main`.
+
+### CLI
+
+```bash
+bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.2.1
+```
+
+This puts a `cesium` binary on your `PATH` (at `~/.bun/bin/cesium`). If
+`which cesium` returns nothing, add `~/.bun/bin` to your shell rc:
+
+```bash
+export PATH="$HOME/.bun/bin:$PATH"
+```
+
+Update with the same command and a newer tag. To uninstall:
+`rm ~/.bun/bin/cesium ~/.bun/install/global/node_modules/cesium`.
+
+### Developing on cesium itself
+
+If you've cloned the repo and want the CLI to follow your edits live:
+
+```bash
+cd /path/to/cesium-checkout
+bun link
+```
 
 ## How it works
 
@@ -97,30 +128,8 @@ automatically when it detects `$SSH_CONNECTION`.
 
 ## CLI
 
-Cesium ships a `cesium` binary for use outside opencode sessions.
-
-### Install
-
-From a local checkout — picks up your edits live:
-
-```bash
-cd /path/to/cesium
-bun link
-```
-
-Or pinned to a published tag:
-
-```bash
-bun install -g cesium@git+https://github.com/cfbender/cesium.git#v0.2.1
-```
-
-Either approach symlinks `~/.bun/bin/cesium`. Make sure `~/.bun/bin` is on your
-`PATH` (Bun adds this on install — if `which cesium` fails, add
-`export PATH="$HOME/.bun/bin:$PATH"` to your shell rc).
-
-To uninstall: `bun unlink cesium` (from the repo) or `rm ~/.bun/bin/cesium`.
-
-### Usage
+Once installed (see [Install](#install) above), the `cesium` binary is
+available in any shell:
 
 ```bash
 cesium ls                        # list artifacts in the current project
@@ -142,8 +151,8 @@ cesium theme apply               # write theme.css from current config
 cesium theme apply --rewrite-artifacts  # retrofit old artifacts with the theme link
 ```
 
-The CLI uses the same `~/.config/opencode/cesium.json` config as the plugin, so
-ports, state directory, and hostname flow through.
+The CLI shares `~/.config/opencode/cesium.json` with the plugin, so port,
+state directory, hostname, and theme settings flow through.
 
 ## Configuration
 
