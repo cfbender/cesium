@@ -40,6 +40,10 @@ instead of replying with markdown. The plugin then:
 5. Lazy-starts a local HTTP server on port 3030.
 6. Returns a short terminal summary with both `http://` and `file://` URLs.
 
+Project and global index pages have a search input that matches against title
+**and** body text. Useful when you remember a phrase from an artifact but not
+its title.
+
 The agent decides per-response whether to publish, guided by a system-prompt
 fragment with a ~400 word threshold and content-shape heuristics. Short factual
 answers and status updates stay in the terminal. The agent may call
@@ -171,7 +175,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.1.4 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.1.5 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 

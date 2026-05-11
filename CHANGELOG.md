@@ -2,6 +2,23 @@
 
 # Changelog
 
+## v0.1.5 — 2026-05-11
+
+### Added
+
+- Index search now matches body text in addition to titles. Each artifact's
+  rendered card carries a `data-body-text` attribute (capped at 5000 chars,
+  lowercased) and the inline filter checks both fields.
+- Body text is extracted at publish time via parse5 and stored on the
+  `IndexEntry` shape.
+
+### Changed
+
+- `IndexEntry` gained a `bodyText: string` field. Existing `index.json` files
+  without this field are loaded with an empty string; republishing populates it.
+- Search input placeholder updated from "Filter by title…" to
+  "Filter by title or content…".
+
 ## v0.1.4 — 2026-05-11
 
 ### Added

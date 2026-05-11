@@ -18,6 +18,7 @@ export interface IndexEntry {
   contentSha256: string;
   projectSlug: string;
   projectName: string;
+  bodyText: string;
 }
 
 export async function loadIndex(jsonPath: string): Promise<IndexEntry[]> {
@@ -33,7 +34,16 @@ export async function loadIndex(jsonPath: string): Promise<IndexEntry[]> {
   if (!Array.isArray(parsed)) {
     throw new Error(`index.json at ${jsonPath} is not an array`);
   }
-  return parsed as IndexEntry[];
+  // Backward-compat: entries written before v0.1.5 may lack bodyText.
+  // Use Object.assign to avoid the no-map-spread lint rule; assign bodyText
+  // default so entries from older index.json files still type-check.
+  return (parsed as IndexEntry[]).map((e) => {
+    const entry = e as IndexEntry & { bodyText?: string };
+    if (typeof entry.bodyText !== "string") {
+      entry.bodyText = "";
+    }
+    return entry;
+  });
 }
 
 export async function writeIndex(jsonPath: string, entries: IndexEntry[]): Promise<void> {

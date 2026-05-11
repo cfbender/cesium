@@ -26,6 +26,7 @@ function makeEntry(overrides: Partial<IndexEntry> & { id: string; createdAt: str
     contentSha256: "deadbeef",
     projectSlug: overrides.projectSlug ?? "test-project",
     projectName: overrides.projectName ?? "Test Project",
+    bodyText: overrides.bodyText ?? "",
   };
 }
 
@@ -194,6 +195,52 @@ describe("renderProjectIndex", () => {
     const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
     expect(html).not.toMatch(/src="https?:\/\//);
     expect(html).not.toMatch(/href="https?:\/\//);
+  });
+
+  test("entry card has data-body-text attribute", () => {
+    const entries = [
+      makeEntry({ id: "bt1", createdAt: "2026-05-11T10:00:00Z", bodyText: "Hello World" }),
+    ];
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
+    expect(html).toContain("data-body-text=");
+  });
+
+  test("data-body-text attribute value is lowercased", () => {
+    const entries = [
+      makeEntry({ id: "bt2", createdAt: "2026-05-11T10:00:00Z", bodyText: "UPPERCASE Content" }),
+    ];
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
+    expect(html).toContain('data-body-text="uppercase content"');
+    expect(html).not.toContain('data-body-text="UPPERCASE Content"');
+  });
+
+  test("data-body-text is HTML-attribute-escaped", () => {
+    const entries = [
+      makeEntry({
+        id: "bt3",
+        createdAt: "2026-05-11T10:00:00Z",
+        bodyText: 'has "quotes" & <brackets>',
+      }),
+    ];
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
+    // Quotes escaped, & escaped, < escaped
+    expect(html).toContain("&quot;quotes&quot;");
+    expect(html).toContain("&amp;");
+    expect(html).toContain("&lt;");
+  });
+
+  test('empty bodyText produces data-body-text=""', () => {
+    const entries = [makeEntry({ id: "bt4", createdAt: "2026-05-11T10:00:00Z", bodyText: "" })];
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
+    expect(html).toContain('data-body-text=""');
+  });
+
+  test("inline script references dataset.bodyText for search", () => {
+    const entries = [makeEntry({ id: "sc1", createdAt: "2026-05-11T10:00:00Z" })];
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
+    expect(html).toContain("bodyText");
+    // The haystack variable includes body text
+    expect(html).toContain("haystack");
   });
 });
 

@@ -206,8 +206,10 @@ function indexJs(): string {
     document.querySelectorAll('[data-card]').forEach(function(card) {
       var kind = card.getAttribute('data-kind') || '';
       var titleLower = card.getAttribute('data-title-lower') || '';
+      var bodyText = card.getAttribute('data-body-text') || '';
       var kindMatch = !activeKind || kind === activeKind;
-      var searchMatch = !query || titleLower.includes(query);
+      var haystack = titleLower + ' ' + bodyText;
+      var searchMatch = !query || haystack.includes(query);
       card.style.display = (kindMatch && searchMatch) ? '' : 'none';
     });
   }
@@ -238,7 +240,7 @@ function renderEntryCard(entry: IndexEntry): string {
       ? `<div class="card-tags">${entry.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join(" ")}</div>`
       : "";
 
-  return `<div class="entry-card" data-card data-kind="${esc(entry.kind)}" data-title-lower="${esc(entry.title.toLowerCase())}" data-superseded="${isSuperseded}">
+  return `<div class="entry-card" data-card data-kind="${esc(entry.kind)}" data-title-lower="${esc(entry.title.toLowerCase())}" data-body-text="${esc(entry.bodyText.toLowerCase())}" data-superseded="${isSuperseded}">
   <div class="card-top">${kindPill}${supersededBadge}${supersededByBadge}${dateStr}</div>
   <div class="card-title"><a href="artifacts/${esc(entry.filename)}">${esc(entry.title)}</a></div>
   ${summaryHtml}${tagsHtml}
@@ -270,7 +272,7 @@ export function renderProjectIndex(args: RenderProjectIndexArgs): string {
     )
     .join("");
   const filterRow = `<div class="filter-row">${chipAll}${kindChips}</div>`;
-  const searchBar = `<div class="search-wrap"><input id="cesium-search" class="search-input" type="search" placeholder="Filter by title…" autocomplete="off"></div>`;
+  const searchBar = `<div class="search-wrap"><input id="cesium-search" class="search-input" type="search" placeholder="Filter by title or content…" autocomplete="off"></div>`;
 
   // Has superseded entries?
   const hasSuperseded = sorted.some((e) => e.supersededBy !== null);

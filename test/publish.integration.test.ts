@@ -425,3 +425,97 @@ test("terminalSummary does NOT include SSH hint when SSH_CONNECTION is not set",
     }
   }
 });
+
+// ─── Phase 3: full-text search / bodyText ──────────────────────────────────
+
+test("after publish: project index.json entry has bodyText containing body content", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Body Text Test",
+    kind: "report",
+    html: "<p>This is a unique phrase.</p>",
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.json");
+  const entries = JSON.parse(readFileSync(projectIndexPath, "utf8")) as Record<string, unknown>[];
+  expect(entries).toHaveLength(1);
+  const entry = entries[0];
+  if (entry === undefined) throw new Error("expected entry");
+  expect(typeof entry["bodyText"]).toBe("string");
+  expect((entry["bodyText"] as string).toLowerCase()).toContain("this is a unique phrase");
+});
+
+test("after publish: project index.html card has data-body-text with lowercased content", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Body Text HTML Test",
+    kind: "plan",
+    html: "<p>Searchable Content Here</p>",
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.html");
+  const html = readFileSync(projectIndexPath, "utf8");
+  // data-body-text should be lowercased
+  expect(html).toContain("searchable content here");
+  expect(html).toContain("data-body-text=");
+});
+
+test("two publishes with different bodies: each card has distinct data-body-text", async () => {
+  await publish(workDir, stateDir, {
+    title: "Article Alpha",
+    kind: "plan",
+    html: "<p>Alpha body content zulu</p>",
+  });
+  const r2 = await publish(
+    workDir,
+    stateDir,
+    {
+      title: "Article Beta",
+      kind: "plan",
+      html: "<p>Beta body content yankee</p>",
+    },
+    () => "xyz999",
+  );
+
+  const httpUrl = r2["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.html");
+  const html = readFileSync(projectIndexPath, "utf8");
+
+  // Both body texts appear as distinct data-body-text attributes
+  expect(html).toContain("alpha body content zulu");
+  expect(html).toContain("beta body content yankee");
+});
+
+test("script content in body is excluded from bodyText", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Script Exclusion Test",
+    kind: "report",
+    html: "<p>Visible text</p><script>var secret = 'hidden';</script>",
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.json");
+  const entries = JSON.parse(readFileSync(projectIndexPath, "utf8")) as Record<string, unknown>[];
+  const entry = entries[0];
+  if (entry === undefined) throw new Error("expected entry");
+  const bodyText = entry["bodyText"] as string;
+  expect(bodyText.toLowerCase()).toContain("visible text");
+  expect(bodyText.toLowerCase()).not.toContain("secret");
+  expect(bodyText.toLowerCase()).not.toContain("hidden");
+});

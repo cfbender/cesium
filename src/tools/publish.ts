@@ -7,6 +7,7 @@ import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
 import { loadConfig, type CesiumConfig } from "../config.ts";
 import { scrub } from "../render/scrub.ts";
+import { extractTextContent } from "../render/extract.ts";
 import { themeFromPreset, mergeTheme } from "../render/theme.ts";
 import { validatePublishInput, htmlBodyWarnings, PUBLISH_KINDS } from "../render/validate.ts";
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
@@ -173,6 +174,9 @@ export function createPublishTool(
       // 7. Scrub
       const scrubbed = scrub(input.html);
 
+      // 7a. Extract body text for full-text search
+      const bodyText = extractTextContent(scrubbed.html);
+
       // 8. Compute filename + paths
       const filename = artifactFilename({ title: input.title, id, createdAt });
       const paths = pathsFor({
@@ -238,6 +242,7 @@ export function createPublishTool(
         contentSha256: meta.contentSha256,
         projectSlug: identity.slug,
         projectName: identity.name,
+        bodyText,
       };
 
       const lockPath = join(config.stateDir, ".index.lock");

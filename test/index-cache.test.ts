@@ -35,6 +35,7 @@ function makeEntry(id: string, createdAt: string): IndexEntry {
     contentSha256: "deadbeef",
     projectSlug: "test-project",
     projectName: "Test Project",
+    bodyText: "",
   };
 }
 
@@ -153,5 +154,58 @@ describe("patchEntry", () => {
     expect(result[0]?.id).toBe("abc");
     expect(result[0]?.title).toBe("Title abc");
     expect(result[0]?.kind).toBe("plan");
+  });
+
+  test("preserves bodyText when patching other fields", () => {
+    const entry = {
+      ...makeEntry("abc", "2026-05-11T10:00:00.000Z"),
+      bodyText: "some content here",
+    };
+    const result = patchEntry([entry], "abc", { supersededBy: "xyz" });
+    expect(result[0]?.bodyText).toBe("some content here");
+  });
+});
+
+describe("loadIndex — bodyText backward-compat", () => {
+  test("entry without bodyText in JSON defaults to empty string", async () => {
+    const jsonPath = join(workDir, "old.json");
+    // Simulate a pre-v0.1.5 entry without the bodyText field
+    const oldEntry = {
+      id: "old1",
+      title: "Old Title",
+      kind: "plan",
+      summary: null,
+      tags: [],
+      createdAt: "2026-05-11T10:00:00.000Z",
+      filename: "old1.html",
+      supersedes: null,
+      supersededBy: null,
+      gitBranch: null,
+      gitCommit: null,
+      contentSha256: "deadbeef",
+      projectSlug: "test-project",
+      projectName: "Test Project",
+      // bodyText intentionally absent
+    };
+    await atomicWrite(jsonPath, JSON.stringify([oldEntry]));
+    const result = await loadIndex(jsonPath);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.bodyText).toBe("");
+  });
+
+  test("entry with bodyText in JSON preserves it", async () => {
+    const jsonPath = join(workDir, "new.json");
+    const entry = { ...makeEntry("x1", "2026-05-11T10:00:00.000Z"), bodyText: "rich content" };
+    await atomicWrite(jsonPath, JSON.stringify([entry]));
+    const result = await loadIndex(jsonPath);
+    expect(result[0]?.bodyText).toBe("rich content");
+  });
+});
+
+describe("appendEntry — bodyText preserved", () => {
+  test("appendEntry preserves bodyText on entries", () => {
+    const entry = { ...makeEntry("a", "2026-05-11T10:00:00.000Z"), bodyText: "hello world" };
+    const result = appendEntry([], entry);
+    expect(result[0]?.bodyText).toBe("hello world");
   });
 });
