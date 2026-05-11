@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cesium · Design system reference</title>
+    <style>
+      :root {
+        --bg: #faf9f5;
+        --surface: #ffffff;
+        --surface-2: #f0eee6;
+        --oat: #e3dacc;
+        --rule: #d1cfc5;
+        --ink: #141413;
+        --ink-soft: #3d3d3a;
+        --muted: #87867f;
+        --accent: #d97757;
+        --olive: #788c5d;
+        --code-bg: #141413;
+        --code-fg: #e8e6de;
+        --serif: ui-serif, Georgia, "Times New Roman", serif;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+      }
+
+      /* reset */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 1rem;
+        line-height: 1.6;
+        padding: clamp(20px, 4vw, 56px);
+      }
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+      a:hover {
+        opacity: 0.8;
+      }
+      img,
+      svg {
+        max-width: 100%;
+        height: auto;
+      }
+      p {
+        margin-bottom: 1em;
+      }
+      ul,
+      ol {
+        padding-left: 1.5em;
+        margin-bottom: 1em;
+      }
+
+      /* layout */
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      section {
+        margin-bottom: 64px;
+      }
+
+      /* typography */
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-family: var(--serif);
+        color: var(--ink);
+        line-height: 1.2;
+        margin-bottom: 0.5em;
+      }
+
+      /* eyebrow */
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.5em;
+      }
+
+      /* headings */
+      .h-display {
+        font-family: var(--serif);
+        font-size: clamp(2rem, 5vw, 3.25rem);
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--ink);
+        margin-bottom: 0.75em;
+      }
+      .h-section {
+        font-family: var(--serif);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.5em;
+      }
+      .section-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--oat);
+        color: var(--ink-soft);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 6px;
+        padding: 2px 7px;
+        margin-right: 0.5em;
+        vertical-align: middle;
+      }
+
+      /* card */
+      .card {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 1.5em;
+      }
+
+      /* tldr */
+      .tldr {
+        background: var(--surface);
+        border-left: 4px solid var(--accent);
+        border-radius: 0 12px 12px 0;
+        padding: 16px 20px;
+        margin-bottom: 1.5em;
+        font-size: 1.05rem;
+        color: var(--ink-soft);
+      }
+
+      /* callout */
+      .callout {
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 1.25em;
+        border: 1.5px solid var(--rule);
+        background: var(--surface-2);
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+      }
+      .callout.note {
+        border-color: var(--olive);
+        background: color-mix(in srgb, var(--olive) 10%, var(--surface));
+      }
+      .callout.warn {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+      }
+      .callout.risk {
+        border-color: #b45309;
+        background: color-mix(in srgb, #b45309 10%, var(--surface));
+      }
+
+      /* code */
+      .code {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        font-family: var(--mono);
+        font-size: 0.875rem;
+        line-height: 1.6;
+        border-radius: 8px;
+        padding: 16px 20px;
+        overflow-x: auto;
+        margin-bottom: 1.25em;
+        white-space: pre;
+      }
+      .code .kw {
+        color: var(--accent);
+      }
+      .code .str {
+        color: var(--olive);
+      }
+      .code .cm {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .code .fn {
+        color: #d4a85a;
+      }
+
+      /* timeline */
+      .timeline {
+        list-style: none;
+        padding: 0;
+        position: relative;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: var(--rule);
+      }
+      .timeline li {
+        position: relative;
+        padding-left: 32px;
+        margin-bottom: 1.25em;
+      }
+      .timeline li::before {
+        content: "";
+        position: absolute;
+        left: 2px;
+        top: 6px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--oat);
+        border: 2px solid var(--accent);
+      }
+
+      /* diagram */
+      .diagram {
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 1.5em;
+        background: var(--surface);
+      }
+      .diagram figcaption {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-top: 10px;
+        font-family: var(--sans);
+      }
+
+      /* compare-table */
+      .compare-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 0.95rem;
+      }
+      .compare-table th,
+      .compare-table td {
+        border: 1.5px solid var(--rule);
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .compare-table th {
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .compare-table tr:nth-child(even) td {
+        background: var(--surface-2);
+      }
+
+      /* risk-table */
+      .risk-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 0.95rem;
+      }
+      .risk-table th,
+      .risk-table td {
+        border: 1.5px solid var(--rule);
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .risk-table th {
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-weight: 600;
+      }
+      .risk-table td:first-child {
+        font-weight: 600;
+        color: var(--ink-soft);
+      }
+
+      /* inline chips */
+      .kbd {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.8em;
+        background: var(--surface-2);
+        border: 1.5px solid var(--rule);
+        border-radius: 4px;
+        padding: 1px 6px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .pill {
+        display: inline-block;
+        font-family: var(--sans);
+        font-size: 0.8em;
+        font-weight: 500;
+        background: var(--oat);
+        border-radius: 20px;
+        padding: 2px 10px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.75em;
+        font-weight: 600;
+        background: var(--surface-2);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 2px 8px;
+        color: var(--muted);
+        text-transform: lowercase;
+      }
+
+      /* byline */
+      .byline {
+        border-top: 1.5px solid var(--rule);
+        margin-top: 64px;
+        padding-top: 18px;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1em;
+        align-items: center;
+      }
+      .byline a {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- ============================================================
+       Section 1 · Header
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">Reference · cesium design system</p>
+        <h1 class="h-display">Design system</h1>
+        <div class="tldr">
+          <p>
+            Cesium provides a small vocabulary of HTML classes for producing beautiful,
+            self-contained artifact pages — plans, reviews, comparisons, reports, and explainers.
+            Every artifact is a single HTML file that requires no external resources: fonts, colors,
+            and layout are fully inlined. This reference page demonstrates every available class so
+            an agent can internalize the design language before writing a complex artifact.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+       Section 2 · Typography &amp; Headings
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">02 · typography</p>
+        <h2 class="h-section"><span class="section-num">02</span>Typography &amp; Headings</h2>
+        <p>
+          Use when you need to establish visual hierarchy. The display heading anchors the page;
+          section headings break the document into scannable chunks.
+        </p>
+
+        <h1 class="h-display">Display heading — the page title</h1>
+        <h2 class="h-section">Section heading — a major division</h2>
+        <p>
+          Body copy is set in the system sans-serif at 1rem/1.6. Use sparingly; prefer short
+          paragraphs with plenty of whitespace. Inline <code>code</code> renders in the monospace
+          stack at 0.9em.
+        </p>
+        <p>
+          Long-form explanatory text sits comfortably at this measure. Keep paragraphs to 3–5
+          sentences so readers can skim the first sentence of each block.
+        </p>
+      </section>
+
+      <!-- ============================================================
+       Section 3 · Eyebrow + Section numbering
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">03 · eyebrow &amp; section-num</p>
+        <h2 class="h-section"><span class="section-num">03</span>Eyebrow + Section numbering</h2>
+        <p>
+          Use an <code>.eyebrow</code> above a section head to provide a micro-label — a category, a
+          step number, or a module name. Pair it with <code>.section-num</code> chips inside the
+          heading itself when you want the number visually attached to the title.
+        </p>
+
+        <div style="border-left: 3px solid var(--rule); padding-left: 1.25em; margin-bottom: 1em">
+          <p class="eyebrow">phase one · discovery</p>
+          <h2 class="h-section"><span class="section-num">01</span>Stakeholder interviews</h2>
+          <p>Map the landscape before writing a line of code.</p>
+        </div>
+
+        <div style="border-left: 3px solid var(--rule); padding-left: 1.25em">
+          <p class="eyebrow">phase two · design</p>
+          <h2 class="h-section"><span class="section-num">02</span>Information architecture</h2>
+          <p>Derive the navigation structure from task frequency, not org-chart hierarchy.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+       Section 4 · Cards
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">04 · cards</p>
+        <h2 class="h-section"><span class="section-num">04</span>Cards</h2>
+        <p>
+          Use <code>.card</code> for any discrete, bordered surface — a finding, a recommendation, a
+          team member bio, or a feature description. Cards sit in a CSS grid for multi-column
+          layouts.
+        </p>
+
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+          "
+        >
+          <div class="card">
+            <p class="eyebrow">finding 01</p>
+            <h3 style="font-family: var(--serif); margin-bottom: 0.4em">
+              Session timeout too short
+            </h3>
+            <p style="margin: 0">
+              Users are logged out mid-task. Extend the idle timeout from 15 to 30 minutes and add a
+              one-minute warning banner.
+            </p>
+          </div>
+          <div class="card">
+            <p class="eyebrow">finding 02</p>
+            <h3 style="font-family: var(--serif); margin-bottom: 0.4em">No mobile breakpoint</h3>
+            <p style="margin: 0">
+              The dashboard overflows on viewports narrower than 768 px. A responsive grid reflow
+              fixes the majority of complaints.
+            </p>
+          </div>
+          <div class="card">
+            <p class="eyebrow">finding 03</p>
+            <h3 style="font-family: var(--serif); margin-bottom: 0.4em">
+              Search latency p95 = 4.2 s
+            </h3>
+            <p style="margin: 0">
+              Full-text search scans the entire corpus on every keystroke. Add a debounce of 300 ms
+              and an n-gram index to bring p95 under 400 ms.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+       Section 5 · TLDR
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">05 · tldr</p>
+        <h2 class="h-section"><span class="section-num">05</span>TLDR</h2>
+        <p>
+          Use exactly <strong>one</strong> <code>.tldr</code> block per document, positioned near
+          the top. It is the executive summary — three to five sentences that give a busy reader
+          everything they need without reading the rest of the document.
+        </p>
+
+        <div class="tldr">
+          <p>
+            The authentication refactor is ready to ship. We replaced the legacy session cookie
+            approach with short-lived JWTs (15 min access, 7 day refresh) backed by a Redis token
+            store. All 142 existing auth tests pass; three new integration tests cover the refresh
+            flow. The breaking change is limited to the <code>/api/v1/auth</code> namespace — no
+            front-end changes required.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+       Section 6 · Callouts
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">06 · callouts</p>
+        <h2 class="h-section"><span class="section-num">06</span>Callouts</h2>
+        <p>
+          Use callouts to surface information that needs to be noticed but doesn't belong in running
+          prose. Three flavors: <code>.callout.note</code> for helpful context,
+          <code>.callout.warn</code> for things that can go wrong, and
+          <code>.callout.risk</code> for blocking or high-severity concerns.
+        </p>
+
+        <div class="callout note">
+          <strong>Note:</strong> The refresh token rotation strategy requires a Redis instance with
+          persistence enabled — an in-memory-only instance will cause silent logouts on server
+          restart.
+        </div>
+        <div class="callout warn">
+          <strong>Warning:</strong> Deploying this change to production before migrating the
+          existing session cookies will log out all active users simultaneously.
+        </div>
+        <div class="callout risk">
+          <strong>Risk:</strong> The token revocation list is stored only in Redis; a cache flush
+          between access-token expiry and refresh will allow briefly-revoked tokens to remain valid.
+        </div>
+      </section>
+
+      <!-- ============================================================
+       Section 7 · Code blocks
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">07 · code</p>
+        <h2 class="h-section"><span class="section-num">07</span>Code blocks</h2>
+        <p>
+          Use <code>.code</code> for multi-line code samples. Highlight tokens with nested spans:
+          <code>.kw</code> for keywords, <code>.str</code> for string literals, <code>.cm</code> for
+          comments, and <code>.fn</code> for function names. Inline <code>code</code> elements in
+          body copy use the browser default monospace style.
+        </p>
+
+        <div class="code">
+          <span class="cm">// Refresh an access token using the stored refresh token.</span>
+          <span class="kw">export</span> <span class="kw">async function</span>
+          <span class="fn">refreshAccessToken</span>( refreshToken: <span class="kw">string</span>,
+          ): <span class="kw">Promise</span>&lt;{ accessToken: <span class="kw">string</span> }&gt;
+          { <span class="kw">const</span> payload = <span class="kw">await</span>
+          <span class="fn">verifyRefreshToken</span>(refreshToken);
+          <span class="kw">if</span> (!payload) { <span class="kw">throw new</span>
+          <span class="fn">Error</span>(<span class="str">"invalid or expired refresh token"</span
+          >); } <span class="kw">const</span> accessToken = <span class="kw">await</span>
+          <span class="fn">signAccessToken</span>({ sub: payload.sub, scope: payload.scope, });
+          <span class="kw">return</span> { accessToken }; }
+        </div>
+
+        <p>
+          Inline usage: press <code>⌘ S</code> to save, or call
+          <code>refreshAccessToken(token)</code> directly from the REPL.
+        </p>
+      </section>
+
+      <!-- ============================================================
+       Section 8 · Timeline
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">08 · timeline</p>
+        <h2 class="h-section"><span class="section-num">08</span>Timeline</h2>
+        <p>
+          Use <code>.timeline</code> for ordered milestones, release schedules, or onboarding
+          sequences. Each <code>&lt;li&gt;</code> gets a dot and a vertical connector automatically
+          via CSS.
+        </p>
+
+        <ul class="timeline">
+          <li>
+            <strong>Week 1 — Audit &amp; planning</strong>
+            <p style="margin: 0.25em 0 0">
+              Review existing auth code, identify all call sites, write migration checklist.
+              Deliverable: annotated codebase + go/no-go criteria.
+            </p>
+          </li>
+          <li>
+            <strong>Week 2–3 — Implementation</strong>
+            <p style="margin: 0.25em 0 0">
+              Build JWT signing, Redis token store, refresh rotation, and revocation list.
+              Feature-flagged behind <code>AUTH_V2</code>.
+            </p>
+          </li>
+          <li>
+            <strong>Week 4 — Hardening &amp; rollout</strong>
+            <p style="margin: 0.25em 0 0">
+              Load test at 3× peak traffic, canary 10% of prod, monitor error rates for 48 h, then
+              full cutover.
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ============================================================
+       Section 9 · Diagram
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">09 · diagram</p>
+        <h2 class="h-section"><span class="section-num">09</span>Diagram</h2>
+        <p>
+          Use <code>.diagram</code> wrapping an inline <code>&lt;svg&gt;</code> for architecture
+          diagrams, flow charts, and data-flow illustrations. Include a
+          <code>&lt;figcaption&gt;</code> below the SVG for a brief description.
+        </p>
+
+        <figure class="diagram">
+          <svg
+            viewBox="0 0 480 120"
+            width="480"
+            height="120"
+            xmlns="http://www.w3.org/2000/svg"
+            style="font-family: ui-monospace, monospace; max-width: 100%"
+          >
+            <!-- Client box -->
+            <rect
+              x="10"
+              y="35"
+              width="110"
+              height="50"
+              rx="8"
+              ry="8"
+              fill="#FFFFFF"
+              stroke="#D1CFC5"
+              stroke-width="1.5"
+            />
+            <text
+              x="65"
+              y="57"
+              text-anchor="middle"
+              font-size="11"
+              fill="#141413"
+              font-weight="600"
+            >
+              Client
+            </text>
+            <text x="65" y="72" text-anchor="middle" font-size="9" fill="#87867F">
+              browser / app
+            </text>
+
+            <!-- Arrow 1 -->
+            <line
+              x1="120"
+              y1="60"
+              x2="178"
+              y2="60"
+              stroke="#D1CFC5"
+              stroke-width="1.5"
+              marker-end="url(#arrow)"
+            />
+            <text x="149" y="54" text-anchor="middle" font-size="9" fill="#87867F">JWT</text>
+
+            <!-- API Gateway box -->
+            <rect
+              x="180"
+              y="35"
+              width="120"
+              height="50"
+              rx="8"
+              ry="8"
+              fill="#FFFFFF"
+              stroke="#D97757"
+              stroke-width="1.5"
+            />
+            <text
+              x="240"
+              y="57"
+              text-anchor="middle"
+              font-size="11"
+              fill="#141413"
+              font-weight="600"
+            >
+              API Gateway
+            </text>
+            <text x="240" y="72" text-anchor="middle" font-size="9" fill="#87867F">
+              verify + route
+            </text>
+
+            <!-- Arrow 2 -->
+            <line
+              x1="300"
+              y1="60"
+              x2="358"
+              y2="60"
+              stroke="#D1CFC5"
+              stroke-width="1.5"
+              marker-end="url(#arrow)"
+            />
+            <text x="329" y="54" text-anchor="middle" font-size="9" fill="#87867F">claims</text>
+
+            <!-- Service box -->
+            <rect
+              x="360"
+              y="35"
+              width="110"
+              height="50"
+              rx="8"
+              ry="8"
+              fill="#FFFFFF"
+              stroke="#D1CFC5"
+              stroke-width="1.5"
+            />
+            <text
+              x="415"
+              y="57"
+              text-anchor="middle"
+              font-size="11"
+              fill="#141413"
+              font-weight="600"
+            >
+              Service
+            </text>
+            <text x="415" y="72" text-anchor="middle" font-size="9" fill="#87867F">
+              business logic
+            </text>
+
+            <!-- Arrowhead marker -->
+            <defs>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#D1CFC5" />
+              </marker>
+            </defs>
+          </svg>
+          <figcaption>
+            JWT flows from the client through the API Gateway (which verifies the signature and
+            extracts claims) to the downstream service.
+          </figcaption>
+        </figure>
+      </section>
+
+      <!-- ============================================================
+       Section 10 · Compare table
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">10 · compare-table</p>
+        <h2 class="h-section"><span class="section-num">10</span>Compare table</h2>
+        <p>
+          Use <code>.compare-table</code> when presenting a decision matrix or feature comparison
+          across two or more options. Keep columns to three or fewer for readability on narrow
+          viewports.
+        </p>
+
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>Approach</th>
+              <th>Complexity</th>
+              <th>Operational cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Session cookies + DB</td>
+              <td>Low — well-understood pattern, many libraries</td>
+              <td>Requires sticky sessions or a shared session store</td>
+            </tr>
+            <tr>
+              <td>JWT (stateless)</td>
+              <td>Medium — signing, rotation, and revocation add surface area</td>
+              <td>No server-side state; tokens carry their own claims</td>
+            </tr>
+            <tr>
+              <td>JWT + Redis revocation</td>
+              <td>Medium-high — Redis dependency, invalidation logic</td>
+              <td>Adds Redis infra; enables immediate revocation unlike pure JWT</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ============================================================
+       Section 11 · Risk table
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">11 · risk-table</p>
+        <h2 class="h-section"><span class="section-num">11</span>Risk table</h2>
+        <p>
+          Use <code>.risk-table</code> for structured risk registers — likelihood, impact, and
+          mitigation. Use <code>.pill</code> chips inside cells to tag severity levels at a glance.
+        </p>
+
+        <table class="risk-table">
+          <thead>
+            <tr>
+              <th>Risk</th>
+              <th>Likelihood · Impact</th>
+              <th>Mitigation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Redis unavailable at token refresh time</td>
+              <td><span class="pill">Medium</span> · <span class="pill">High</span></td>
+              <td>
+                Circuit-break to read-only mode; allow access tokens to coast until Redis recovers
+                (max 15 min gap).
+              </td>
+            </tr>
+            <tr>
+              <td>Private key leaked in environment variable</td>
+              <td><span class="pill">Low</span> · <span class="pill">Critical</span></td>
+              <td>
+                Store key in a secrets manager (Vault / AWS Secrets Manager); rotate on any
+                suspected exposure; never log the key.
+              </td>
+            </tr>
+            <tr>
+              <td>Clock skew causes spurious token rejection</td>
+              <td><span class="pill">Medium</span> · <span class="pill">Medium</span></td>
+              <td>
+                Allow a 30-second leeway window in the JWT library; add NTP monitoring to all nodes.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ============================================================
+       Section 12 · Inline chips
+       ============================================================ -->
+      <section>
+        <p class="eyebrow">12 · inline chips</p>
+        <h2 class="h-section"><span class="section-num">12</span>Inline chips</h2>
+        <p>
+          Three chip types for inline metadata and labeling. Use them sparingly so they retain
+          visual contrast against body copy.
+        </p>
+
+        <div class="card">
+          <p style="margin-bottom: 0.75em">
+            <strong>.kbd</strong> — keyboard shortcuts and command tokens:<br />
+            Press <span class="kbd">⌘K</span> to open the command palette,
+            <span class="kbd">⌘⇧P</span> for the command runner, or <span class="kbd">Esc</span> to
+            dismiss any modal.
+          </p>
+          <p style="margin-bottom: 0.75em">
+            <strong>.pill</strong> — rounded status or severity labels:<br />
+            <span class="pill">v2.4.1</span>
+            <span class="pill">stable</span>
+            <span class="pill">High</span>
+            <span class="pill">In progress</span>
+          </p>
+          <p style="margin: 0">
+            <strong>.tag</strong> — lowercase monospace category tags:<br />
+            <span class="tag">auth</span>
+            <span class="tag">security</span>
+            <span class="tag">breaking-change</span>
+            <span class="tag">performance</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+       Footer / byline
+       ============================================================ -->
+      <footer class="byline">
+        <span>cesium design system reference</span>
+        <span>generated: 2026-05-11</span>
+        <span>version: 0.0.0</span>
+        <span><a href="https://github.com/cfbender/cesium">github.com/cfbender/cesium</a></span>
+      </footer>
+    </div>
+  </body>
+</html>
