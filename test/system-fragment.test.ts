@@ -23,6 +23,16 @@ test("system-fragment.md references cesium_styleguide", () => {
   expect(content).toContain("cesium_styleguide");
 });
 
+test("system-fragment.md references cesium_ask", () => {
+  const content = readFragment();
+  expect(content).toContain("cesium_ask");
+});
+
+test("system-fragment.md references cesium_wait", () => {
+  const content = readFragment();
+  expect(content).toContain("cesium_wait");
+});
+
 test("system-fragment.md contains word-count threshold language", () => {
   const content = readFragment();
   // The spec says to check for "400 words" or similar threshold language
@@ -47,4 +57,18 @@ test("system-fragment.md references .tldr class", () => {
 test("system-fragment.md character count is under 4000 (token-budget proxy)", () => {
   const content = readFragment();
   expect(content.length).toBeLessThan(4000);
+});
+
+test("system-fragment.md lists six tools", () => {
+  const content = readFragment();
+  expect(content).toContain("six tools");
+});
+
+test("system-fragment.md contains trigger guidance for cesium_ask + cesium_wait", () => {
+  const content = readFragment();
+  // The ask+wait section should mention key trigger concepts
+  expect(content).toContain("cesium_ask");
+  expect(content).toContain("cesium_wait");
+  // Mention of interactive Q&A workflow
+  expect(content).toMatch(/interactive/i);
 });
