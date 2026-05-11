@@ -113,6 +113,10 @@ cesium serve --hostname 0.0.0.0  # bind on all interfaces
 
 cesium prune --older-than 90d    # dry-run: list artifacts older than 90 days
 cesium prune --older-than 90d --yes  # actually delete them
+
+cesium theme show                # print resolved theme tokens
+cesium theme apply               # write theme.css from current config
+cesium theme apply --rewrite-artifacts  # retrofit old artifacts with the theme link
 ```
 
 The CLI uses the same `~/.config/opencode/cesium.json` config as the plugin, so
@@ -122,15 +126,15 @@ ports, state directory, and hostname flow through.
 
 Optional `~/.config/opencode/cesium.json`:
 
-| Key             | Type   | Default                      | Description                                        |
-| --------------- | ------ | ---------------------------- | -------------------------------------------------- |
-| `stateDir`      | string | `~/.local/state/cesium`      | Where artifacts and indexes live                   |
-| `port`          | number | `3030`                       | First port to try for the local HTTP server        |
-| `portMax`       | number | `3050`                       | Upper bound when scanning for free ports           |
-| `hostname`      | string | `127.0.0.1`                  | Bind address. Use `0.0.0.0` to expose on the LAN   |
-| `idleTimeoutMs` | number | `1800000`                    | Server idle-shutdown threshold (30 min)            |
-| `themePreset`   | string | `"warm"`                     | Named color palette (`warm`/`cool`/`mono`/`paper`) |
-| `theme`         | object | (default ivory / clay / oat) | Per-token color overrides (stacked on preset)      |
+| Key             | Type   | Default                 | Description                                                 |
+| --------------- | ------ | ----------------------- | ----------------------------------------------------------- |
+| `stateDir`      | string | `~/.local/state/cesium` | Where artifacts and indexes live                            |
+| `port`          | number | `3030`                  | First port to try for the local HTTP server                 |
+| `portMax`       | number | `3050`                  | Upper bound when scanning for free ports                    |
+| `hostname`      | string | `127.0.0.1`             | Bind address. Use `0.0.0.0` to expose on the LAN            |
+| `idleTimeoutMs` | number | `1800000`               | Server idle-shutdown threshold (30 min)                     |
+| `themePreset`   | string | `"claret"`              | Named color palette (`claret`/`warm`/`cool`/`mono`/`paper`) |
+| `theme`         | object | (claret palette)        | Per-token color overrides (stacked on preset)               |
 
 Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`, `CESIUM_HOSTNAME`, `CESIUM_THEME_PRESET`.
 
@@ -140,9 +144,10 @@ Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`, `CESIUM_HOSTNAME`, `CE
 
 ### Theme presets
 
-Cesium ships with four palettes:
+Cesium ships with five palettes:
 
-- `warm` (default) — ivory/clay/oat. Matches the html-effectiveness reference.
+- `claret` **(default)** — deep-rose on warm cream, derived from the claret.nvim color scheme.
+- `warm` — ivory/clay/oat. The previous default.
 - `cool` — desaturated blue-grey, technical mood.
 - `mono` — high-contrast black/white/grey, editorial.
 - `paper` — sepia/cream, soft and book-like.
@@ -150,10 +155,23 @@ Cesium ships with four palettes:
 Set in `~/.config/opencode/cesium.json`:
 
 ```json
-{ "themePreset": "paper" }
+{ "themePreset": "warm" }
 ```
 
 Per-token overrides (`theme: { accent: "#..." }`) apply on top of the chosen preset.
+
+### Theme retroactivity
+
+Cesium writes a single `<stateDir>/theme.css` containing the active theme
+tokens. Each artifact references it via relative `<link>`. Change your theme
+and run `cesium theme apply` — every artifact served from this state dir picks
+up the new look on next reload, with no per-file rewrite.
+
+For artifacts published before v0.2.1 (which lack the `<link>` reference),
+run `cesium theme apply --rewrite-artifacts` once to retrofit them.
+
+Standalone `.html` files (e.g. emailed) fall back to their inline-baked theme
+when the external `theme.css` is unreachable — portability preserved.
 
 ## Optional: dedicated `@cesium` agent
 
@@ -176,8 +194,7 @@ Component classes:
 - `.compare-table` `.risk-table` — structured grids
 - `.kbd` `.pill` `.tag` `.byline` — inline chips & artifact footer
 
-Default palette: warm ivory (`#FAF9F5`), clay (`#D97757`), oat (`#E3DACC`), ink
-(`#141413`). System fonts only (`ui-serif`, `system-ui`, `ui-monospace`) — no
+Default palette: claret (`#FDF8F3`), rose accent (`#8B2252`), deep wine code panels. System fonts only (`ui-serif`, `system-ui`, `ui-monospace`) — no
 remote font loads, ever.
 
 ## Architecture
@@ -198,7 +215,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.2.0 — see [`CHANGELOG.md`](CHANGELOG.md).
+v0.2.1 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 

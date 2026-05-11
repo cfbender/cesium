@@ -2,6 +2,37 @@
 
 # Changelog
 
+## v0.2.1 — 2026-05-11
+
+### Changed
+
+- **Default theme is now `claret`** — a deep-rose-on-warm-cream palette derived
+  from the claret.nvim color scheme. The previous default (`warm`) is still
+  available as a preset; set `themePreset: "warm"` in `cesium.json` to keep the
+  old look.
+
+### Added
+
+- Dynamic theme via `<stateDir>/theme.css`. Each artifact (and index page) now
+  references this file via a relative `<link rel="stylesheet">`. Changing the
+  configured theme and running `cesium theme apply` re-skins all linked
+  artifacts on disk — file://-served artifacts fall back to their original
+  inline tokens, preserving offline portability.
+- `claret` theme preset.
+- `cesium theme show` — print resolved theme tokens, indicate when on-disk
+  theme.css is out of date.
+- `cesium theme apply` — write theme.css from current config.
+- `cesium theme apply --rewrite-artifacts` — retrofit existing artifacts and
+  index pages on disk to reference theme.css. Adds the `<link>` tag idempotently
+  to files that don't already have one.
+
+### Architectural notes
+
+- Inline `<style>` blocks now contain framework rules + a _fallback_ token set
+  baked at publish time. The external `theme.css` overrides the fallback when
+  present (CSS cascade). Standalone `.html` files still render correctly when
+  opened via `file://` without the surrounding state dir.
+
 ## v0.2.0 — 2026-05-11
 
 This is the v0.2.0 polish release. Three smaller features shipped as 0.1.3–0.1.5

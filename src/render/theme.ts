@@ -26,7 +26,7 @@ export interface ThemeTokens {
   fonts: ThemeFonts;
 }
 
-export type ThemePresetName = "warm" | "cool" | "mono" | "paper";
+export type ThemePresetName = "claret" | "warm" | "cool" | "mono" | "paper";
 
 const STANDARD_FONTS: ThemeFonts = {
   serif: 'ui-serif, Georgia, "Times New Roman", serif',
@@ -35,6 +35,21 @@ const STANDARD_FONTS: ThemeFonts = {
 };
 
 export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
+  // Claret: deep-rose-on-warm-cream — derived from claret.nvim light palette.
+  claret: {
+    bg: "#FDF8F3",
+    surface: "#FFFFFF",
+    surface2: "#F5EDE3",
+    oat: "#E8DDD0",
+    rule: "#D4C8B8",
+    ink: "#2A1F1A",
+    inkSoft: "#5A4D42",
+    muted: "#7D7068",
+    accent: "#8B2252",
+    olive: "#5A6B40",
+    codeBg: "#180810",
+    codeFg: "#DDD3C7",
+  },
   // Warm: ivory/clay/oat — the html-effectiveness reference palette.
   warm: {
     bg: "#FAF9F5",
@@ -98,11 +113,14 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
 };
 
 export function isThemePresetName(name: string): name is ThemePresetName {
-  return name === "warm" || name === "cool" || name === "mono" || name === "paper";
+  return (
+    name === "claret" || name === "warm" || name === "cool" || name === "mono" || name === "paper"
+  );
 }
 
 export function themeFromPreset(name?: string): ThemeTokens {
-  const presetName: ThemePresetName = name !== undefined && isThemePresetName(name) ? name : "warm";
+  const presetName: ThemePresetName =
+    name !== undefined && isThemePresetName(name) ? name : "claret";
   return {
     colors: THEME_PRESETS[presetName],
     fonts: STANDARD_FONTS,
@@ -110,7 +128,7 @@ export function themeFromPreset(name?: string): ThemeTokens {
 }
 
 export function defaultTheme(): ThemeTokens {
-  return themeFromPreset("warm");
+  return themeFromPreset("claret");
 }
 
 export function mergeTheme(base: ThemeTokens, override?: Partial<ThemePalette>): ThemeTokens {
@@ -142,9 +160,15 @@ export function themeToCssVars(theme: ThemeTokens): string {
 }`;
 }
 
-export function frameworkCss(theme: ThemeTokens): string {
-  return `${themeToCssVars(theme)}
+/** Returns ":root { --bg: ...; ... }" — token definitions only. */
+export function themeTokensCss(theme: ThemeTokens): string {
+  return themeToCssVars(theme);
+}
 
+/** Returns the framework's typography, components, layout — uses var(--bg) etc.
+ *  Does NOT include any :root token definitions. Pure rules. */
+export function frameworkRulesCss(): string {
+  return `
 /* reset */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
@@ -404,4 +428,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 .byline a { color: var(--muted); }
 `;
+}
+
+/** Backward-compat: returns themeTokensCss(theme) + frameworkRulesCss().
+ *  Used by anyone wanting the full self-contained CSS in one string. */
+export function frameworkCss(theme: ThemeTokens): string {
+  return `${themeTokensCss(theme)}
+${frameworkRulesCss()}`;
 }

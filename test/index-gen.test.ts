@@ -194,7 +194,9 @@ describe("renderProjectIndex", () => {
     const entries = [makeEntry({ id: "x", createdAt: "2026-05-11T10:00:00Z" })];
     const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries, theme });
     expect(html).not.toMatch(/src="https?:\/\//);
-    expect(html).not.toMatch(/href="https?:\/\//);
+    // Only relative hrefs are allowed; no absolute external ones
+    const hrefMatches = html.match(/href="https?:\/\//g) ?? [];
+    expect(hrefMatches).toHaveLength(0);
   });
 
   test("entry card has data-body-text attribute", () => {
@@ -241,6 +243,44 @@ describe("renderProjectIndex", () => {
     expect(html).toContain("bodyText");
     // The haystack variable includes body text
     expect(html).toContain("haystack");
+  });
+
+  test("default themeCssHref includes link to ../../theme.css", () => {
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
+    expect(html).toContain('<link rel="stylesheet" href="../../theme.css">');
+  });
+
+  test("custom themeCssHref overrides the link", () => {
+    const html = renderProjectIndex({
+      projectSlug: "p",
+      projectName: "P",
+      entries: [],
+      theme,
+      themeCssHref: "custom/path.css",
+    });
+    expect(html).toContain('<link rel="stylesheet" href="custom/path.css">');
+    expect(html).not.toContain('href="../../theme.css"');
+  });
+
+  test("themeCssHref: null suppresses the link", () => {
+    const html = renderProjectIndex({
+      projectSlug: "p",
+      projectName: "P",
+      entries: [],
+      theme,
+      themeCssHref: null,
+    });
+    expect(html).not.toContain('<link rel="stylesheet"');
+  });
+
+  test("inline <style> includes fallback token block and framework rules", () => {
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
+    const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(html);
+    expect(styleMatch).not.toBeNull();
+    const styleContent = styleMatch?.[1] ?? "";
+    expect(styleContent).toContain(":root {");
+    expect(styleContent).toContain("--accent:");
+    expect(styleContent).toContain(".filter-chip");
   });
 });
 
@@ -313,6 +353,31 @@ describe("renderGlobalIndex", () => {
   test("title is 'All projects · cesium'", () => {
     const html = renderGlobalIndex({ projects: [], theme });
     expect(html).toContain("<title>All projects · cesium</title>");
+  });
+
+  test("default themeCssHref includes link to theme.css", () => {
+    const html = renderGlobalIndex({ projects: [], theme });
+    expect(html).toContain('<link rel="stylesheet" href="theme.css">');
+  });
+
+  test("custom themeCssHref overrides the link", () => {
+    const html = renderGlobalIndex({ projects: [], theme, themeCssHref: "custom/theme.css" });
+    expect(html).toContain('<link rel="stylesheet" href="custom/theme.css">');
+    expect(html).not.toContain('href="theme.css"');
+  });
+
+  test("themeCssHref: null suppresses the link", () => {
+    const html = renderGlobalIndex({ projects: [], theme, themeCssHref: null });
+    expect(html).not.toContain('<link rel="stylesheet"');
+  });
+
+  test("inline <style> includes fallback token block", () => {
+    const html = renderGlobalIndex({ projects: [], theme });
+    const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(html);
+    expect(styleMatch).not.toBeNull();
+    const styleContent = styleMatch?.[1] ?? "";
+    expect(styleContent).toContain(":root {");
+    expect(styleContent).toContain("--accent:");
   });
 });
 

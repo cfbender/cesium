@@ -158,4 +158,71 @@ describe("wrapDocument", () => {
     expect(doc).not.toContain('<script>alert("x")</script>');
     expect(doc).toContain("&lt;script&gt;");
   });
+
+  // ─── Dynamic theme link tests ──────────────────────────────────────────────
+
+  test("default themeCssHref produces link to ../../../theme.css", () => {
+    const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
+    expect(doc).toContain('<link rel="stylesheet" href="../../../theme.css">');
+  });
+
+  test("custom themeCssHref produces link with that exact path", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: "theme.css",
+    });
+    expect(doc).toContain('<link rel="stylesheet" href="theme.css">');
+    expect(doc).not.toContain('href="../../../theme.css"');
+  });
+
+  test("themeCssHref: null suppresses the <link> entirely", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain('<link rel="stylesheet"');
+  });
+
+  test("inline <style> and <link> are BOTH present with default href", () => {
+    const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
+    expect(doc).toContain("<style>");
+    expect(doc).toContain('<link rel="stylesheet"');
+  });
+
+  test("<link> appears AFTER <style> in document order", () => {
+    const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
+    const stylePos = doc.indexOf("<style>");
+    const linkPos = doc.indexOf('<link rel="stylesheet"');
+    expect(stylePos).toBeGreaterThanOrEqual(0);
+    expect(linkPos).toBeGreaterThanOrEqual(0);
+    expect(linkPos).toBeGreaterThan(stylePos);
+  });
+
+  test("inline <style> includes both framework rules AND fallback tokens", () => {
+    const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
+    const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(doc);
+    expect(styleMatch).not.toBeNull();
+    const styleContent = styleMatch?.[1] ?? "";
+    // Framework rules
+    expect(styleContent).toContain(".eyebrow");
+    expect(styleContent).toContain(".card");
+    // Fallback tokens
+    expect(styleContent).toContain(":root");
+    expect(styleContent).toContain("--bg:");
+    expect(styleContent).toContain("--accent:");
+  });
+
+  test("empty string themeCssHref uses the default ../../../theme.css", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: "",
+    });
+    expect(doc).toContain('<link rel="stylesheet" href="../../../theme.css">');
+  });
 });

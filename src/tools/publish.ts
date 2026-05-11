@@ -13,6 +13,7 @@ import { validatePublishInput, htmlBodyWarnings, PUBLISH_KINDS } from "../render
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
 import { atomicWrite, patchEmbeddedMetadata } from "../storage/write.ts";
+import { writeThemeCss } from "../storage/theme-write.ts";
 import {
   loadIndex,
   writeIndex,
@@ -221,7 +222,17 @@ export function createPublishTool(
 
       // 12. Build theme + wrap document
       const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
-      const fullHtml = wrapDocument({ body: scrubbed.html, meta, theme, warnings });
+
+      // 12a. Write theme.css (idempotent, outside index lock — separate file)
+      await writeThemeCss(config.stateDir, theme);
+
+      const fullHtml = wrapDocument({
+        body: scrubbed.html,
+        meta,
+        theme,
+        warnings,
+        themeCssHref: "../../../theme.css",
+      });
 
       // 13. Atomic write
       await atomicWrite(paths.artifactPath, fullHtml);
@@ -294,13 +305,18 @@ export function createPublishTool(
           projectName: identity.name,
           entries: latestProjectEntries,
           theme,
+          themeCssHref: "../../theme.css",
         });
         await atomicWrite(paths.projectIndexPath, projectIndexHtml);
 
         // 19. Render and write global index.html
         const latestGlobalEntries = await loadIndex(paths.globalIndexJsonPath);
         const projectSummaries = buildProjectSummaries(latestGlobalEntries);
-        const globalIndexHtml = renderGlobalIndex({ projects: projectSummaries, theme });
+        const globalIndexHtml = renderGlobalIndex({
+          projects: projectSummaries,
+          theme,
+          themeCssHref: "theme.css",
+        });
         await atomicWrite(paths.globalIndexPath, globalIndexHtml);
       });
 

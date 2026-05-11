@@ -5,6 +5,7 @@ import { lsCommand } from "./commands/ls.ts";
 import { openCommand } from "./commands/open.ts";
 import { serveCommand } from "./commands/serve.ts";
 import { pruneCommand } from "./commands/prune.ts";
+import { themeCommand } from "./commands/theme.ts";
 
 const subcommand = process.argv[2];
 const rest = process.argv.slice(3);
@@ -14,6 +15,7 @@ const COMMANDS: Record<string, (argv: string[]) => Promise<number>> = {
   open: openCommand,
   serve: serveCommand,
   prune: pruneCommand,
+  theme: themeCommand,
 };
 
 function printHelp(): void {
@@ -28,6 +30,7 @@ function printHelp(): void {
       "  open    Open an artifact by id prefix in the browser",
       "  serve   Start the local HTTP server in the foreground",
       "  prune   Delete artifacts older than a given duration",
+      "  theme   Show or apply the configured theme",
       "",
       "Options:",
       "  --help, -h  Show this help message",

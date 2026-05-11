@@ -1,6 +1,6 @@
 // Assembles the full <!doctype html> document from a body fragment + metadata.
 
-import { frameworkCss, type ThemeTokens } from "./theme.ts";
+import { frameworkRulesCss, themeTokensCss, type ThemeTokens } from "./theme.ts";
 
 export interface ArtifactMeta {
   id: string;
@@ -27,6 +27,11 @@ export interface WrapOptions {
   meta: ArtifactMeta;
   theme: ThemeTokens;
   warnings?: string[];
+  /** Relative href for the dynamic theme <link> tag.
+   *  Default: "../../../theme.css" (artifact context).
+   *  Pass "" or omit to use the default.
+   *  Pass null to suppress the <link> entirely (standalone/test mode). */
+  themeCssHref?: string | null;
 }
 
 function escapeHtml(str: string): string {
@@ -86,12 +91,25 @@ function renderFooter(meta: ArtifactMeta): string {
 
 export function wrapDocument(opts: WrapOptions): string {
   const { body, meta, theme, warnings = [] } = opts;
-  const css = frameworkCss(theme);
+  // Default href: artifact context (three levels deep from stateDir)
+  const href =
+    opts.themeCssHref === undefined
+      ? "../../../theme.css"
+      : opts.themeCssHref === ""
+        ? "../../../theme.css"
+        : opts.themeCssHref;
+  // Suppress <link> when null is explicitly passed
+  const suppressLink = opts.themeCssHref === null;
+
+  const rules = frameworkRulesCss();
+  const tokens = themeTokensCss(theme);
   const metaJson = safeJsonForScript(meta);
   const titleEsc = escapeHtml(meta.title);
   const backNav = renderBackNav(meta);
   const warningHtml = renderWarnings(warnings);
   const footer = renderFooter(meta);
+
+  const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
 
   return `<!doctype html>
 <html lang="en">
@@ -99,7 +117,9 @@ export function wrapDocument(opts: WrapOptions): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${titleEsc} · cesium</title>
-  <style>${css}</style>
+  <style>${rules}
+/* fallback theme tokens — used when theme.css is missing or unreachable */
+${tokens}</style>${linkTag}
   <script type="application/json" id="cesium-meta">${metaJson}</script>
 </head>
 <body>

@@ -2,13 +2,17 @@
 
 import type { IndexEntry } from "./index-cache.ts";
 import type { ThemeTokens } from "../render/theme.ts";
-import { frameworkCss } from "../render/theme.ts";
+import { frameworkRulesCss, themeTokensCss } from "../render/theme.ts";
 
 export interface RenderProjectIndexArgs {
   projectSlug: string;
   projectName: string;
   entries: IndexEntry[];
   theme: ThemeTokens;
+  /** Relative href for the dynamic theme <link> tag.
+   *  Default: "../../theme.css" (project index context).
+   *  Pass null to suppress the <link> entirely. */
+  themeCssHref?: string | null;
 }
 
 export interface ProjectSummary {
@@ -22,6 +26,10 @@ export interface ProjectSummary {
 export interface RenderGlobalIndexArgs {
   projects: ProjectSummary[];
   theme: ThemeTokens;
+  /** Relative href for the dynamic theme <link> tag.
+   *  Default: "theme.css" (global index context).
+   *  Pass null to suppress the <link> entirely. */
+  themeCssHref?: string | null;
 }
 
 export function summarizeProject(args: {
@@ -252,9 +260,20 @@ function renderEntryCard(entry: IndexEntry): string {
 
 export function renderProjectIndex(args: RenderProjectIndexArgs): string {
   const { projectSlug, projectName, entries, theme } = args;
-  const css = frameworkCss(theme);
+  const href =
+    args.themeCssHref === undefined
+      ? "../../theme.css"
+      : args.themeCssHref === ""
+        ? "../../theme.css"
+        : args.themeCssHref;
+  const suppressLink = args.themeCssHref === null;
+
+  const rules = frameworkRulesCss();
+  const tokens = themeTokensCss(theme);
   const iCss = indexCss();
   const iJs = indexJs();
+
+  const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
 
   // Sort entries newest-first
   const sorted = [...entries].toSorted(
@@ -327,7 +346,9 @@ ${cardsHtml}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(projectName)} · cesium</title>
-  <style>${css}${iCss}</style>
+  <style>${rules}
+/* fallback theme tokens — used when theme.css is missing or unreachable */
+${tokens}${iCss}</style>${linkTag}
 </head>
 <body>
 <div class="page">
@@ -349,8 +370,19 @@ ${cardsHtml}
 
 export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
   const { projects, theme } = args;
-  const css = frameworkCss(theme);
+  const href =
+    args.themeCssHref === undefined
+      ? "theme.css"
+      : args.themeCssHref === ""
+        ? "theme.css"
+        : args.themeCssHref;
+  const suppressLink = args.themeCssHref === null;
+
+  const rules = frameworkRulesCss();
+  const tokens = themeTokensCss(theme);
   const iCss = indexCss();
+
+  const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
 
   const sorted = [...projects].toSorted(
     (a, b) => new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime(),
@@ -398,7 +430,9 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>All projects · cesium</title>
-  <style>${css}${iCss}</style>
+  <style>${rules}
+/* fallback theme tokens — used when theme.css is missing or unreachable */
+${tokens}${iCss}</style>${linkTag}
 </head>
 <body>
 <div class="page">

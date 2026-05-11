@@ -519,3 +519,116 @@ test("script content in body is excluded from bodyText", async () => {
   expect(bodyText.toLowerCase()).not.toContain("secret");
   expect(bodyText.toLowerCase()).not.toContain("hidden");
 });
+
+// ─── Phase v0.2.1: dynamic theme.css ──────────────────────────────────────
+
+test("after publish: theme.css exists at stateDir/theme.css", async () => {
+  await publish(workDir, stateDir, {
+    title: "Theme CSS Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  expect(existsSync(join(stateDir, "theme.css"))).toBe(true);
+});
+
+test("after publish: theme.css contains claret --accent", async () => {
+  await publish(workDir, stateDir, {
+    title: "Theme CSS Claret Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  const themeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
+  expect(themeCss).toContain("--accent: #8B2252");
+});
+
+test("artifact file contains link to ../../../theme.css", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Artifact Link Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  const filePath = result["filePath"] as string;
+  const html = readFileSync(filePath, "utf8");
+  expect(html).toContain('<link rel="stylesheet" href="../../../theme.css">');
+});
+
+test("project index file contains link to ../../theme.css", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Project Index Link Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+  const projectIndexPath = join(stateDir, "projects", slug, "index.html");
+  const html = readFileSync(projectIndexPath, "utf8");
+  expect(html).toContain('<link rel="stylesheet" href="../../theme.css">');
+});
+
+test("global index file contains link to theme.css", async () => {
+  await publish(workDir, stateDir, {
+    title: "Global Index Link Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  const globalIndexPath = join(stateDir, "index.html");
+  const html = readFileSync(globalIndexPath, "utf8");
+  expect(html).toContain('<link rel="stylesheet" href="theme.css">');
+});
+
+test("after re-publishing with warm theme, theme.css contains warm accent", async () => {
+  // First publish with default (claret)
+  await publish(workDir, stateDir, {
+    title: "Theme Switch Test",
+    kind: "plan",
+    html: "<p>first</p>",
+  });
+  const claretThemeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
+  expect(claretThemeCss).toContain("#8B2252");
+
+  // Second publish with warm theme override via config
+  const ctx = mockCtx(workDir);
+  const overrides: PublishToolOverrides = {
+    loadConfig: () => ({
+      stateDir,
+      port: 3030,
+      portMax: 3050,
+      idleTimeoutMs: 1800000,
+      hostname: "127.0.0.1",
+      themePreset: "warm",
+    }),
+    now: () => new Date("2026-05-11T15:00:00Z"),
+    nanoid: () => "warmid1",
+    ensureRunning: async () => ({
+      port: 3030,
+      url: "http://127.0.0.1:3030",
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    }),
+  };
+  const t = createPublishTool(ctx, overrides);
+  await t.execute({ title: "Warm Test", kind: "plan", html: "<p>warm</p>" }, {} as never);
+
+  const warmThemeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
+  expect(warmThemeCss).toContain("#D97757"); // warm accent
+  expect(warmThemeCss).not.toContain("#8B2252"); // claret accent gone
+});
+
+test("scrub does NOT touch the wrap-emitted theme link", async () => {
+  // Agent body with both an external link (scrubbed) and normal content
+  const bodyWithExternalLink =
+    '<link rel="stylesheet" href="https://evil.com/style.css"><p>safe content</p>';
+  const result = await publish(workDir, stateDir, {
+    title: "Scrub Theme Link Test",
+    kind: "report",
+    html: bodyWithExternalLink,
+  });
+  const filePath = result["filePath"] as string;
+  const html = readFileSync(filePath, "utf8");
+  // External link from agent body is scrubbed (cesium comment)
+  expect(html).toContain("<!-- cesium: removed external");
+  // Wrap-emitted theme link is present
+  expect(html).toContain('<link rel="stylesheet" href="../../../theme.css">');
+});

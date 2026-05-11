@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { defaultTheme, frameworkCss, mergeTheme, themeToCssVars } from "../src/render/theme.ts";
+import {
+  defaultTheme,
+  frameworkCss,
+  frameworkRulesCss,
+  mergeTheme,
+  themeToCssVars,
+  themeTokensCss,
+  themeFromPreset,
+} from "../src/render/theme.ts";
 
 describe("defaultTheme", () => {
   test("has all required color tokens", () => {
@@ -37,12 +45,12 @@ describe("defaultTheme", () => {
     }
   });
 
-  test("bg is ivory-ish (#FAF9F5)", () => {
-    expect(defaultTheme().colors.bg).toBe("#FAF9F5");
+  test("bg is claret warm-cream (#FDF8F3)", () => {
+    expect(defaultTheme().colors.bg).toBe("#FDF8F3");
   });
 
-  test("accent is clay (#D97757)", () => {
-    expect(defaultTheme().colors.accent).toBe("#D97757");
+  test("accent is claret rose (#8B2252)", () => {
+    expect(defaultTheme().colors.accent).toBe("#8B2252");
   });
 });
 
@@ -101,10 +109,66 @@ describe("themeToCssVars", () => {
     }
   });
 
-  test("contains token values", () => {
+  test("contains claret token values", () => {
     const css = themeToCssVars(defaultTheme());
-    expect(css).toContain("#FAF9F5");
+    expect(css).toContain("#FDF8F3");
+    expect(css).toContain("#8B2252");
+  });
+});
+
+describe("themeTokensCss", () => {
+  test("themeTokensCss === themeToCssVars for same theme", () => {
+    const theme = defaultTheme();
+    expect(themeTokensCss(theme)).toBe(themeToCssVars(theme));
+  });
+
+  test("contains :root block with accent for warm preset", () => {
+    const css = themeTokensCss(themeFromPreset("warm"));
+    expect(css).toContain(":root");
     expect(css).toContain("#D97757");
+  });
+});
+
+describe("frameworkRulesCss", () => {
+  test("does NOT include :root block", () => {
+    const css = frameworkRulesCss();
+    expect(css).not.toContain(":root {");
+  });
+
+  test("contains component classes", () => {
+    const css = frameworkRulesCss();
+    const classes = [
+      ".eyebrow",
+      ".h-display",
+      ".h-section",
+      ".section-num",
+      ".card",
+      ".tldr",
+      ".callout",
+      ".code",
+      ".timeline",
+      ".diagram",
+      ".compare-table",
+      ".risk-table",
+      ".kbd",
+      ".pill",
+      ".tag",
+      ".byline",
+    ];
+    for (const cls of classes) {
+      expect(css).toContain(cls);
+    }
+  });
+
+  test("uses css variables (not hardcoded colors)", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("var(--");
+  });
+
+  test("no remote font @import URLs", () => {
+    const css = frameworkRulesCss();
+    expect(css).not.toMatch(/@import.*https?:/);
+    expect(css).not.toMatch(/url\s*\(\s*['"]?https?:/);
   });
 });
 
@@ -166,5 +230,11 @@ describe("frameworkCss", () => {
     expect(css).toContain(".code .str");
     expect(css).toContain(".code .cm");
     expect(css).toContain(".code .fn");
+  });
+
+  test("frameworkCss output equals themeTokensCss + frameworkRulesCss for same theme", () => {
+    const theme = defaultTheme();
+    const expected = `${themeTokensCss(theme)}\n${frameworkRulesCss()}`;
+    expect(frameworkCss(theme)).toBe(expected);
   });
 });

@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defaultTheme } from "../src/render/theme.ts";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
+import { writeThemeCss } from "../src/storage/theme-write.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const examplesDir = join(here, "..", "examples");
@@ -783,9 +784,18 @@ const EXAMPLES: Example[] = [
 ];
 
 for (const example of EXAMPLES) {
-  const html = wrapDocument({ body: example.body, meta: example.meta, theme: defaultTheme() });
+  const html = wrapDocument({
+    body: example.body,
+    meta: example.meta,
+    theme: defaultTheme(),
+    themeCssHref: "theme.css",
+  });
   const outPath = join(examplesDir, example.filename);
   // Trailing newline so the file is canonical for `oxfmt`.
   writeFileSync(outPath, html + "\n");
   console.log(`baked ${example.filename} (${html.length + 1} bytes)`);
 }
+
+// Write theme.css alongside the examples (deterministic artifact of default theme)
+await writeThemeCss(examplesDir, defaultTheme());
+console.log("baked theme.css");
