@@ -283,9 +283,12 @@ describe("wrapDocument — interactive absent", () => {
       meta: makeMeta(),
       theme: defaultTheme(),
     });
-    expect(doc).not.toContain("cs-questions");
-    expect(doc).not.toContain("cs-control-");
-    expect(doc).not.toContain("cs-answered");
+    // Extract the <body> content (exclude <style> which now contains cs-* selectors)
+    const bodyMatch = /<body>([\s\S]*?)<\/body>/.exec(doc);
+    const bodyContent = bodyMatch?.[1] ?? "";
+    expect(bodyContent).not.toContain("cs-questions");
+    expect(bodyContent).not.toContain("cs-control-");
+    expect(bodyContent).not.toContain("cs-answered");
   });
 
   test("cesium-meta JSON does not contain interactive key when absent", () => {
@@ -352,7 +355,10 @@ describe("wrapDocument — interactive with 2 unanswered questions", () => {
       theme: defaultTheme(),
       interactive: makeInteractive(),
     });
-    expect(doc).not.toContain("cs-answered");
+    // Narrow check to body — <style> contains cs-answered selector but body should not
+    const bodyMatch = /<body>([\s\S]*?)<\/body>/.exec(doc);
+    const bodyContent = bodyMatch?.[1] ?? "";
+    expect(bodyContent).not.toContain("cs-answered");
   });
 
   test("body framing content appears before cs-questions", () => {
@@ -425,7 +431,7 @@ describe("wrapDocument — interactive with 1 of 2 answered", () => {
       theme: defaultTheme(),
       interactive,
     });
-    expect(doc).toContain("Selected: Option B");
+    expect(doc).toContain("Option B");
   });
 
   test("confirm answered shows yesLabel", () => {
@@ -443,6 +449,7 @@ describe("wrapDocument — interactive with 1 of 2 answered", () => {
       theme: defaultTheme(),
       interactive,
     });
+    // renderAnswered for confirm renders a button with the chosen label
     expect(doc).toContain("Absolutely");
   });
 
@@ -613,7 +620,9 @@ describe("wrapDocument — interactive answer value rendering", () => {
       theme: defaultTheme(),
       interactive,
     });
-    expect(doc).toContain("Selected: X-Ray, Zulu");
+    // renderAnswered for pick_many renders each selected item as a .cs-pick-final block
+    expect(doc).toContain("X-Ray");
+    expect(doc).toContain("Zulu");
   });
 
   test("slider shows value", () => {
@@ -635,7 +644,9 @@ describe("wrapDocument — interactive answer value rendering", () => {
       theme: defaultTheme(),
       interactive,
     });
-    expect(doc).toContain("Value: 8");
+    // renderAnswered for slider renders cs-slider-final with the value in <strong>
+    expect(doc).toContain("cs-slider-final");
+    expect(doc).toContain("<strong>8</strong>");
   });
 
   test("react shows decision", () => {
@@ -657,7 +668,8 @@ describe("wrapDocument — interactive answer value rendering", () => {
       theme: defaultTheme(),
       interactive,
     });
-    expect(doc).toContain("Decision: approve");
+    // renderAnswered for react renders the decision as a disabled button
+    expect(doc).toContain("approve");
   });
 
   test("react with comment shows both decision and comment", () => {
@@ -679,8 +691,8 @@ describe("wrapDocument — interactive answer value rendering", () => {
       theme: defaultTheme(),
       interactive,
     });
-    expect(doc).toContain("Decision: approve");
-    expect(doc).toContain("Comment: Looks great");
+    expect(doc).toContain("approve");
+    expect(doc).toContain("Looks great");
   });
 
   test("confirm with default labels falls back to Yes/No", () => {
@@ -714,5 +726,130 @@ describe("wrapDocument — ask kind footer", () => {
       theme: defaultTheme(),
     });
     expect(doc).toContain("kind: ask");
+  });
+});
+
+// ─── Phase B: client JS injection ─────────────────────────────────────────────
+
+describe("wrapDocument — client JS injection", () => {
+  test("includes <script> with client JS when status is open", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive({ status: "open" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain("<script>");
+    expect(doc).toContain("DOMContentLoaded");
+  });
+
+  test("client JS appears AFTER cs-questions and BEFORE footer", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive({ status: "open" }),
+      themeCssHref: null,
+    });
+    const questionsPos = doc.indexOf("cs-questions");
+    const scriptPos = doc.indexOf("DOMContentLoaded");
+    const footerPos = doc.indexOf('class="byline"');
+    expect(questionsPos).toBeGreaterThanOrEqual(0);
+    expect(scriptPos).toBeGreaterThan(questionsPos);
+    expect(footerPos).toBeGreaterThan(scriptPos);
+  });
+
+  test("NO client <script> when status is complete", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive({ status: "complete" }),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain("DOMContentLoaded");
+  });
+
+  test("NO client <script> when status is expired", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive({ status: "expired" }),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain("DOMContentLoaded");
+  });
+
+  test("NO client <script> when status is cancelled", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive({ status: "cancelled" }),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain("DOMContentLoaded");
+  });
+
+  test("NO client <script> when no interactive", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain("DOMContentLoaded");
+  });
+});
+
+// ─── Phase B: real control HTML in document ────────────────────────────────────
+
+describe("wrapDocument — Phase B control HTML", () => {
+  test("pick_one control renders buttons with cs-pick class", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('class="cs-pick"');
+  });
+
+  test("pick_one options rendered as buttons with data-value", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('data-value="a"');
+    expect(doc).toContain('data-value="b"');
+  });
+
+  test("confirm control renders yes/no buttons", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('class="cs-confirm cs-yes"');
+    expect(doc).toContain('class="cs-confirm cs-no"');
+  });
+
+  test("no more Phase A placeholder text", () => {
+    const doc = wrapDocument({
+      body: "<p>framing</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain("(control rendering — Phase B)");
   });
 });

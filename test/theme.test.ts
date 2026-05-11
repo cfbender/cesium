@@ -238,3 +238,69 @@ describe("frameworkCss", () => {
     expect(frameworkCss(theme)).toBe(expected);
   });
 });
+
+// ─── Phase B: cs-* selector smoke tests ───────────────────────────────────────
+
+describe("frameworkRulesCss — cs-* interactive control selectors", () => {
+  test("contains .cs-questions", () => {
+    expect(frameworkRulesCss()).toContain(".cs-questions");
+  });
+
+  test("contains .cs-control- selectors", () => {
+    expect(frameworkRulesCss()).toContain(".cs-control-");
+  });
+
+  test("contains .cs-pick", () => {
+    expect(frameworkRulesCss()).toContain(".cs-pick");
+  });
+
+  test("contains .cs-submit", () => {
+    expect(frameworkRulesCss()).toContain(".cs-submit");
+  });
+
+  test("contains .cs-confirm", () => {
+    expect(frameworkRulesCss()).toContain(".cs-confirm");
+  });
+
+  test("contains .cs-text", () => {
+    expect(frameworkRulesCss()).toContain(".cs-text");
+  });
+
+  test("contains .cs-slider", () => {
+    expect(frameworkRulesCss()).toContain(".cs-slider");
+  });
+
+  test("contains .cs-react", () => {
+    expect(frameworkRulesCss()).toContain(".cs-react");
+  });
+
+  test("contains .cs-answered", () => {
+    expect(frameworkRulesCss()).toContain(".cs-answered");
+  });
+
+  test("contains .cs-error", () => {
+    expect(frameworkRulesCss()).toContain(".cs-error");
+  });
+
+  test("contains .cs-banner-ended", () => {
+    expect(frameworkRulesCss()).toContain(".cs-banner-ended");
+  });
+
+  test("contains .cs-saving", () => {
+    expect(frameworkRulesCss()).toContain(".cs-saving");
+  });
+
+  test("cs-* rules use CSS variables (not hardcoded colors except warn red)", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("var(--accent)");
+    expect(css).toContain("var(--surface)");
+    expect(css).toContain("var(--ink)");
+  });
+
+  test("frameworkCss contains all cs-* selectors when built with a theme", () => {
+    const css = frameworkCss(defaultTheme());
+    expect(css).toContain(".cs-questions");
+    expect(css).toContain(".cs-pick");
+    expect(css).toContain(".cs-submit");
+  });
+});

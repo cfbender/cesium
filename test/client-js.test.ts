@@ -1,0 +1,125 @@
+import { describe, expect, test } from "bun:test";
+import { getClientJs } from "../src/render/client-js.ts";
+
+describe("getClientJs", () => {
+  test("returns a non-empty string", () => {
+    const js = getClientJs();
+    expect(typeof js).toBe("string");
+    expect(js.length).toBeGreaterThan(100);
+  });
+
+  test("contains fetch( for network calls", () => {
+    expect(getClientJs()).toContain("fetch(");
+  });
+
+  test("contains /api/sessions/ path fragment", () => {
+    expect(getClientJs()).toContain("/api/sessions/");
+  });
+
+  test("contains artifactId extraction from cesium-meta", () => {
+    const js = getClientJs();
+    expect(js).toContain("cesium-meta");
+    expect(js).toContain("artifactId");
+  });
+
+  test("contains DOMContentLoaded listener", () => {
+    expect(getClientJs()).toContain("DOMContentLoaded");
+  });
+
+  test("wraps in IIFE (immediately invoked function expression)", () => {
+    const js = getClientJs();
+    expect(js).toMatch(/\(function\s*\(\s*\)/);
+  });
+
+  test("contains handler for .cs-pick (pick_one / pick_many)", () => {
+    expect(getClientJs()).toContain(".cs-pick");
+  });
+
+  test("contains handler for .cs-confirm", () => {
+    expect(getClientJs()).toContain(".cs-confirm");
+  });
+
+  test("contains handler for .cs-react", () => {
+    expect(getClientJs()).toContain(".cs-react");
+  });
+
+  test("contains handler for .cs-submit", () => {
+    expect(getClientJs()).toContain(".cs-submit");
+  });
+
+  test("contains handler for .cs-slider", () => {
+    expect(getClientJs()).toContain(".cs-slider");
+  });
+
+  test("contains handler for .cs-text", () => {
+    expect(getClientJs()).toContain(".cs-text");
+  });
+
+  test("does NOT contain any external http:// URLs", () => {
+    expect(getClientJs()).not.toMatch(/https?:\/\//);
+  });
+
+  test("handles 410 status for session ended", () => {
+    expect(getClientJs()).toContain("410");
+  });
+
+  test("shows session ended banner on 410", () => {
+    expect(getClientJs()).toContain("cs-banner-ended");
+  });
+
+  test("shows .cs-error for failed requests", () => {
+    expect(getClientJs()).toContain("cs-error");
+  });
+
+  test("sets cs-saving class during pending state", () => {
+    expect(getClientJs()).toContain("cs-saving");
+  });
+
+  test("uses POST method for answer submission", () => {
+    expect(getClientJs()).toContain('"POST"');
+  });
+
+  test("sets Content-Type: application/json header", () => {
+    expect(getClientJs()).toContain("application/json");
+  });
+
+  test("contains pick_one type in submitted value", () => {
+    expect(getClientJs()).toContain('"pick_one"');
+  });
+
+  test("contains pick_many type in submitted value", () => {
+    expect(getClientJs()).toContain('"pick_many"');
+  });
+
+  test("contains confirm type in submitted value", () => {
+    expect(getClientJs()).toContain('"confirm"');
+  });
+
+  test("contains ask_text type in submitted value", () => {
+    expect(getClientJs()).toContain('"ask_text"');
+  });
+
+  test("contains slider type in submitted value", () => {
+    expect(getClientJs()).toContain('"slider"');
+  });
+
+  test("contains react type in submitted value", () => {
+    expect(getClientJs()).toContain('"react"');
+  });
+
+  test("uses replacementHtml from server response", () => {
+    expect(getClientJs()).toContain("replacementHtml");
+  });
+
+  test("uses data-question-id to find the section", () => {
+    expect(getClientJs()).toContain("data-question-id");
+  });
+
+  test("uses 'use strict'", () => {
+    expect(getClientJs()).toContain('"use strict"');
+  });
+
+  test("contains no import statements (inline browser script)", () => {
+    expect(getClientJs()).not.toMatch(/^\s*import\s/m);
+  });
+});

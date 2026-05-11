@@ -1,7 +1,9 @@
 // Assembles the full <!doctype html> document from a body fragment + metadata.
 
 import { frameworkRulesCss, themeTokensCss, type ThemeTokens } from "./theme.ts";
-import type { InteractiveData, Question, AnswerValue } from "./validate.ts";
+import { renderControl, renderAnswered } from "./controls.ts";
+import { getClientJs } from "./client-js.ts";
+import type { InteractiveData, Question } from "./validate.ts";
 
 export interface ArtifactMeta {
   id: string;
@@ -61,66 +63,14 @@ const BACK_LINK_STYLE = "color: var(--muted); text-decoration: none;";
 
 // ─── Interactive rendering ─────────────────────────────────────────────────────
 
-function renderAnswerValue(q: Question, answer: AnswerValue): string {
-  switch (answer.type) {
-    case "pick_one": {
-      if (q.type !== "pick_one") break;
-      const opt = q.options.find((o) => o.id === answer.selected);
-      const label = opt ? escapeHtml(opt.label) : escapeHtml(answer.selected);
-      return `<p>Selected: ${label}</p>`;
-    }
-    case "pick_many": {
-      if (q.type !== "pick_many") break;
-      const labels = answer.selected.map((sel) => {
-        const opt = q.options.find((o) => o.id === sel);
-        return opt ? escapeHtml(opt.label) : escapeHtml(sel);
-      });
-      return `<p>Selected: ${labels.join(", ")}</p>`;
-    }
-    case "confirm": {
-      if (q.type !== "confirm") break;
-      const label =
-        answer.choice === "yes" ? escapeHtml(q.yesLabel ?? "Yes") : escapeHtml(q.noLabel ?? "No");
-      return `<p>${label}</p>`;
-    }
-    case "ask_text": {
-      const escaped = escapeHtml(answer.text);
-      const withBreaks = escaped.replace(/\n/g, "<br>");
-      return `<p>${withBreaks}</p>`;
-    }
-    case "slider": {
-      return `<p>Value: ${answer.value}</p>`;
-    }
-    case "react": {
-      const decision = `<p>Decision: ${escapeHtml(answer.decision)}</p>`;
-      if (answer.comment) {
-        return `${decision}\n      <p>Comment: ${escapeHtml(answer.comment)}</p>`;
-      }
-      return decision;
-    }
-  }
-  return "";
-}
-
 function renderQuestionSection(q: Question, interactive: InteractiveData): string {
   const answered = interactive.answers[q.id];
-  const qTextEsc = escapeHtml(q.question);
-  const idAttr = escapeHtml(q.id);
 
   if (answered !== undefined) {
-    const valueSummary = renderAnswerValue(q, answered.value);
-    return `<section class="cs-answered" data-question-id="${idAttr}">
-      <p class="eyebrow">YOU ANSWERED</p>
-      <h3 class="h-section">${qTextEsc}</h3>
-      ${valueSummary}
-    </section>`;
+    return renderAnswered(q, answered.value);
   }
 
-  return `<section class="cs-control-${q.type}" data-question-id="${idAttr}">
-      <p class="eyebrow">QUESTION</p>
-      <h3 class="h-section">${qTextEsc}</h3>
-      <p>(control rendering — Phase B)</p>
-    </section>`;
+  return renderControl(q);
 }
 
 function renderInteractive(interactive: InteractiveData): string {
@@ -188,6 +138,11 @@ export function wrapDocument(opts: WrapOptions): string {
   const warningHtml = renderWarnings(warnings);
   const footer = renderFooter(meta);
   const interactiveHtml = interactive !== undefined ? renderInteractive(interactive) : "";
+  // Inject client JS only when the session is open (status === "open")
+  const clientScriptTag =
+    interactive !== undefined && interactive.status === "open"
+      ? `\n<script>${getClientJs()}</script>`
+      : "";
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
 
@@ -203,7 +158,7 @@ ${tokens}</style>${linkTag}
   <script type="application/json" id="cesium-meta">${metaJson}</script>
 </head>
 <body>
-${backNav}${warningHtml}${body}${interactiveHtml}
+${backNav}${warningHtml}${body}${interactiveHtml}${clientScriptTag}
 ${footer}
 </body>
 </html>`;
