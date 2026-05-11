@@ -39,7 +39,7 @@ export interface CritiqueResult {
 const HTTP_RE = /^https?:\/\//i;
 
 /** The only cesium-* class the framework ships with. All others are unknown. */
-const KNOWN_CESIUM_CLASSES = new Set(["cesium-back"]);
+const KNOWN_CESIUM_CLASSES = new Set(["cesium-back", "cesium-eyebrow"]);
 
 /** Callout severity modifiers — a callout needs at least one of these. */
 const CALLOUT_MODIFIERS = new Set(["note", "warn", "risk"]);

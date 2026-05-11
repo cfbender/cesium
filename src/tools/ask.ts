@@ -14,6 +14,7 @@ import type { InteractiveData } from "../render/validate.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
 import { atomicWrite } from "../storage/write.ts";
 import { writeThemeCss } from "../storage/theme-write.ts";
+import { writeFaviconSvg } from "../storage/favicon-write.ts";
 import { loadIndex, writeIndex, appendEntry, type IndexEntry } from "../storage/index-cache.ts";
 import { withLock } from "../storage/lock.ts";
 import { renderProjectIndex, renderGlobalIndex } from "../storage/index-gen.ts";
@@ -227,8 +228,9 @@ export function createAskTool(
       // 14. Build theme + wrap document
       const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
 
-      // 14a. Write theme.css (idempotent, outside index lock — separate file)
+      // 14a. Write theme.css + favicon.svg (idempotent, outside index lock — separate files)
       await writeThemeCss(config.stateDir, theme);
+      await writeFaviconSvg(config.stateDir);
 
       const fullHtml = wrapDocument({
         body: scrubbed.html,

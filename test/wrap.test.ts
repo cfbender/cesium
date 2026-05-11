@@ -226,6 +226,33 @@ describe("wrapDocument", () => {
     });
     expect(doc).toContain('<link rel="stylesheet" href="../../../theme.css">');
   });
+
+  // ─── Favicon link tests ────────────────────────────────────────────────────
+
+  test("default themeCssHref produces favicon link to ../../../favicon.svg", () => {
+    const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
+    expect(doc).toContain('<link rel="icon" type="image/svg+xml" href="../../../favicon.svg">');
+  });
+
+  test("custom themeCssHref derives matching favicon path", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: "theme.css",
+    });
+    expect(doc).toContain('<link rel="icon" type="image/svg+xml" href="favicon.svg">');
+  });
+
+  test("themeCssHref: null suppresses the favicon link too", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta(),
+      theme: defaultTheme(),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain('<link rel="icon"');
+  });
 });
 
 // ─── Interactive rendering ─────────────────────────────────────────────────────

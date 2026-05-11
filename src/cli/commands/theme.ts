@@ -10,6 +10,7 @@ import {
   type ThemePalette,
 } from "../../render/theme.ts";
 import { writeThemeCss, themeCssPath } from "../../storage/theme-write.ts";
+import { writeFaviconSvg } from "../../storage/favicon-write.ts";
 import { themeTokensCss } from "../../render/theme.ts";
 import { atomicWrite } from "../../storage/write.ts";
 import { readdir } from "node:fs/promises";
@@ -307,6 +308,7 @@ async function themeApplyCommand(argv: string[], ctx: ThemeContext): Promise<num
   const cfg = (ctx.loadConfig ?? loadConfig)();
   const { theme, presetLabel } = resolveTheme(cfg);
   const cssPath = await writeThemeCss(cfg.stateDir, theme);
+  await writeFaviconSvg(cfg.stateDir);
 
   if (values["rewrite-artifacts"]) {
     const { artifacts, indexes } = await retrofitAll(cfg.stateDir, ctx.stdout);

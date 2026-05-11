@@ -14,6 +14,7 @@ import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
 import { atomicWrite, patchEmbeddedMetadata } from "../storage/write.ts";
 import { writeThemeCss } from "../storage/theme-write.ts";
+import { writeFaviconSvg } from "../storage/favicon-write.ts";
 import {
   loadIndex,
   writeIndex,
@@ -224,8 +225,9 @@ export function createPublishTool(
       // 12. Build theme + wrap document
       const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
 
-      // 12a. Write theme.css (idempotent, outside index lock — separate file)
+      // 12a. Write theme.css + favicon.svg (idempotent, outside index lock — separate files)
       await writeThemeCss(config.stateDir, theme);
+      await writeFaviconSvg(config.stateDir);
 
       const fullHtml = wrapDocument({
         body: scrubbed.html,

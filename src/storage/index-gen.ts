@@ -3,6 +3,7 @@
 import type { IndexEntry } from "./index-cache.ts";
 import type { ThemeTokens } from "../render/theme.ts";
 import { frameworkRulesCss, themeTokensCss } from "../render/theme.ts";
+import { faviconLinkTag, faviconEmblemSvg } from "../render/favicon.ts";
 
 export interface RenderProjectIndexArgs {
   projectSlug: string;
@@ -88,6 +89,11 @@ function formatDate(iso: string): string {
 function indexCss(): string {
   return `
 /* index-page chrome */
+.cesium-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  /* the eyebrow text is uppercased + tracked; the emblem sits flush left */
+}
+.cesium-eyebrow svg { display: block; }
 .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; align-items: center; }
 .filter-chip {
   display: inline-block; font-family: var(--sans); font-size: 0.8em; font-weight: 500;
@@ -274,6 +280,12 @@ export function renderProjectIndex(args: RenderProjectIndexArgs): string {
   const iJs = indexJs();
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
+  // Favicon sits next to theme.css in the stateDir root, so swap the suffix.
+  const faviconHref =
+    href !== null && href.endsWith("theme.css")
+      ? href.slice(0, -"theme.css".length) + "favicon.svg"
+      : "../../favicon.svg";
+  const faviconTag = suppressLink ? "" : `\n  ${faviconLinkTag(faviconHref)}`;
 
   // Sort entries newest-first
   const sorted = [...entries].toSorted(
@@ -348,11 +360,11 @@ ${cardsHtml}
   <title>${esc(projectName)} · cesium</title>
   <style>${rules}
 /* fallback theme tokens — used when theme.css is missing or unreachable */
-${tokens}${iCss}</style>${linkTag}
+${tokens}${iCss}</style>${linkTag}${faviconTag}
 </head>
 <body>
 <div class="page">
-  <p class="eyebrow">cesium · project</p>
+  <p class="eyebrow cesium-eyebrow">${faviconEmblemSvg(18)}<span>cesium · project</span></p>
   <h1 class="h-display">${esc(projectName)}</h1>
   ${subhead}
   ${filterRow}
@@ -383,6 +395,12 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
   const iCss = indexCss();
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
+  // Favicon sits next to theme.css; default href is "theme.css" → "favicon.svg".
+  const faviconHref =
+    href !== null && href.endsWith("theme.css")
+      ? href.slice(0, -"theme.css".length) + "favicon.svg"
+      : "favicon.svg";
+  const faviconTag = suppressLink ? "" : `\n  ${faviconLinkTag(faviconHref)}`;
 
   const sorted = [...projects].toSorted(
     (a, b) => new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime(),
@@ -432,11 +450,11 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
   <title>All projects · cesium</title>
   <style>${rules}
 /* fallback theme tokens — used when theme.css is missing or unreachable */
-${tokens}${iCss}</style>${linkTag}
+${tokens}${iCss}</style>${linkTag}${faviconTag}
 </head>
 <body>
 <div class="page">
-  <p class="eyebrow">cesium</p>
+  <p class="eyebrow cesium-eyebrow">${faviconEmblemSvg(18)}<span>cesium</span></p>
   <h1 class="h-display">All projects</h1>
   ${subhead}
   ${bodyContent}

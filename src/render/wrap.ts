@@ -3,6 +3,7 @@
 import { frameworkRulesCss, themeTokensCss, type ThemeTokens } from "./theme.ts";
 import { renderControl, renderAnswered } from "./controls.ts";
 import { getClientJs } from "./client-js.ts";
+import { faviconLinkTag } from "./favicon.ts";
 import type { InteractiveData, Question } from "./validate.ts";
 
 export interface ArtifactMeta {
@@ -45,6 +46,20 @@ function escapeHtml(str: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** Derives the favicon href from the theme.css href.
+ *
+ *  Both files live in the stateDir root, so the relative depth is identical:
+ *  swap the trailing "theme.css" segment for "favicon.svg". For atypical
+ *  themeCssHref values (absolute URLs, paths without "theme.css" suffix), fall
+ *  back to the artifact-context default.
+ */
+function deriveFaviconHref(themeCssHref: string): string {
+  if (themeCssHref.endsWith("theme.css")) {
+    return themeCssHref.slice(0, -"theme.css".length) + "favicon.svg";
+  }
+  return "../../../favicon.svg";
 }
 
 function safeJsonForScript(obj: unknown): string {
@@ -145,6 +160,10 @@ export function wrapDocument(opts: WrapOptions): string {
       : "";
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
+  // Favicon path mirrors the theme.css path: artifacts live three levels deep
+  // in <stateDir>/projects/<slug>/artifacts/, so favicon.svg is "../../../".
+  // When suppressed (standalone/test mode), we suppress favicon too.
+  const faviconTag = suppressLink ? "" : `\n  ${faviconLinkTag(deriveFaviconHref(href ?? ""))}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -154,7 +173,7 @@ export function wrapDocument(opts: WrapOptions): string {
   <title>${titleEsc} · cesium</title>
   <style>${rules}
 /* fallback theme tokens — used when theme.css is missing or unreachable */
-${tokens}</style>${linkTag}
+${tokens}</style>${linkTag}${faviconTag}
   <script type="application/json" id="cesium-meta">${metaJson}</script>
 </head>
 <body>

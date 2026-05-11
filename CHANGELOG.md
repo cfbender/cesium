@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.6 — 2026-05-11
+
+Adds a periodic-table-themed favicon for the cesium HTTP server.
+
+- **feat:** Element-55 ("Cs") periodic-table tile favicon in the claret-dark
+  palette. Source SVG at `assets/favicon.svg`.
+- **feat:** `writeFaviconSvg` drops `<stateDir>/favicon.svg` next to
+  `theme.css` on every publish/ask (and on `cesium theme apply`). The static
+  HTTP server then serves it at `/favicon.svg`.
+- **feat:** `<link rel="icon" type="image/svg+xml">` is now emitted in
+  artifact pages, project index pages, and the global index page (paths
+  derived from the existing theme.css href so suppression behavior matches).
+- **feat:** Inline favicon emblem rendered next to the "cesium" / "cesium ·
+  project" eyebrow on both index pages.
+- **feat:** `/favicon.ico` shim — server pre-handler serves the SVG bytes
+  with `image/svg+xml` content type so browsers that auto-request the legacy
+  `.ico` path don't see a 404.
+
 ## v0.3.5 — 2026-05-11
 
 Fixes the `Publish to npm` GitHub Action.

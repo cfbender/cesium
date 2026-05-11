@@ -578,6 +578,53 @@ test("global index file contains link to theme.css", async () => {
   expect(html).toContain('<link rel="stylesheet" href="theme.css">');
 });
 
+// ─── Favicon ──────────────────────────────────────────────────────────────
+
+test("after publish: favicon.svg exists at stateDir/favicon.svg", async () => {
+  await publish(workDir, stateDir, {
+    title: "Favicon Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  expect(existsSync(join(stateDir, "favicon.svg"))).toBe(true);
+});
+
+test("after publish: favicon.svg contains the cesium element marker", async () => {
+  await publish(workDir, stateDir, {
+    title: "Favicon Content Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  const svg = readFileSync(join(stateDir, "favicon.svg"), "utf8");
+  expect(svg).toContain("<svg");
+  expect(svg).toContain(">Cs<");
+  expect(svg).toContain("#C75B7A");
+});
+
+test("artifact, project index, and global index all reference the favicon", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Favicon Wiring Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+  // Artifact (3 levels deep)
+  const artifactHtml = readFileSync(result["filePath"] as string, "utf8");
+  expect(artifactHtml).toContain(
+    '<link rel="icon" type="image/svg+xml" href="../../../favicon.svg">',
+  );
+  // Project index (2 levels deep)
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const projIndex = readFileSync(join(stateDir, "projects", slugMatch[1], "index.html"), "utf8");
+  expect(projIndex).toContain(
+    '<link rel="icon" type="image/svg+xml" href="../../favicon.svg">',
+  );
+  // Global index (root)
+  const globalIndex = readFileSync(join(stateDir, "index.html"), "utf8");
+  expect(globalIndex).toContain('<link rel="icon" type="image/svg+xml" href="favicon.svg">');
+});
+
 test("after re-publishing with warm theme, theme.css contains warm accent", async () => {
   // First publish with default (claret)
   await publish(workDir, stateDir, {

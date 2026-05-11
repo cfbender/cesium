@@ -6,6 +6,7 @@ import { unlink, writeFile } from "node:fs/promises";
 import { startServer, type ServerHandle } from "./http.ts";
 import { acquireLock } from "../storage/lock.ts";
 import { createApiHandler } from "./api.ts";
+import { createFaviconHandler } from "./favicon.ts";
 
 export interface LifecycleConfig {
   stateDir: string;
@@ -260,6 +261,9 @@ export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> 
 
     // Wire API handler before static file fallback
     handle.addHandler(createApiHandler({ stateDir }));
+    // /favicon.ico shim — browsers auto-request this even when the page
+    // declares an SVG favicon. Serve the SVG bytes inline so we don't 404.
+    handle.addHandler(createFaviconHandler());
 
     const startedAt = new Date().toISOString();
 

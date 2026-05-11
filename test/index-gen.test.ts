@@ -273,6 +273,39 @@ describe("renderProjectIndex", () => {
     expect(html).not.toContain('<link rel="stylesheet"');
   });
 
+  test("default themeCssHref emits favicon link to ../../favicon.svg", () => {
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
+    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="../../favicon.svg">');
+  });
+
+  test("themeCssHref: null suppresses the favicon link too", () => {
+    const html = renderProjectIndex({
+      projectSlug: "p",
+      projectName: "P",
+      entries: [],
+      theme,
+      themeCssHref: null,
+    });
+    expect(html).not.toContain('<link rel="icon"');
+  });
+
+  test("eyebrow header includes inline favicon emblem next to 'cesium · project'", () => {
+    const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
+    // Emblem + label live inside an .eyebrow.cesium-eyebrow row
+    expect(html).toContain('<p class="eyebrow cesium-eyebrow">');
+    expect(html).toContain("cesium · project");
+    // Inline svg precedes the text label
+    const eyebrowMatch = /<p class="eyebrow cesium-eyebrow">([\s\S]*?)<\/p>/.exec(html);
+    expect(eyebrowMatch).not.toBeNull();
+    const eyebrowContent = eyebrowMatch?.[1] ?? "";
+    expect(eyebrowContent).toContain("<svg");
+    expect(eyebrowContent).toContain(">Cs<");
+    const svgPos = eyebrowContent.indexOf("<svg");
+    const textPos = eyebrowContent.indexOf("cesium · project");
+    expect(svgPos).toBeGreaterThanOrEqual(0);
+    expect(textPos).toBeGreaterThan(svgPos);
+  });
+
   test("inline <style> includes fallback token block and framework rules", () => {
     const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
     const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(html);
@@ -369,6 +402,27 @@ describe("renderGlobalIndex", () => {
   test("themeCssHref: null suppresses the link", () => {
     const html = renderGlobalIndex({ projects: [], theme, themeCssHref: null });
     expect(html).not.toContain('<link rel="stylesheet"');
+  });
+
+  test("default themeCssHref emits favicon link to favicon.svg", () => {
+    const html = renderGlobalIndex({ projects: [], theme });
+    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="favicon.svg">');
+  });
+
+  test("themeCssHref: null suppresses the favicon link too", () => {
+    const html = renderGlobalIndex({ projects: [], theme, themeCssHref: null });
+    expect(html).not.toContain('<link rel="icon"');
+  });
+
+  test("eyebrow header includes inline favicon emblem next to 'cesium'", () => {
+    const html = renderGlobalIndex({ projects: [], theme });
+    expect(html).toContain('<p class="eyebrow cesium-eyebrow">');
+    const eyebrowMatch = /<p class="eyebrow cesium-eyebrow">([\s\S]*?)<\/p>/.exec(html);
+    expect(eyebrowMatch).not.toBeNull();
+    const eyebrowContent = eyebrowMatch?.[1] ?? "";
+    expect(eyebrowContent).toContain("<svg");
+    expect(eyebrowContent).toContain(">Cs<");
+    expect(eyebrowContent).toContain("cesium");
   });
 
   test("inline <style> includes fallback token block", () => {

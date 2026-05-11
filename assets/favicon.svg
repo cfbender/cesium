@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cesium — element 55">
+  <!-- Periodic table tile, claret-dark palette -->
+  <rect x="2" y="2" width="60" height="60" rx="10" ry="10" fill="#180810"/>
+  <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="9.25" ry="9.25"
+        fill="none" stroke="#C75B7A" stroke-width="1.5"/>
+
+  <!-- Atomic number, top-left -->
+  <text x="8" y="18" fill="#C75B7A"
+        font-family="ui-monospace, 'SF Mono', Menlo, Monaco, monospace"
+        font-size="13" font-weight="700" letter-spacing="0.5">55</text>
+
+  <!-- Element symbol, centered -->
+  <text x="32" y="48" fill="#DDD3C7" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="36" font-weight="700" letter-spacing="-1">Cs</text>
+</svg>
