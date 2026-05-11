@@ -42,7 +42,9 @@ instead of replying with markdown. The plugin then:
 
 The agent decides per-response whether to publish, guided by a system-prompt
 fragment with a ~400 word threshold and content-shape heuristics. Short factual
-answers and status updates stay in the terminal.
+answers and status updates stay in the terminal. The agent may call
+`cesium_critique` before `cesium_publish` to self-check the artifact's structure
+and design-system adherence.
 
 ## Where artifacts live
 
@@ -130,7 +132,8 @@ Per-token overrides (`theme: { accent: "#..." }`) apply on top of the chosen pre
 
 For sessions where you always want HTML output, copy `agents/cesium.md` into
 `~/.config/opencode/agents/`. Then invoke with `@cesium <request>` and the agent
-will bias heavily toward publishing.
+will bias heavily toward publishing. The agent has access to all three tools:
+`cesium_publish`, `cesium_styleguide`, and `cesium_critique`.
 
 ## Design system
 
@@ -168,7 +171,7 @@ bun run examples:bake     # regenerate examples/*.html from src
 
 ## Status
 
-v0.1.0 — initial release. See [`CHANGELOG.md`](CHANGELOG.md).
+v0.1.4 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 

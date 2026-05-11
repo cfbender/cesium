@@ -2,6 +2,15 @@
 
 # Changelog
 
+## v0.1.4 — 2026-05-11
+
+### Added
+
+- `cesium_critique` tool. Agent can call this before publishing to get a 0-100
+  score and structured findings (warn/suggest/info) about how well the body
+  adheres to the design system. The system-prompt fragment now instructs
+  agents to self-check on complex artifacts.
+
 ## v0.1.3 — 2026-05-11
 
 ### Added
