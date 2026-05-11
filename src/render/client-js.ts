@@ -7,17 +7,26 @@
 
 /** Returns the standalone JS string to embed in interactive artifacts. */
 export function getClientJs(): string {
-  return `(function () {
+  return `(function cesiumClient() {
   "use strict";
 
-  // ─── Artifact ID extraction ─────────────────────────────────────────────────
-  var metaEl = document.getElementById("cesium-meta");
-  var artifactId = "";
-  if (metaEl) {
-    try {
-      var meta = JSON.parse(metaEl.textContent || "{}");
-      artifactId = (meta && meta.id) ? String(meta.id) : "";
-    } catch (_e) {}
+  // ─── API base URL derived from window.location.pathname ────────────────────
+  // Artifacts are served at /projects/<projectSlug>/artifacts/<filename>.html
+  // If not served via cesium HTTP server (e.g. file://), apiBase will be null.
+  var m = window.location.pathname.match(/^\\/projects\\/([^\\/]+)\\/artifacts\\/([^\\/]+)$/);
+  var apiBase = m ? "/api/sessions/" + m[1] + "/" + m[2] : null;
+
+  // ─── File:// / offline banner ───────────────────────────────────────────────
+  if (!apiBase) {
+    document.addEventListener("DOMContentLoaded", function () {
+      if (document.querySelector(".cs-banner-offline")) return;
+      var banner = document.createElement("div");
+      banner.className = "cs-banner cs-banner-offline";
+      banner.textContent =
+        "Interactive controls require viewing this artifact via the cesium HTTP server. " +
+        "Run cesium open or visit localhost:3030";
+      document.body.insertBefore(banner, document.body.firstChild);
+    });
   }
 
   // ─── Session-ended banner ───────────────────────────────────────────────────
@@ -41,7 +50,10 @@ export function getClientJs(): string {
 
   // ─── POST answer ────────────────────────────────────────────────────────────
   function postAnswer(qid, value) {
-    return fetch("/api/sessions/" + artifactId + "/answers/" + qid, {
+    if (!apiBase) {
+      return Promise.reject(new Error("not served via cesium HTTP server"));
+    }
+    return fetch(apiBase + "/answers/" + qid, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: value }),

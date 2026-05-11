@@ -141,7 +141,7 @@ export function wrapDocument(opts: WrapOptions): string {
   // Inject client JS only when the session is open (status === "open")
   const clientScriptTag =
     interactive !== undefined && interactive.status === "open"
-      ? `\n<script>${getClientJs()}</script>`
+      ? `\n<script data-cesium-client>${getClientJs()}</script>`
       : "";
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;

@@ -16,19 +16,42 @@ describe("getClientJs", () => {
     expect(getClientJs()).toContain("/api/sessions/");
   });
 
-  test("contains artifactId extraction from cesium-meta", () => {
+  test("derives API URL from window.location.pathname (not meta.id)", () => {
     const js = getClientJs();
-    expect(js).toContain("cesium-meta");
-    expect(js).toContain("artifactId");
+    // New pattern: extract project slug and filename from location
+    expect(js).toContain("window.location.pathname");
+    expect(js).toContain("/projects/");
+    expect(js).toContain("/artifacts/");
+    // Should NOT reference meta.id for URL construction
+    expect(js).not.toContain("artifactId");
+  });
+
+  test("contains apiBase variable derived from pathname match", () => {
+    const js = getClientJs();
+    expect(js).toContain("apiBase");
+    expect(js).toContain("m[1]");
+    expect(js).toContain("m[2]");
+  });
+
+  test("handles null apiBase (file:// or unrecognized URL) gracefully", () => {
+    const js = getClientJs();
+    // Should check for null apiBase and handle gracefully
+    expect(js).toContain("!apiBase");
+  });
+
+  test("shows offline/file-view banner when not served via cesium HTTP", () => {
+    const js = getClientJs();
+    expect(js).toContain("cs-banner-offline");
+    expect(js).toContain("cesium HTTP server");
   });
 
   test("contains DOMContentLoaded listener", () => {
     expect(getClientJs()).toContain("DOMContentLoaded");
   });
 
-  test("wraps in IIFE (immediately invoked function expression)", () => {
+  test("wraps in named IIFE (cesiumClient)", () => {
     const js = getClientJs();
-    expect(js).toMatch(/\(function\s*\(\s*\)/);
+    expect(js).toMatch(/\(function\s+cesiumClient\s*\(\s*\)/);
   });
 
   test("contains handler for .cs-pick (pick_one / pick_many)", () => {

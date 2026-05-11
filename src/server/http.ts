@@ -8,6 +8,8 @@ export interface ServerHandle {
   url: string; // "http://127.0.0.1:<port>"
   stop(): Promise<void>;
   onRequest(handler: () => void): void; // for idle-tracking; lifecycle attaches a callback
+  /** Register a pre-static handler. Returns a Response to short-circuit, or undefined to fall through. */
+  addHandler(handler: (req: Request) => Promise<Response | undefined>): void;
 }
 
 export interface StartServerArgs {
@@ -64,6 +66,7 @@ export async function startServer(args: StartServerArgs): Promise<ServerHandle> 
   const { stateDir, port, hostname = "127.0.0.1" } = args;
   const stateDirResolved = resolve(stateDir);
   const requestHandlers: Array<() => void> = [];
+  const preHandlers: Array<(req: Request) => Promise<Response | undefined>> = [];
 
   const server = Bun.serve({
     hostname,
@@ -72,6 +75,14 @@ export async function startServer(args: StartServerArgs): Promise<ServerHandle> 
       // Notify idle tracker
       for (const h of requestHandlers) {
         h();
+      }
+
+      // Run pre-static handlers (e.g. API routes) before serving static files
+      for (const handler of preHandlers) {
+        const result = await handler(req);
+        if (result !== undefined) {
+          return result;
+        }
       }
 
       if (req.method !== "GET") {
@@ -176,6 +187,9 @@ export async function startServer(args: StartServerArgs): Promise<ServerHandle> 
     },
     onRequest: (handler: () => void) => {
       requestHandlers.push(handler);
+    },
+    addHandler: (handler: (req: Request) => Promise<Response | undefined>) => {
+      preHandlers.push(handler);
     },
   };
 }

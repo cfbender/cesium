@@ -5,6 +5,7 @@ import { readFileSync, unlinkSync } from "node:fs";
 import { unlink, writeFile } from "node:fs/promises";
 import { startServer, type ServerHandle } from "./http.ts";
 import { acquireLock } from "../storage/lock.ts";
+import { createApiHandler } from "./api.ts";
 
 export interface LifecycleConfig {
   stateDir: string;
@@ -253,6 +254,9 @@ export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> 
 
     const handle = await tryBindPort(port);
     const boundPort = handle.port;
+
+    // Wire API handler before static file fallback
+    handle.addHandler(createApiHandler({ stateDir }));
 
     const startedAt = new Date().toISOString();
 

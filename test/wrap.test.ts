@@ -732,7 +732,7 @@ describe("wrapDocument — ask kind footer", () => {
 // ─── Phase B: client JS injection ─────────────────────────────────────────────
 
 describe("wrapDocument — client JS injection", () => {
-  test("includes <script> with client JS when status is open", () => {
+  test("includes <script data-cesium-client> with client JS when status is open", () => {
     const doc = wrapDocument({
       body: "<p>hi</p>",
       meta: makeMeta({ kind: "ask" }),
@@ -740,8 +740,20 @@ describe("wrapDocument — client JS injection", () => {
       interactive: makeInteractive({ status: "open" }),
       themeCssHref: null,
     });
-    expect(doc).toContain("<script>");
+    expect(doc).toContain("<script data-cesium-client>");
     expect(doc).toContain("DOMContentLoaded");
+  });
+
+  test("data-cesium-client attribute is present on script tag (not plain <script>)", () => {
+    const doc = wrapDocument({
+      body: "<p>hi</p>",
+      meta: makeMeta({ kind: "ask" }),
+      theme: defaultTheme(),
+      interactive: makeInteractive({ status: "open" }),
+      themeCssHref: null,
+    });
+    // Must have the attribute
+    expect(doc).toContain("data-cesium-client");
   });
 
   test("client JS appears AFTER cs-questions and BEFORE footer", () => {
@@ -769,6 +781,7 @@ describe("wrapDocument — client JS injection", () => {
       themeCssHref: null,
     });
     expect(doc).not.toContain("DOMContentLoaded");
+    expect(doc).not.toContain("data-cesium-client");
   });
 
   test("NO client <script> when status is expired", () => {
@@ -780,6 +793,7 @@ describe("wrapDocument — client JS injection", () => {
       themeCssHref: null,
     });
     expect(doc).not.toContain("DOMContentLoaded");
+    expect(doc).not.toContain("data-cesium-client");
   });
 
   test("NO client <script> when status is cancelled", () => {
@@ -791,6 +805,7 @@ describe("wrapDocument — client JS injection", () => {
       themeCssHref: null,
     });
     expect(doc).not.toContain("DOMContentLoaded");
+    expect(doc).not.toContain("data-cesium-client");
   });
 
   test("NO client <script> when no interactive", () => {
@@ -801,6 +816,7 @@ describe("wrapDocument — client JS injection", () => {
       themeCssHref: null,
     });
     expect(doc).not.toContain("DOMContentLoaded");
+    expect(doc).not.toContain("data-cesium-client");
   });
 });
 
