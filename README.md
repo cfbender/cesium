@@ -155,6 +155,8 @@ cesium prune --older-than 90d --yes  # actually delete them
 cesium theme show                # print resolved theme tokens
 cesium theme apply               # write theme.css from current config
 cesium theme apply --rewrite-artifacts  # retrofit old artifacts with the theme link
+
+cesium --version                 # print the cesium version (also -v or 'version')
 ```
 
 The CLI shares `~/.config/opencode/cesium.json` with the plugin, so port,

@@ -1,6 +1,6 @@
 {
   "name": "cesium",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Beautiful self-contained HTML artifacts from your opencode agent.",
   "license": "MIT",
   "bin": {

@@ -2,6 +2,21 @@
 
 # Changelog
 
+# Changelog
+
+## v0.2.4 — 2026-05-11
+
+### Added
+
+- `cesium --version` / `cesium -v` / `cesium version` — print the installed
+  version. Useful for confirming what's actually running after an upgrade.
+
+### Changed
+
+- `claret-dark` code panels now render at `surface2` (`#2B1F22`) instead of
+  recessed `#0F0509`. The recessed value gave only ~9 luminance points of
+  contrast against the page bg; the elevated value reads cleanly.
+
 ## v0.2.3 — 2026-05-11
 
 ### Added

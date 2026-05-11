@@ -68,3 +68,27 @@ test("cesium restart --help exits 0 — restart inherits stop/serve help flag", 
   const { exitCode } = runCli(["restart", "--help"]);
   expect(exitCode).toBe(0);
 });
+
+test("cesium --version prints the version and exits 0", () => {
+  const { stdout, exitCode } = runCli(["--version"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toMatch(/^cesium \d+\.\d+\.\d+\s*$/);
+});
+
+test("cesium -v prints the version and exits 0", () => {
+  const { stdout, exitCode } = runCli(["-v"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toMatch(/^cesium \d+\.\d+\.\d+\s*$/);
+});
+
+test("cesium version subcommand prints the version and exits 0", () => {
+  const { stdout, exitCode } = runCli(["version"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toMatch(/^cesium \d+\.\d+\.\d+\s*$/);
+});
+
+test("cesium --help mentions the version flag and command", () => {
+  const { stdout } = runCli(["--help"]);
+  expect(stdout).toContain("--version");
+  expect(stdout).toContain("version");
+});

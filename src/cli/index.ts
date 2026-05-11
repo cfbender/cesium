@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { parseArgs as _parseArgs } from "node:util";
+import pkg from "../../package.json" with { type: "json" };
 import { lsCommand } from "./commands/ls.ts";
 import { openCommand } from "./commands/open.ts";
 import { serveCommand } from "./commands/serve.ts";
@@ -12,6 +13,8 @@ import { themeCommand } from "./commands/theme.ts";
 const subcommand = process.argv[2];
 const rest = process.argv.slice(3);
 
+export const CESIUM_VERSION: string = pkg.version;
+
 const COMMANDS: Record<string, (argv: string[]) => Promise<number>> = {
   ls: lsCommand,
   open: openCommand,
@@ -20,6 +23,10 @@ const COMMANDS: Record<string, (argv: string[]) => Promise<number>> = {
   restart: restartCommand,
   prune: pruneCommand,
   theme: themeCommand,
+  version: async () => {
+    process.stdout.write(`cesium ${CESIUM_VERSION}\n`);
+    return 0;
+  },
 };
 
 function printHelp(): void {
@@ -37,9 +44,11 @@ function printHelp(): void {
       "  restart  Stop and re-start the cesium server",
       "  prune    Delete artifacts older than a given duration",
       "  theme    Show or apply the configured theme",
+      "  version  Print the cesium version",
       "",
       "Options:",
-      "  --help, -h  Show this help message",
+      "  --help, -h     Show this help message",
+      "  --version, -v  Print the cesium version",
       "",
       "Run 'cesium <command> --help' for command-specific options.",
       "",
@@ -48,6 +57,10 @@ function printHelp(): void {
 }
 
 async function main(): Promise<void> {
+  if (subcommand === "--version" || subcommand === "-v") {
+    process.stdout.write(`cesium ${CESIUM_VERSION}\n`);
+    process.exit(0);
+  }
   if (!subcommand || subcommand === "--help" || subcommand === "-h") {
     printHelp();
     process.exit(subcommand ? 0 : 1);
