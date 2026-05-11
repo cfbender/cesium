@@ -16,7 +16,8 @@ import { atomicWrite } from "../storage/write.ts";
 import { writeThemeCss } from "../storage/theme-write.ts";
 import { loadIndex, writeIndex, appendEntry, type IndexEntry } from "../storage/index-cache.ts";
 import { withLock } from "../storage/lock.ts";
-import { renderProjectIndex, renderGlobalIndex, summarizeProject } from "../storage/index-gen.ts";
+import { renderProjectIndex, renderGlobalIndex } from "../storage/index-gen.ts";
+import { buildProjectSummaries } from "../storage/project-summaries.ts";
 import {
   ensureRunning as defaultEnsureRunning,
   type RunningInfo,
@@ -349,16 +350,4 @@ function defaultNanoid(): string {
     result += alphabet[byte % alphabet.length];
   }
   return result;
-}
-
-function buildProjectSummaries(entries: IndexEntry[]) {
-  const bySlug = new Map<string, { name: string; entries: IndexEntry[] }>();
-  for (const e of entries) {
-    const group = bySlug.get(e.projectSlug) ?? { name: e.projectName, entries: [] };
-    group.entries.push(e);
-    bySlug.set(e.projectSlug, group);
-  }
-  return [...bySlug.entries()].map(([slug, { name, entries: es }]) =>
-    summarizeProject({ slug, name, entries: es }),
-  );
 }
