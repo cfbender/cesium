@@ -28,6 +28,13 @@ function makeOverrides(stateDir: string, nanoid?: () => string): PublishToolOver
     }),
     now: () => new Date("2026-05-11T14:22:09Z"),
     nanoid: nanoid ?? (() => "abc123"),
+    // Stub out real port binding in integration tests
+    ensureRunning: async () => ({
+      port: 3030,
+      url: "http://127.0.0.1:3030",
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    }),
   };
 }
 
@@ -340,4 +347,80 @@ test("two sequential publishes: global index contains the project once with high
   expect(html).toContain("2 artifacts");
   // The project slug should appear only once as a card link (not duplicated)
   expect(html).toContain("All projects");
+});
+
+// ─── Phase 4: terminalSummary + SSH detection ──────────────────────────────
+
+test("result JSON includes terminalSummary field", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "My Report",
+    kind: "report",
+    html: "<p>content</p>",
+  });
+
+  expect(typeof result["terminalSummary"]).toBe("string");
+});
+
+test("terminalSummary contains title, kind, httpUrl, fileUrl on separate lines", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "Summary Test",
+    kind: "plan",
+    html: "<p>x</p>",
+  });
+
+  const summary = result["terminalSummary"] as string;
+  const lines = summary.split("\n");
+
+  // First line: "Cesium · <title> (<kind>)"
+  expect(lines[0]).toContain("Summary Test");
+  expect(lines[0]).toContain("plan");
+  expect(lines[0]).toContain("Cesium ·");
+
+  // Should contain httpUrl
+  expect(summary).toContain("http://127.0.0.1:3030");
+  // Should contain fileUrl (file:// prefix)
+  expect(summary).toContain("file://");
+});
+
+test("terminalSummary includes SSH port-forward hint when SSH_CONNECTION is set", async () => {
+  const originalSsh = process.env["SSH_CONNECTION"];
+  process.env["SSH_CONNECTION"] = "1.2.3.4 22 5.6.7.8 22";
+
+  try {
+    const result = await publish(workDir, stateDir, {
+      title: "SSH Test",
+      kind: "report",
+      html: "<p>ssh</p>",
+    });
+
+    const summary = result["terminalSummary"] as string;
+    expect(summary).toContain("ssh -L");
+    expect(summary).toContain("3030");
+  } finally {
+    if (originalSsh === undefined) {
+      delete process.env["SSH_CONNECTION"];
+    } else {
+      process.env["SSH_CONNECTION"] = originalSsh;
+    }
+  }
+});
+
+test("terminalSummary does NOT include SSH hint when SSH_CONNECTION is not set", async () => {
+  const originalSsh = process.env["SSH_CONNECTION"];
+  delete process.env["SSH_CONNECTION"];
+
+  try {
+    const result = await publish(workDir, stateDir, {
+      title: "Non-SSH Test",
+      kind: "report",
+      html: "<p>local</p>",
+    });
+
+    const summary = result["terminalSummary"] as string;
+    expect(summary).not.toContain("ssh -L");
+  } finally {
+    if (originalSsh !== undefined) {
+      process.env["SSH_CONNECTION"] = originalSsh;
+    }
+  }
 });

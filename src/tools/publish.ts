@@ -20,11 +20,35 @@ import {
 } from "../storage/index-cache.ts";
 import { withLock } from "../storage/lock.ts";
 import { renderProjectIndex, renderGlobalIndex, summarizeProject } from "../storage/index-gen.ts";
+import {
+  ensureRunning as defaultEnsureRunning,
+  type RunningInfo,
+  type LifecycleConfig,
+} from "../server/lifecycle.ts";
 
 export interface PublishToolOverrides {
   loadConfig?: () => CesiumConfig;
   now?: () => Date;
   nanoid?: () => string;
+  ensureRunning?: (cfg: LifecycleConfig) => Promise<RunningInfo | null>;
+}
+
+export interface TerminalSummaryArgs {
+  title: string;
+  kind: string;
+  httpUrl: string;
+  fileUrl: string;
+  isSsh: boolean;
+  port: number;
+}
+
+export function buildTerminalSummary(args: TerminalSummaryArgs): string {
+  const { title, kind, httpUrl, fileUrl, isSsh, port } = args;
+  let summary = `Cesium · ${title} (${kind})\n  ${httpUrl}\n  ${fileUrl}`;
+  if (isSsh) {
+    summary += `\n\n  (remote: forward port → ssh -L ${port}:localhost:${port} <host>)`;
+  }
+  return summary;
 }
 
 const TOOL_DESCRIPTION = `Publish a beautiful self-contained HTML document to the cesium artifacts directory.
@@ -76,6 +100,7 @@ export function createPublishTool(
   const resolveConfig = overrides?.loadConfig ?? loadConfig;
   const now = overrides?.now ?? (() => new Date());
   const genId = overrides?.nanoid ?? defaultNanoid;
+  const runEnsureRunning = overrides?.ensureRunning ?? defaultEnsureRunning;
 
   return tool({
     description: TOOL_DESCRIPTION,
@@ -273,13 +298,44 @@ export function createPublishTool(
         await atomicWrite(paths.globalIndexPath, globalIndexHtml);
       });
 
-      // 20. Return result
+      // 20. Start server (best-effort) and build URLs
+      let httpUrl = `http://127.0.0.1:${config.port}${paths.serverPath}`;
+      let indexUrl = `http://127.0.0.1:${config.port}/projects/${identity.slug}/index.html`;
+      let serverInfo: RunningInfo | null = null;
+
+      try {
+        const maybeInfo = await runEnsureRunning({
+          stateDir: config.stateDir,
+          port: config.port,
+          portMax: config.portMax,
+          idleTimeoutMs: config.idleTimeoutMs,
+        });
+        if (maybeInfo !== null) {
+          serverInfo = maybeInfo;
+          httpUrl = `${serverInfo.url}${paths.serverPath}`;
+          indexUrl = `${serverInfo.url}/projects/${identity.slug}/index.html`;
+        }
+      } catch {
+        // Server failed to start — proceed without; user can still use file:// URL.
+      }
+
+      const terminalSummary = buildTerminalSummary({
+        title: input.title,
+        kind: input.kind,
+        httpUrl,
+        fileUrl: paths.fileUrl,
+        isSsh: Boolean(process.env["SSH_CONNECTION"]),
+        port: serverInfo?.port ?? config.port,
+      });
+
+      // 21. Return result
       const result = {
         id,
         filePath: paths.artifactPath,
         fileUrl: paths.fileUrl,
-        httpUrl: `http://127.0.0.1:${config.port}${paths.serverPath}`,
-        indexUrl: `http://127.0.0.1:${config.port}/projects/${identity.slug}/index.html`,
+        httpUrl,
+        indexUrl,
+        terminalSummary,
       };
 
       return JSON.stringify(result, null, 2);
