@@ -33,6 +33,8 @@ function makeEntry(id: string, createdAt: string): IndexEntry {
     gitBranch: null,
     gitCommit: null,
     contentSha256: "deadbeef",
+    projectSlug: "test-project",
+    projectName: "Test Project",
   };
 }
 

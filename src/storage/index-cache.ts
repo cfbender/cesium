@@ -16,6 +16,8 @@ export interface IndexEntry {
   gitBranch: string | null;
   gitCommit: string | null;
   contentSha256: string;
+  projectSlug: string;
+  projectName: string;
 }
 
 export async function loadIndex(jsonPath: string): Promise<IndexEntry[]> {

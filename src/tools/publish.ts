@@ -1,6 +1,7 @@
 // Tool handler for cesium_publish — validates input, delegates to render + storage.
 
 import { createHash } from "node:crypto";
+import { join } from "node:path";
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
 import { loadConfig, type CesiumConfig } from "../config.ts";
@@ -17,6 +18,8 @@ import {
   patchEntry,
   type IndexEntry,
 } from "../storage/index-cache.ts";
+import { withLock } from "../storage/lock.ts";
+import { renderProjectIndex, renderGlobalIndex, summarizeProject } from "../storage/index-gen.ts";
 
 export interface PublishToolOverrides {
   loadConfig?: () => CesiumConfig;
@@ -207,47 +210,70 @@ export function createPublishTool(
         gitBranch: meta.gitBranch,
         gitCommit: meta.gitCommit,
         contentSha256: meta.contentSha256,
+        projectSlug: identity.slug,
+        projectName: identity.name,
       };
 
-      // 15. Update per-project index
-      const projectEntries = await loadIndex(paths.projectIndexJsonPath);
-      const updatedProjectEntries = appendEntry(projectEntries, entry);
-      await writeIndex(paths.projectIndexJsonPath, updatedProjectEntries);
+      const lockPath = join(config.stateDir, ".index.lock");
 
-      // 16. Update global index
-      const globalEntries = await loadIndex(paths.globalIndexJsonPath);
-      await writeIndex(paths.globalIndexJsonPath, appendEntry(globalEntries, entry));
+      await withLock({ lockPath }, async () => {
+        // 15. Update per-project index
+        const projectEntries = await loadIndex(paths.projectIndexJsonPath);
+        const updatedProjectEntries = appendEntry(projectEntries, entry);
+        await writeIndex(paths.projectIndexJsonPath, updatedProjectEntries);
 
-      // 17. Handle supersedes chain
-      if (input.supersedes) {
-        const prevId = input.supersedes;
-        const prevEntryIdx = updatedProjectEntries.findIndex((e) => e.id === prevId);
-        if (prevEntryIdx !== -1) {
-          const prevEntry = updatedProjectEntries[prevEntryIdx];
-          if (prevEntry !== undefined) {
-            const prevFilename = prevEntry.filename;
-            const prevPaths = pathsFor({
-              stateDir: config.stateDir,
-              projectSlug: identity.slug,
-              filename: prevFilename,
-            });
-            // Patch embedded metadata in the previous artifact file
-            try {
-              await patchEmbeddedMetadata(prevPaths.artifactPath, { supersededBy: id });
-            } catch {
-              // File may not exist on disk (e.g. cleaned up); log but don't fail
+        // 16. Update global index
+        const globalEntries = await loadIndex(paths.globalIndexJsonPath);
+        const updatedGlobalEntries = appendEntry(globalEntries, entry);
+        await writeIndex(paths.globalIndexJsonPath, updatedGlobalEntries);
+
+        // 17. Handle supersedes chain
+        if (input.supersedes) {
+          const prevId = input.supersedes;
+          const prevEntryIdx = updatedProjectEntries.findIndex((e) => e.id === prevId);
+          if (prevEntryIdx !== -1) {
+            const prevEntry = updatedProjectEntries[prevEntryIdx];
+            if (prevEntry !== undefined) {
+              const prevFilename = prevEntry.filename;
+              const prevPaths = pathsFor({
+                stateDir: config.stateDir,
+                projectSlug: identity.slug,
+                filename: prevFilename,
+              });
+              // Patch embedded metadata in the previous artifact file
+              try {
+                await patchEmbeddedMetadata(prevPaths.artifactPath, { supersededBy: id });
+              } catch {
+                // File may not exist on disk (e.g. cleaned up); log but don't fail
+              }
+              // Patch the index entry
+              const patchedEntries = patchEntry(updatedProjectEntries, prevId, {
+                supersededBy: id,
+              });
+              await writeIndex(paths.projectIndexJsonPath, patchedEntries);
             }
-            // Patch the index entry
-            const patchedEntries = patchEntry(updatedProjectEntries, prevId, {
-              supersededBy: id,
-            });
-            await writeIndex(paths.projectIndexJsonPath, patchedEntries);
           }
+          // If not found — publish still succeeds, warn is logged implicitly
         }
-        // If not found — publish still succeeds, warn is logged implicitly
-      }
 
-      // 18. Return result
+        // 18. Render and write project index.html
+        const latestProjectEntries = await loadIndex(paths.projectIndexJsonPath);
+        const projectIndexHtml = renderProjectIndex({
+          projectSlug: identity.slug,
+          projectName: identity.name,
+          entries: latestProjectEntries,
+          theme,
+        });
+        await atomicWrite(paths.projectIndexPath, projectIndexHtml);
+
+        // 19. Render and write global index.html
+        const latestGlobalEntries = await loadIndex(paths.globalIndexJsonPath);
+        const projectSummaries = buildProjectSummaries(latestGlobalEntries);
+        const globalIndexHtml = renderGlobalIndex({ projects: projectSummaries, theme });
+        await atomicWrite(paths.globalIndexPath, globalIndexHtml);
+      });
+
+      // 20. Return result
       const result = {
         id,
         filePath: paths.artifactPath,
@@ -271,4 +297,16 @@ function defaultNanoid(): string {
     result += alphabet[byte % alphabet.length];
   }
   return result;
+}
+
+function buildProjectSummaries(entries: IndexEntry[]) {
+  const bySlug = new Map<string, { name: string; entries: IndexEntry[] }>();
+  for (const e of entries) {
+    const group = bySlug.get(e.projectSlug) ?? { name: e.projectName, entries: [] };
+    group.entries.push(e);
+    bySlug.set(e.projectSlug, group);
+  }
+  return [...bySlug.entries()].map(([slug, { name, entries: es }]) =>
+    summarizeProject({ slug, name, entries: es }),
+  );
 }

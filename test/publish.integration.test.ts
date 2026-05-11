@@ -259,3 +259,85 @@ test("scrub integration: removes external scripts, keeps safe content", async ()
   // Safe body content is preserved (parse5 normalizes single quotes to double)
   expect(html).toContain('<p class="tldr">safe</p>');
 });
+
+// ─── Index HTML generation ─────────────────────────────────────────────────
+
+test("after publish: projectIndexPath exists and contains artifact title", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "My Great Plan",
+    kind: "plan",
+    html: "<h1>plan content</h1>",
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.html");
+  expect(existsSync(projectIndexPath)).toBe(true);
+  const html = readFileSync(projectIndexPath, "utf8");
+  expect(html.toLowerCase().trimStart()).toMatch(/^<!doctype html>/);
+  expect(html).toContain("My Great Plan");
+});
+
+test("after publish: globalIndexPath exists and contains the project name", async () => {
+  await publish(workDir, stateDir, {
+    title: "Some Doc",
+    kind: "report",
+    html: "<p>content</p>",
+  });
+
+  const globalIndexPath = join(stateDir, "index.html");
+  expect(existsSync(globalIndexPath)).toBe(true);
+  const html = readFileSync(globalIndexPath, "utf8");
+  expect(html.toLowerCase().trimStart()).toMatch(/^<!doctype html>/);
+  // The global index should contain a link to the project
+  expect(html).toContain("projects/");
+  expect(html).toContain("index.html");
+});
+
+test("two sequential publishes: project index contains both titles", async () => {
+  await publish(workDir, stateDir, {
+    title: "First Article",
+    kind: "plan",
+    html: "<p>first</p>",
+  });
+  const r2 = await publish(
+    workDir,
+    stateDir,
+    { title: "Second Article", kind: "design", html: "<p>second</p>" },
+    () => "xyz999",
+  );
+
+  const httpUrl = r2["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.html");
+  const html = readFileSync(projectIndexPath, "utf8");
+  expect(html).toContain("First Article");
+  expect(html).toContain("Second Article");
+});
+
+test("two sequential publishes: global index contains the project once with higher count", async () => {
+  await publish(workDir, stateDir, {
+    title: "Doc One",
+    kind: "plan",
+    html: "<p>one</p>",
+  });
+  await publish(
+    workDir,
+    stateDir,
+    { title: "Doc Two", kind: "plan", html: "<p>two</p>" },
+    () => "zzz111",
+  );
+
+  const globalIndexPath = join(stateDir, "index.html");
+  const html = readFileSync(globalIndexPath, "utf8");
+  // Should show 2 artifacts for the single project
+  expect(html).toContain("2 artifacts");
+  // The project slug should appear only once as a card link (not duplicated)
+  expect(html).toContain("All projects");
+});
