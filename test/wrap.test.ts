@@ -141,4 +141,21 @@ describe("wrapDocument", () => {
     expect(doc).toContain(":root");
     expect(doc).toContain("--accent");
   });
+
+  test("includes a back nav linking to the project and global indexes", () => {
+    const meta = makeMeta({ projectName: "cfbender/acme" });
+    const doc = wrapDocument({ body: "<p>hi</p>", meta, theme: defaultTheme() });
+    expect(doc).toContain('class="cesium-back"');
+    expect(doc).toContain('href="../index.html"');
+    expect(doc).toContain('href="../../../index.html"');
+    expect(doc).toContain("← cfbender/acme");
+    expect(doc).toContain("all projects");
+  });
+
+  test("back nav escapes the project name", () => {
+    const meta = makeMeta({ projectName: '<script>alert("x")</script>' });
+    const doc = wrapDocument({ body: "<p>hi</p>", meta, theme: defaultTheme() });
+    expect(doc).not.toContain('<script>alert("x")</script>');
+    expect(doc).toContain("&lt;script&gt;");
+  });
 });

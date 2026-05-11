@@ -46,6 +46,24 @@ function renderWarnings(warnings: string[]): string {
   return warnings.map((w) => `<div class="callout warn">${escapeHtml(w)}</div>`).join("\n") + "\n";
 }
 
+const BACK_NAV_STYLE =
+  "font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; " +
+  "margin-bottom: 24px; color: var(--muted);";
+const BACK_LINK_STYLE = "color: var(--muted); text-decoration: none;";
+
+function renderBackNav(meta: ArtifactMeta): string {
+  // Two relative links: project index lives one directory up from the artifact;
+  // global index is three levels up (../../../index.html). Both work whether
+  // the file is opened over http (cesium server) or via file://.
+  const projectLabel = escapeHtml(meta.projectName);
+  return `<nav class="cesium-back" aria-label="cesium navigation" style="${BACK_NAV_STYLE}">
+  <a href="../index.html" style="${BACK_LINK_STYLE}">← ${projectLabel}</a>
+  <span style="margin: 0 8px; opacity: 0.5;">·</span>
+  <a href="../../../index.html" style="${BACK_LINK_STYLE}">all projects</a>
+</nav>
+`;
+}
+
 function renderFooter(meta: ArtifactMeta): string {
   const parts: string[] = [
     `<span>id: <code>${escapeHtml(meta.id)}</code></span>`,
@@ -71,6 +89,7 @@ export function wrapDocument(opts: WrapOptions): string {
   const css = frameworkCss(theme);
   const metaJson = safeJsonForScript(meta);
   const titleEsc = escapeHtml(meta.title);
+  const backNav = renderBackNav(meta);
   const warningHtml = renderWarnings(warnings);
   const footer = renderFooter(meta);
 
@@ -84,7 +103,7 @@ export function wrapDocument(opts: WrapOptions): string {
   <script type="application/json" id="cesium-meta">${metaJson}</script>
 </head>
 <body>
-${warningHtml}${body}
+${backNav}${warningHtml}${body}
 ${footer}
 </body>
 </html>`;

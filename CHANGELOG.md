@@ -1,5 +1,15 @@
 # Changelog
 
+# Changelog
+
+## v0.1.2 — 2026-05-11
+
+### Added
+
+- Each artifact now renders a small back-nav at the top of the body linking to
+  its project's `index.html` and to the global `index.html`. Uses relative
+  paths so it works the same over `http://` and `file://`.
+
 ## v0.1.1 — 2026-05-11
 
 ### Added
