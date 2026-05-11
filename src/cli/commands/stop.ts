@@ -1,10 +1,9 @@
 // cesium stop — kill the running cesium server cross-process via PID file.
 
 import { parseArgs } from "node:util";
-import { join } from "node:path";
-import { unlink } from "node:fs/promises";
 import { loadConfig, type CesiumConfig } from "../../config.ts";
-import { readPidFile, isAlive as defaultIsAlive } from "../../server/lifecycle.ts";
+import { stopServer } from "../../server/stop.ts";
+import type { StopServerArgs } from "../../server/stop.ts";
 
 export interface StopContext {
   stdout: { write: (s: string) => void };
@@ -85,10 +84,6 @@ export function parseStopArgs(
   return { force: values.force, timeout };
 }
 
-function defaultSleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 export async function stopCommand(argv: string[], ctx?: Partial<StopContext>): Promise<number> {
   const resolved: StopContext = { ...defaultCtx(), ...ctx };
 
@@ -98,93 +93,38 @@ export async function stopCommand(argv: string[], ctx?: Partial<StopContext>): P
 
   const opts = parseResult;
   const cfg = (resolved.loadConfig ?? loadConfig)();
-  const pidFilePath = join(cfg.stateDir, ".server.pid");
 
-  const isAliveFn = resolved.isAlive ?? defaultIsAlive;
-  const killFn =
-    resolved.killProcess ??
-    ((pid: number, signal: NodeJS.Signals) => {
-      process.kill(pid, signal);
-    });
-  const sleepFn = resolved.sleep ?? defaultSleep;
-
-  // 1. Read PID file
-  const pidContent = readPidFile(pidFilePath);
-  if (pidContent === null) {
-    resolved.stdout.write("no cesium server running\n");
-    return 0;
-  }
-
-  const { pid, port } = pidContent;
-
-  // 2. Check if alive (stale PID file)
-  if (!isAliveFn(pid)) {
-    try {
-      await unlink(pidFilePath);
-    } catch {
-      // ENOENT is fine
-    }
-    resolved.stdout.write("server not running (stale PID file removed)\n");
-    return 0;
-  }
-
-  // 3. Kill the process
-  const doKill = (signal: NodeJS.Signals): boolean => {
-    try {
-      killFn(pid, signal);
-      return true;
-    } catch (err) {
-      const e = err as NodeJS.ErrnoException;
-      if (e.code === "ESRCH") {
-        // Process already gone — fine
-        return true;
-      }
-      if (e.code === "EPERM") {
-        resolved.stderr.write(
-          `cesium stop: permission denied — process ${pid} is owned by another user\n`,
-        );
-        return false;
-      }
-      // Re-throw unexpected errors
-      throw err;
-    }
+  const stopArgs: StopServerArgs = {
+    stateDir: cfg.stateDir,
+    force: opts.force,
+    timeoutMs: opts.timeout,
   };
-
-  if (opts.force) {
-    // SIGKILL immediately
-    const ok = doKill("SIGKILL");
-    if (!ok) return 2;
-  } else {
-    // SIGTERM first, then poll, then SIGKILL if still alive
-    const ok = doKill("SIGTERM");
-    if (!ok) return 2;
-
-    // Poll every 100ms until dead or timeout — use a recursive helper to
-    // satisfy the no-await-in-loop lint rule.
-    const deadline = Date.now() + opts.timeout;
-
-    async function poll(): Promise<boolean> {
-      if (!isAliveFn(pid)) return true;
-      if (Date.now() >= deadline) return false;
-      await sleepFn(100);
-      return poll();
-    }
-
-    const died = await poll();
-    if (!died) {
-      // Escalate to SIGKILL
-      const ok2 = doKill("SIGKILL");
-      if (!ok2) return 2;
-    }
+  if (resolved.isAlive !== undefined) {
+    stopArgs.isAlive = resolved.isAlive;
+  }
+  if (resolved.killProcess !== undefined) {
+    stopArgs.killProcess = resolved.killProcess;
+  }
+  if (resolved.sleep !== undefined) {
+    stopArgs.sleep = resolved.sleep;
   }
 
-  // 4. Remove PID file (best-effort; the server may have already done it)
-  try {
-    await unlink(pidFilePath);
-  } catch {
-    // ENOENT is fine
-  }
+  const outcome = await stopServer(stopArgs);
 
-  resolved.stdout.write(`stopped cesium server (pid ${pid}, port ${port})\n`);
-  return 0;
+  switch (outcome.kind) {
+    case "not-running":
+      resolved.stdout.write("no cesium server running\n");
+      return 0;
+    case "stale":
+      resolved.stdout.write("server not running (stale PID file removed)\n");
+      return 0;
+    case "stopped":
+      resolved.stdout.write(`stopped cesium server (pid ${outcome.pid}, port ${outcome.port})\n`);
+      return 0;
+    case "permission-denied":
+      resolved.stderr.write(
+        `cesium stop: permission denied — process ${outcome.pid} is owned by another user\n`,
+      );
+      return 2;
+  }
 }

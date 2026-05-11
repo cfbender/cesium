@@ -49,10 +49,10 @@ describe("writeThemeCss", () => {
     expect(content).toContain("--bg:");
   });
 
-  test("content includes --accent with claret value", async () => {
+  test("content includes --accent with claret-dark value", async () => {
     await writeThemeCss(stateDir, defaultTheme());
     const content = readFileSync(join(stateDir, "theme.css"), "utf8");
-    expect(content).toContain("--accent: #8B2252");
+    expect(content).toContain("--accent: #C75B7A");
   });
 
   test("content does NOT include framework rules (only tokens)", async () => {
@@ -72,14 +72,14 @@ describe("writeThemeCss", () => {
     expect(first).toBe(second);
   });
 
-  test("writing warm theme produces different content from claret", async () => {
+  test("writing warm theme produces different content from claret-dark", async () => {
     await writeThemeCss(stateDir, defaultTheme());
     const claret = readFileSync(join(stateDir, "theme.css"), "utf8");
     await writeThemeCss(stateDir, themeFromPreset("warm"));
     const warm = readFileSync(join(stateDir, "theme.css"), "utf8");
     expect(claret).not.toBe(warm);
     expect(warm).toContain("#D97757"); // warm accent
-    expect(claret).toContain("#8B2252"); // claret accent
+    expect(claret).toContain("#C75B7A"); // claret-dark accent
   });
 
   test("content ends with newline", async () => {

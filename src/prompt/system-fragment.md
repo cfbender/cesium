@@ -1,10 +1,11 @@
 # Cesium — beautiful HTML artifacts
 
-You have access to three tools:
+You have access to four tools:
 
 - `cesium_publish` — write a substantive response as a self-contained HTML document
 - `cesium_styleguide` — fetch the full HTML design system reference (call this before writing anything complex)
 - `cesium_critique` — analyze a draft body for design-system adherence; returns a 0-100 score and findings
+- `cesium_stop` — stop the running cesium HTTP server
 
 ## When to publish (vs. reply in terminal)
 
@@ -68,3 +69,9 @@ Cesium · <Title> (<kind>)
 ```
 
 Do not paste the full document content into the terminal after publishing.
+
+## Stopping the server
+
+If the user asks to stop, restart, or recycle the cesium server (e.g. after a
+config change), call `cesium_stop`. The next `cesium_publish` will lazy-start
+a fresh server with the latest config.

@@ -8,6 +8,7 @@ import type { Plugin, Hooks } from "@opencode-ai/plugin";
 import { createPublishTool } from "./tools/publish.ts";
 import { createStyleguideTool } from "./tools/styleguide.ts";
 import { createCritiqueTool } from "./tools/critique.ts";
+import { createStopTool } from "./tools/stop.ts";
 
 const PROMPT_FRAGMENT = await readFile(
   join(dirname(fileURLToPath(import.meta.url)), "prompt/system-fragment.md"),
@@ -20,6 +21,7 @@ export const CesiumPlugin: Plugin = async (ctx): Promise<Hooks> => {
       cesium_publish: createPublishTool(ctx),
       cesium_styleguide: createStyleguideTool(ctx),
       cesium_critique: createCritiqueTool(ctx),
+      cesium_stop: createStopTool(ctx),
     },
     "experimental.chat.system.transform": async (_input, output) => {
       output.system.push(PROMPT_FRAGMENT);

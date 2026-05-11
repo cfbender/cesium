@@ -45,12 +45,12 @@ describe("defaultTheme", () => {
     }
   });
 
-  test("bg is claret warm-cream (#FDF8F3)", () => {
-    expect(defaultTheme().colors.bg).toBe("#FDF8F3");
+  test("bg is claret-dark wine (#180810)", () => {
+    expect(defaultTheme().colors.bg).toBe("#180810");
   });
 
-  test("accent is claret rose (#8B2252)", () => {
-    expect(defaultTheme().colors.accent).toBe("#8B2252");
+  test("accent is claret-dark rose (#C75B7A)", () => {
+    expect(defaultTheme().colors.accent).toBe("#C75B7A");
   });
 });
 
@@ -109,10 +109,10 @@ describe("themeToCssVars", () => {
     }
   });
 
-  test("contains claret token values", () => {
+  test("contains claret-dark token values", () => {
     const css = themeToCssVars(defaultTheme());
-    expect(css).toContain("#FDF8F3");
-    expect(css).toContain("#8B2252");
+    expect(css).toContain("#180810");
+    expect(css).toContain("#C75B7A");
   });
 });
 

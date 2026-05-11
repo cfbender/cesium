@@ -52,7 +52,7 @@ describe("cesium theme show", () => {
   test("prints resolved theme name", async () => {
     const ctx = makeCtx();
     await themeCommand(["show"], ctx);
-    expect(ctx.output).toContain("claret");
+    expect(ctx.output).toContain("claret-dark (default)");
   });
 
   test("prints all 12 color tokens", async () => {
@@ -77,11 +77,11 @@ describe("cesium theme show", () => {
     }
   });
 
-  test("prints hex values for claret palette", async () => {
+  test("prints hex values for claret-dark palette", async () => {
     const ctx = makeCtx();
     await themeCommand(["show"], ctx);
-    expect(ctx.output).toContain("#FDF8F3"); // bg
-    expect(ctx.output).toContain("#8B2252"); // accent
+    expect(ctx.output).toContain("#180810"); // bg
+    expect(ctx.output).toContain("#C75B7A"); // accent
   });
 
   test("indicates (write needed) when theme.css does not exist", async () => {
@@ -129,10 +129,10 @@ describe("cesium theme apply", () => {
     expect(existsSync(join(stateDir, "theme.css"))).toBe(true);
   });
 
-  test("theme.css contains claret accent", async () => {
+  test("theme.css contains claret-dark accent", async () => {
     await themeCommand(["apply"], makeCtx());
     const content = readFileSync(join(stateDir, "theme.css"), "utf8");
-    expect(content).toContain("--accent: #8B2252");
+    expect(content).toContain("--accent: #C75B7A");
   });
 
   test("prints wrote path in output", async () => {

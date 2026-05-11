@@ -1,15 +1,15 @@
 :root {
-  --bg: #fdf8f3;
-  --surface: #ffffff;
-  --surface-2: #f5ede3;
-  --oat: #e8ddd0;
-  --rule: #d4c8b8;
-  --ink: #2a1f1a;
-  --ink-soft: #5a4d42;
-  --muted: #7d7068;
-  --accent: #8b2252;
-  --olive: #5a6b40;
-  --code-bg: #180810;
+  --bg: #180810;
+  --surface: #211618;
+  --surface-2: #2b1f22;
+  --oat: #3a2e25;
+  --rule: #3a2e25;
+  --ink: #ddd3c7;
+  --ink-soft: #bdb3a7;
+  --muted: #9e9288;
+  --accent: #c75b7a;
+  --olive: #8fa86e;
+  --code-bg: #0f0509;
   --code-fg: #ddd3c7;
   --serif: ui-serif, Georgia, "Times New Roman", serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

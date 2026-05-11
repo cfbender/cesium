@@ -26,7 +26,14 @@ export interface ThemeTokens {
   fonts: ThemeFonts;
 }
 
-export type ThemePresetName = "claret" | "warm" | "cool" | "mono" | "paper";
+export type ThemePresetName =
+  | "warm"
+  | "cool"
+  | "mono"
+  | "paper"
+  | "claret" // alias for claret-dark
+  | "claret-dark"
+  | "claret-light";
 
 const STANDARD_FONTS: ThemeFonts = {
   serif: 'ui-serif, Georgia, "Times New Roman", serif',
@@ -35,8 +42,24 @@ const STANDARD_FONTS: ThemeFonts = {
 };
 
 export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
-  // Claret: deep-rose-on-warm-cream — derived from claret.nvim light palette.
-  claret: {
+  // claret-dark: deep wine background with bright rose/sage — claret.nvim dark palette.
+  "claret-dark": {
+    bg: "#180810",
+    surface: "#211618",
+    surface2: "#2B1F22",
+    oat: "#3A2E25",
+    rule: "#3A2E25",
+    ink: "#DDD3C7",
+    inkSoft: "#BDB3A7",
+    muted: "#9E9288",
+    accent: "#C75B7A",
+    olive: "#8FA86E",
+    codeBg: "#0F0509",
+    codeFg: "#DDD3C7",
+  },
+  // claret-light: deep-rose-on-warm-cream — derived from claret.nvim light palette.
+  // (this is the old "claret" palette, now renamed)
+  "claret-light": {
     bg: "#FDF8F3",
     surface: "#FFFFFF",
     surface2: "#F5EDE3",
@@ -48,6 +71,21 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     accent: "#8B2252",
     olive: "#5A6B40",
     codeBg: "#180810",
+    codeFg: "#DDD3C7",
+  },
+  // claret: alias for claret-dark (backward compat)
+  claret: {
+    bg: "#180810",
+    surface: "#211618",
+    surface2: "#2B1F22",
+    oat: "#3A2E25",
+    rule: "#3A2E25",
+    ink: "#DDD3C7",
+    inkSoft: "#BDB3A7",
+    muted: "#9E9288",
+    accent: "#C75B7A",
+    olive: "#8FA86E",
+    codeBg: "#0F0509",
     codeFg: "#DDD3C7",
   },
   // Warm: ivory/clay/oat — the html-effectiveness reference palette.
@@ -114,13 +152,19 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
 
 export function isThemePresetName(name: string): name is ThemePresetName {
   return (
-    name === "claret" || name === "warm" || name === "cool" || name === "mono" || name === "paper"
+    name === "claret" ||
+    name === "claret-dark" ||
+    name === "claret-light" ||
+    name === "warm" ||
+    name === "cool" ||
+    name === "mono" ||
+    name === "paper"
   );
 }
 
 export function themeFromPreset(name?: string): ThemeTokens {
   const presetName: ThemePresetName =
-    name !== undefined && isThemePresetName(name) ? name : "claret";
+    name !== undefined && isThemePresetName(name) ? name : "claret-dark";
   return {
     colors: THEME_PRESETS[presetName],
     fonts: STANDARD_FONTS,
@@ -128,7 +172,7 @@ export function themeFromPreset(name?: string): ThemeTokens {
 }
 
 export function defaultTheme(): ThemeTokens {
-  return themeFromPreset("claret");
+  return themeFromPreset("claret-dark");
 }
 
 export function mergeTheme(base: ThemeTokens, override?: Partial<ThemePalette>): ThemeTokens {

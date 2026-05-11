@@ -531,14 +531,14 @@ test("after publish: theme.css exists at stateDir/theme.css", async () => {
   expect(existsSync(join(stateDir, "theme.css"))).toBe(true);
 });
 
-test("after publish: theme.css contains claret --accent", async () => {
+test("after publish: theme.css contains claret-dark --accent", async () => {
   await publish(workDir, stateDir, {
     title: "Theme CSS Claret Test",
     kind: "plan",
     html: "<p>content</p>",
   });
   const themeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
-  expect(themeCss).toContain("--accent: #8B2252");
+  expect(themeCss).toContain("--accent: #C75B7A");
 });
 
 test("artifact file contains link to ../../../theme.css", async () => {
@@ -586,7 +586,7 @@ test("after re-publishing with warm theme, theme.css contains warm accent", asyn
     html: "<p>first</p>",
   });
   const claretThemeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
-  expect(claretThemeCss).toContain("#8B2252");
+  expect(claretThemeCss).toContain("#C75B7A");
 
   // Second publish with warm theme override via config
   const ctx = mockCtx(workDir);

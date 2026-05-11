@@ -2,6 +2,26 @@
 
 # Changelog
 
+## v0.2.3 — 2026-05-11
+
+### Added
+
+- `cesium_stop` tool. The agent can now stop the running cesium HTTP server
+  from inside an opencode session via a tool call. Useful for cycling the
+  server after a config change, or cleaning up at session end. Idempotent.
+- `claret-dark` theme preset — dark wine background with bright rose and sage
+  accents, sourced from `claret.nvim`'s dark palette.
+- `claret-light` theme preset — the previous `claret` palette, renamed.
+
+### Changed
+
+- **Default theme is now `claret-dark`.** If you have `themePreset: "claret"`
+  in `~/.config/opencode/cesium.json`, you'll now see the dark variant. Set
+  `themePreset: "claret-light"` to keep the old look. The bare `"claret"` name
+  is preserved as an alias for `"claret-dark"`.
+- Refactored cross-process server-stop logic into `src/server/stop.ts` so the
+  CLI's `cesium stop` and the new `cesium_stop` tool share the same code path.
+
 ## v0.2.2 — 2026-05-11
 
 ### Added

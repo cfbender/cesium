@@ -30,7 +30,14 @@ function defaultCtx(): ThemeContext {
 
 function resolveTheme(cfg: CesiumConfig): { theme: ThemeTokens; presetLabel: string } {
   const theme = mergeTheme(themeFromPreset(cfg.themePreset), cfg.theme);
-  const presetLabel = cfg.themePreset ?? "claret (default)";
+  let presetLabel: string;
+  if (cfg.themePreset === undefined) {
+    presetLabel = "claret-dark (default)";
+  } else if (cfg.themePreset === "claret") {
+    presetLabel = "claret-dark (alias for claret)";
+  } else {
+    presetLabel = cfg.themePreset;
+  }
   return { theme, presetLabel };
 }
 

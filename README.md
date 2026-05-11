@@ -164,15 +164,15 @@ state directory, hostname, and theme settings flow through.
 
 Optional `~/.config/opencode/cesium.json`:
 
-| Key             | Type   | Default                 | Description                                                 |
-| --------------- | ------ | ----------------------- | ----------------------------------------------------------- |
-| `stateDir`      | string | `~/.local/state/cesium` | Where artifacts and indexes live                            |
-| `port`          | number | `3030`                  | First port to try for the local HTTP server                 |
-| `portMax`       | number | `3050`                  | Upper bound when scanning for free ports                    |
-| `hostname`      | string | `127.0.0.1`             | Bind address. Use `0.0.0.0` to expose on the LAN            |
-| `idleTimeoutMs` | number | `1800000`               | Server idle-shutdown threshold (30 min)                     |
-| `themePreset`   | string | `"claret"`              | Named color palette (`claret`/`warm`/`cool`/`mono`/`paper`) |
-| `theme`         | object | (claret palette)        | Per-token color overrides (stacked on preset)               |
+| Key             | Type   | Default                 | Description                                                                              |
+| --------------- | ------ | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `stateDir`      | string | `~/.local/state/cesium` | Where artifacts and indexes live                                                         |
+| `port`          | number | `3030`                  | First port to try for the local HTTP server                                              |
+| `portMax`       | number | `3050`                  | Upper bound when scanning for free ports                                                 |
+| `hostname`      | string | `127.0.0.1`             | Bind address. Use `0.0.0.0` to expose on the LAN                                         |
+| `idleTimeoutMs` | number | `1800000`               | Server idle-shutdown threshold (30 min)                                                  |
+| `themePreset`   | string | `"claret-dark"`         | Named color palette (`claret-dark`/`claret-light`/`claret`/`warm`/`cool`/`mono`/`paper`) |
+| `theme`         | object | (claret-dark palette)   | Per-token color overrides (stacked on preset)                                            |
 
 Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`, `CESIUM_HOSTNAME`, `CESIUM_THEME_PRESET`.
 
@@ -182,10 +182,14 @@ Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`, `CESIUM_HOSTNAME`, `CE
 
 ### Theme presets
 
-Cesium ships with five palettes:
+Cesium ships with seven palettes:
 
-- `claret` **(default)** — deep-rose on warm cream, derived from the claret.nvim color scheme.
-- `warm` — ivory/clay/oat. The previous default.
+- `claret-dark` **(default)** — deep wine bg with bright rose and sage; sourced
+  from claret.nvim's dark palette.
+- `claret-light` — warm cream bg with deep claret rose; the light variant of
+  the claret family.
+- `claret` — alias for `claret-dark` (backward compat).
+- `warm` — ivory/clay/oat. Matches the html-effectiveness reference.
 - `cool` — desaturated blue-grey, technical mood.
 - `mono` — high-contrast black/white/grey, editorial.
 - `paper` — sepia/cream, soft and book-like.
@@ -215,8 +219,8 @@ when the external `theme.css` is unreachable — portability preserved.
 
 For sessions where you always want HTML output, copy `agents/cesium.md` into
 `~/.config/opencode/agents/`. Then invoke with `@cesium <request>` and the agent
-will bias heavily toward publishing. The agent has access to all three tools:
-`cesium_publish`, `cesium_styleguide`, and `cesium_critique`.
+will bias heavily toward publishing. The agent has access to all four tools:
+`cesium_publish`, `cesium_styleguide`, `cesium_critique`, and `cesium_stop`.
 
 ## Design system
 
