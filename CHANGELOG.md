@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.5.2 — 2026-05-12
+
+A 16th block type — `diff` — that renders a beautiful side-by-side
+before/after code diff with curved SVG bezier connectors between the two
+columns. JetBrains diff-viewer aesthetic. Plus tooling improvements for
+hot-reload visual iteration during plugin development.
+
+- **feat:** New `diff` block type. Two input arms (XOR):
+  - `patch`: literal unified diff string (e.g. from `git diff` output)
+  - `before`/`after`: paired text strings; server runs Myers O(ND) line
+    diff to compute the change set
+- **feat:** Per-line shiki syntax highlighting is preserved through the
+  diff. The renderer recomposes before-side and after-side text, runs each
+  through `highlightCode`, then zips the styled line spans back into the
+  diff line list — so multi-line constructs (template strings, block
+  comments) tokenize correctly.
+- **feat:** Visual rendering:
+  - Three-column grid (1fr | 60px | 1fr) with line numbers per side
+  - Subtle red/green line-tint backgrounds on remove/add lines
+  - 60px-wide SVG connector column draws semi-transparent cubic-bezier
+    ribbons connecting each remove region on the left to the corresponding
+    add region on the right; pure adds collapse to a teardrop pointing
+    into the left, pure removes mirror
+  - Optional file-header strip with filename + `+N -M` stats
+  - Optional caption strip below
+  - 720px breakpoint collapses to single-column with connector hidden
+- **feat:** Theme tokens `--diff-add`, `--diff-remove`, `--diff-change`
+  added to all seven palette presets so colors fit each preset's character
+  (claret rose, warm clay, cool blue, etc.).
+- **fix:** Diff connector SVG now matches the `padding: 8px 0` of the
+  side columns so the bezier paths line up exactly with their target
+  regions instead of sitting 8px high.
+- **chore:** Project-local opencode config tracked: `.opencode/opencode.json`,
+  `.opencode/plugins/cesium.ts` (dev-loop shim that loads the working
+  tree's source instead of the published npm package), and
+  `.opencode/skills/cesium-preview/SKILL.md` (hot-reload visual iteration
+  workflow that bypasses the stale plugin host by importing render code
+  directly via bun and writing to /tmp).
+- **chore:** `scripts/dogfood-diff.ts` reference preview script for the
+  diff block. Useful template for previewing other block work.
+- **chore:** Apply oxfmt to 30 files that drifted out of format compliance
+  in v0.5.1 (no CI lint gate caught it). Pure cosmetic — line-wrapping,
+  italic style normalization, key ordering. No behavior changes.
+
 ## v0.5.1 — 2026-05-12
 
 Server-side syntax highlighting for `code` blocks via shiki, custom claret
