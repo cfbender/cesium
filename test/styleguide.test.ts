@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
-import * as parse5 from "parse5";
-import { createStyleguideTool } from "../src/tools/styleguide.ts";
+import { createStyleguideTool, generateStyleguideMarkdown } from "../src/tools/styleguide.ts";
+import { blockTypes } from "../src/render/blocks/catalog.ts";
 
 const FAKE_CTX = {} as Parameters<typeof createStyleguideTool>[0];
 
@@ -11,98 +11,176 @@ async function getStyleguideOutput(): Promise<string> {
   return result;
 }
 
-test("styleguide returns non-empty string starting with <!doctype html>", async () => {
+// ---------------------------------------------------------------------------
+// Output is markdown, not HTML
+// ---------------------------------------------------------------------------
+
+test("styleguide returns non-empty string", async () => {
   const output = await getStyleguideOutput();
   expect(output.length).toBeGreaterThan(0);
-  expect(output.toLowerCase().trimStart()).toMatch(/^<!doctype html>/);
 });
 
-test("styleguide contains .eyebrow class usage", async () => {
+test("styleguide output is markdown (not HTML — no <!doctype>)", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("eyebrow");
+  expect(output.toLowerCase().trimStart()).not.toMatch(/^<!doctype html>/);
 });
 
-test("styleguide contains .h-display class usage", async () => {
+test("styleguide output does not contain <style> tags", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("h-display");
+  expect(output).not.toContain("<style>");
 });
 
-test("styleguide contains .h-section class usage", async () => {
+test("styleguide output does not contain :root { (no inlined CSS tokens)", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("h-section");
+  expect(output).not.toContain(":root {");
 });
 
-test("styleguide contains .section-num class usage", async () => {
+// ---------------------------------------------------------------------------
+// Preamble
+// ---------------------------------------------------------------------------
+
+test("styleguide contains 'Two input modes' preamble", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("section-num");
+  expect(output).toContain("Two input modes");
 });
 
-test("styleguide contains .card class usage", async () => {
+test("styleguide preamble mentions blocks preferred", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("card");
+  expect(output).toContain("blocks");
+  expect(output).toContain("preferred");
 });
 
-test("styleguide contains .tldr class usage", async () => {
+test("styleguide preamble mentions html escape valve", async () => {
+  const output = await getStyleguideOutput();
+  expect(output).toContain("escape valve");
+});
+
+// ---------------------------------------------------------------------------
+// Block reference — all 15 block types present
+// ---------------------------------------------------------------------------
+
+test("styleguide mentions every block type discriminator string", async () => {
+  const output = await getStyleguideOutput();
+  for (const type of blockTypes) {
+    expect(output).toContain(`\`${type}\``);
+  }
+});
+
+test("styleguide has a section heading for each block type", async () => {
+  const output = await getStyleguideOutput();
+  for (const type of blockTypes) {
+    expect(output).toContain(`### \`${type}\``);
+  }
+});
+
+test("styleguide mentions hero block", async () => {
+  const output = await getStyleguideOutput();
+  expect(output).toContain("hero");
+});
+
+test("styleguide mentions tldr block", async () => {
   const output = await getStyleguideOutput();
   expect(output).toContain("tldr");
 });
 
-test("styleguide contains .callout class usage", async () => {
+test("styleguide mentions section block", async () => {
+  const output = await getStyleguideOutput();
+  expect(output).toContain("section");
+});
+
+test("styleguide mentions callout block", async () => {
   const output = await getStyleguideOutput();
   expect(output).toContain("callout");
 });
 
-test("styleguide contains .code class usage", async () => {
+test("styleguide mentions code block", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain('"code"');
+  expect(output).toContain("code");
 });
 
-test("styleguide contains .timeline class usage", async () => {
+test("styleguide mentions compare_table block", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("timeline");
+  expect(output).toContain("compare_table");
 });
 
-test("styleguide contains .diagram class usage", async () => {
+test("styleguide mentions risk_table block", async () => {
+  const output = await getStyleguideOutput();
+  expect(output).toContain("risk_table");
+});
+
+test("styleguide mentions raw_html block", async () => {
+  const output = await getStyleguideOutput();
+  expect(output).toContain("raw_html");
+});
+
+test("styleguide mentions diagram block", async () => {
   const output = await getStyleguideOutput();
   expect(output).toContain("diagram");
 });
 
-test("styleguide contains .compare-table class usage", async () => {
+// ---------------------------------------------------------------------------
+// Markdown subset section
+// ---------------------------------------------------------------------------
+
+test("styleguide contains the markdown subset section", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("compare-table");
+  expect(output).toContain("Markdown subset");
 });
 
-test("styleguide contains .risk-table class usage", async () => {
+test("styleguide markdown subset mentions bold syntax", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("risk-table");
+  expect(output).toContain("**bold**");
 });
 
-test("styleguide contains .kbd class usage", async () => {
+test("styleguide markdown subset mentions italic syntax", async () => {
+  const output = await getStyleguideOutput();
+  expect(output).toContain("*italic*");
+});
+
+test("styleguide markdown subset mentions kbd safelist element", async () => {
   const output = await getStyleguideOutput();
   expect(output).toContain("kbd");
 });
 
-test("styleguide contains .pill class usage", async () => {
+test("styleguide markdown subset mentions pill safelist class", async () => {
   const output = await getStyleguideOutput();
   expect(output).toContain("pill");
 });
 
-test("styleguide contains .tag class usage", async () => {
+// ---------------------------------------------------------------------------
+// When to reach for raw_html / diagram section
+// ---------------------------------------------------------------------------
+
+test("styleguide contains 'raw_html / diagram' section", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain('"tag"');
+  expect(output).toContain("raw_html / diagram");
 });
 
-test("styleguide contains .byline class usage", async () => {
+test("styleguide mentions raw_html overuse threshold", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain("byline");
+  expect(output).toContain("30%");
 });
 
-test("styleguide output is parseable by parse5", async () => {
+// ---------------------------------------------------------------------------
+// Rendered examples present
+// ---------------------------------------------------------------------------
+
+test("styleguide contains rendered HTML examples (fenced html blocks)", async () => {
   const output = await getStyleguideOutput();
-  expect(() => parse5.parse(output)).not.toThrow();
+  expect(output).toContain("```html");
 });
 
-test("styleguide output contains :root { (design tokens inlined)", async () => {
+test("styleguide contains JSON examples (fenced json blocks)", async () => {
   const output = await getStyleguideOutput();
-  expect(output).toContain(":root {");
+  expect(output).toContain("```json");
+});
+
+// ---------------------------------------------------------------------------
+// Determinism
+// ---------------------------------------------------------------------------
+
+test("generateStyleguideMarkdown is deterministic", () => {
+  const a = generateStyleguideMarkdown();
+  const b = generateStyleguideMarkdown();
+  expect(a).toBe(b);
 });

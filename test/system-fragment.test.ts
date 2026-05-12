@@ -39,19 +39,21 @@ test("system-fragment.md contains word-count threshold language", () => {
   expect(content).toMatch(/400\s*words/i);
 });
 
-test("system-fragment.md references .eyebrow class", () => {
+test("system-fragment.md references blocks (preferred input mode)", () => {
   const content = readFragment();
-  expect(content).toContain(".eyebrow");
+  expect(content).toContain("blocks");
+  expect(content).toContain("preferred");
 });
 
-test("system-fragment.md references .h-display class", () => {
+test("system-fragment.md references html escape valve", () => {
   const content = readFragment();
-  expect(content).toContain(".h-display");
+  expect(content).toContain("html");
+  expect(content).toContain("escape valve");
 });
 
-test("system-fragment.md references .tldr class", () => {
+test("system-fragment.md references tldr block type", () => {
   const content = readFragment();
-  expect(content).toContain(".tldr");
+  expect(content).toContain("tldr");
 });
 
 test("system-fragment.md character count is under 4000 (token-budget proxy)", () => {
@@ -82,4 +84,35 @@ test("system-fragment.md mentions optional on ask_text", () => {
   const content = readFragment();
   expect(content).toContain("optional");
   expect(content).toContain("ask_text");
+});
+
+// New tests for blocks-first content
+
+test("system-fragment.md has a block JSON example", () => {
+  const content = readFragment();
+  expect(content).toContain('"blocks"');
+  expect(content).toContain('"type"');
+});
+
+test("system-fragment.md mentions cesium_critique mode detection", () => {
+  const content = readFragment();
+  expect(content).toContain("cesium_critique");
+});
+
+test("system-fragment.md mentions when to use raw_html and diagram", () => {
+  const content = readFragment();
+  expect(content).toContain("raw_html");
+  expect(content).toContain("diagram");
+});
+
+test("system-fragment.md mentions all 15 block types in the quick reference", () => {
+  const content = readFragment();
+  const blockTypes = [
+    "hero", "tldr", "section", "prose", "list", "callout", "code",
+    "timeline", "compare_table", "risk_table", "kv", "pill_row", "divider",
+    "diagram", "raw_html",
+  ];
+  for (const type of blockTypes) {
+    expect(content).toContain(type);
+  }
 });

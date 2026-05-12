@@ -1,8 +1,15 @@
-// Tool handler for cesium_critique — runs the body analyzer and returns a human-readable report.
+// Tool handler for cesium_critique — mode-aware body analyzer.
+// Accepts either { html: string } (html mode) or { blocks: Block[] } (blocks mode). Exactly one required.
 
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
-import { critique, type CritiqueResult, type CritiqueSeverity } from "../render/critique.ts";
+import {
+  critiqueHtml,
+  critiqueBlocks,
+  type CritiqueResult,
+  type CritiqueSeverity,
+} from "../render/critique.ts";
+import type { Block } from "../render/blocks/types.ts";
 
 const TOOL_DESCRIPTION = `Analyze a draft HTML body for adherence to the cesium design
 system before publishing. Returns a 0-100 score and findings (warn/suggest/info).
@@ -18,6 +25,7 @@ HTML only, no <!doctype>/<html>/<head>/<body> wrappers.`;
  * Format a CritiqueResult into a concise human-readable string the agent can parse.
  * Format:
  *   score: 87/100
+ *   mode: html
  *
  *   warn:
  *   - [external-resource] External resource will be stripped...
@@ -29,7 +37,7 @@ HTML only, no <!doctype>/<html>/<head>/<body> wrappers.`;
  *   - [code-without-highlights] Code blocks render without...
  */
 export function formatCritiqueForAgent(result: CritiqueResult): string {
-  const lines: string[] = [`score: ${result.score}/100`];
+  const lines: string[] = [`score: ${result.score}/100`, `mode: ${result.mode}`];
 
   const bySeverity: Record<CritiqueSeverity, typeof result.findings> = {
     warn: [],
@@ -47,7 +55,8 @@ export function formatCritiqueForAgent(result: CritiqueResult): string {
     lines.push("");
     lines.push(`${sev}:`);
     for (const f of group) {
-      lines.push(`- [${f.code}] ${f.message}`);
+      const pathSuffix = f.path !== undefined ? ` (${f.path})` : "";
+      lines.push(`- [${f.code}] ${f.message}${pathSuffix}`);
     }
   }
 
@@ -57,9 +66,35 @@ export function formatCritiqueForAgent(result: CritiqueResult): string {
 export function createCritiqueTool(_ctx: PluginInput): ReturnType<typeof tool> {
   return tool({
     description: TOOL_DESCRIPTION,
-    args: { html: tool.schema.string() },
+    args: {
+      html: tool.schema.string().optional(),
+      blocks: tool.schema.any().optional(),
+    },
     async execute(args) {
-      const result = critique(args.html);
+      const hasHtml = args.html !== undefined && args.html !== null;
+      const hasBlocks = args.blocks !== undefined && args.blocks !== null;
+
+      if (hasHtml && hasBlocks) {
+        return "error: provide exactly one of html or blocks, not both";
+      }
+      if (!hasHtml && !hasBlocks) {
+        return "error: provide exactly one of html or blocks";
+      }
+
+      let result: CritiqueResult;
+
+      if (hasHtml) {
+        if (typeof args.html !== "string") {
+          return "error: html must be a string";
+        }
+        result = critiqueHtml(args.html);
+      } else {
+        if (!Array.isArray(args.blocks)) {
+          return "error: blocks must be an array";
+        }
+        result = critiqueBlocks(args.blocks as Block[]);
+      }
+
       return formatCritiqueForAgent(result);
     },
   });
