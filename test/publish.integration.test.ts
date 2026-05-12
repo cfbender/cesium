@@ -664,7 +664,7 @@ test("theme.css contains full framework css with default theme tokens", async ()
   expect(themeCss).toContain(".eyebrow");
   expect(themeCss).toContain(".h-section");
 
-  // Re-publishing does not change theme.css (ensureThemeCss is idempotent)
+  // Re-publishing with a different themePreset updates theme.css to reflect that theme
   const ctx = mockCtx(workDir);
   const overrides: PublishToolOverrides = {
     loadConfig: () => ({
@@ -675,7 +675,7 @@ test("theme.css contains full framework css with default theme tokens", async ()
       hostname: "127.0.0.1",
       themePreset: "warm",
     }),
-    now: () => new Date("2026-05-11T15:00:00Z"),
+    now: () => new Date(Date.now() - 5 * 60 * 1000),
     nanoid: () => "warmid1",
     ensureRunning: async () => ({
       port: 3030,
@@ -687,9 +687,13 @@ test("theme.css contains full framework css with default theme tokens", async ()
   const t = createPublishTool(ctx, overrides);
   await t.execute({ title: "Warm Test", kind: "plan", html: "<p>warm</p>" }, {} as never);
 
-  // theme.css is unchanged — always default theme
+  // theme.css is updated to reflect the warm preset
   const themeCss2 = readFileSync(join(stateDir, "theme.css"), "utf8");
-  expect(themeCss2).toBe(themeCss);
+  expect(themeCss2).not.toBe(themeCss);
+  expect(themeCss2).toContain("#D97757"); // warm accent
+  expect(themeCss2).not.toContain("#C75B7A"); // claret-dark accent should not be present
+  // Framework rules are still present
+  expect(themeCss2).toContain(".card");
 });
 
 test("scrub does NOT touch the wrap-emitted theme link", async () => {

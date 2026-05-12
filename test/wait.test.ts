@@ -41,7 +41,7 @@ function makeAskOverrides(sd: string, nanoid?: () => string): AskToolOverrides {
       idleTimeoutMs: 1800000,
       hostname: "127.0.0.1",
     }),
-    now: () => new Date("2026-05-11T14:22:09Z"),
+    now: () => new Date(Date.now() - 5 * 60 * 1000),
     nanoid: nanoid ?? (() => "abc123"),
     ensureRunning: async () => ({
       port: 3030,
