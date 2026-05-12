@@ -10,6 +10,7 @@ import { scrub } from "../render/scrub.ts";
 import { extractTextContent } from "../render/extract.ts";
 import { themeFromPreset, mergeTheme } from "../render/theme.ts";
 import { validatePublishInput, htmlBodyWarnings, PUBLISH_KINDS } from "../render/validate.ts";
+import { renderBlocks } from "../render/blocks/render.ts";
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
 import { atomicWrite, patchEmbeddedMetadata } from "../storage/write.ts";
@@ -112,7 +113,18 @@ export function createPublishTool(
     args: {
       title: tool.schema.string(),
       kind: tool.schema.enum([...PUBLISH_KINDS] as [string, ...string[]]),
-      html: tool.schema.string(),
+      html: tool.schema
+        .string()
+        .optional()
+        .describe(
+          "Body HTML — escape valve / legacy mode. Provide exactly one of html or blocks.",
+        ),
+      blocks: tool.schema
+        .array(tool.schema.any())
+        .optional()
+        .describe(
+          "Structured block array — preferred for token efficiency. Provide exactly one of html or blocks.",
+        ),
       summary: tool.schema.string().optional(),
       tags: tool.schema.array(tool.schema.string()).optional(),
       supersedes: tool.schema.string().optional(),
@@ -174,11 +186,22 @@ export function createPublishTool(
       // 6. Timestamps
       const createdAt = now();
 
-      // 7. Scrub
-      const scrubbed = scrub(input.html);
+      // 7. Render body (blocks path or html path)
+      let bodyHtml: string;
+      let scrubRemovedCount = 0;
+
+      if (input.blocks !== undefined) {
+        // Blocks path: render structured blocks → trusted HTML
+        bodyHtml = renderBlocks(input.blocks);
+      } else {
+        // HTML path: scrub agent-supplied HTML
+        const scrubbed = scrub(input.html);
+        bodyHtml = scrubbed.html;
+        scrubRemovedCount = scrubbed.removed.length;
+      }
 
       // 7a. Extract body text for full-text search
-      const bodyText = extractTextContent(scrubbed.html);
+      const bodyText = extractTextContent(bodyHtml);
 
       // 8. Compute filename + paths
       const filename = artifactFilename({ title: input.title, id, createdAt });
@@ -189,7 +212,7 @@ export function createPublishTool(
       });
 
       // 9. Content SHA-256
-      const contentSha256 = createHash("sha256").update(scrubbed.html).digest("hex");
+      const contentSha256 = createHash("sha256").update(bodyHtml).digest("hex");
 
       // 10. Build ArtifactMeta
       const meta: ArtifactMeta = {
@@ -214,10 +237,10 @@ export function createPublishTool(
 
       // 11. Build warnings
       const warnings: string[] = [];
-      if (scrubbed.removed.length > 0) {
-        warnings.push(`Removed ${scrubbed.removed.length} external resource(s) during scrub.`);
+      if (scrubRemovedCount > 0) {
+        warnings.push(`Removed ${scrubRemovedCount} external resource(s) during scrub.`);
       }
-      const bodyWarnings = htmlBodyWarnings(scrubbed.html);
+      const bodyWarnings = input.html !== undefined ? htmlBodyWarnings(bodyHtml) : [];
       for (const w of bodyWarnings) {
         warnings.push(w);
       }
@@ -230,7 +253,7 @@ export function createPublishTool(
       await writeFaviconSvg(config.stateDir);
 
       const fullHtml = wrapDocument({
-        body: scrubbed.html,
+        body: bodyHtml,
         meta,
         theme,
         warnings,

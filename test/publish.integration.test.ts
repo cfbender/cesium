@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createPublishTool } from "../src/tools/publish.ts";
 import { readEmbeddedMetadata } from "../src/storage/write.ts";
 import type { PublishToolOverrides } from "../src/tools/publish.ts";
+import type { Block } from "../src/render/blocks/types.ts";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -48,10 +49,33 @@ interface PublishArgs extends Record<string, unknown> {
   supersedes?: string;
 }
 
+interface BlocksPublishArgs extends Record<string, unknown> {
+  title: string;
+  kind: string;
+  blocks: Block[];
+  summary?: string;
+  tags?: string[];
+  supersedes?: string;
+}
+
 async function publish(
   workDir: string,
   stateDir: string,
   args: PublishArgs,
+  nanoid?: () => string,
+): Promise<Record<string, unknown>> {
+  const ctx = mockCtx(workDir);
+  const overrides = makeOverrides(stateDir, nanoid);
+  const t = createPublishTool(ctx, overrides);
+  const raw = await t.execute(args, {} as never);
+  if (typeof raw !== "string") throw new Error("expected string from publish tool");
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+async function publishBlocks(
+  workDir: string,
+  stateDir: string,
+  args: BlocksPublishArgs,
   nanoid?: () => string,
 ): Promise<Record<string, unknown>> {
   const ctx = mockCtx(workDir);
@@ -683,4 +707,167 @@ test("scrub does NOT touch the wrap-emitted theme link", async () => {
   expect(html).toContain("<!-- cesium: removed external");
   // Wrap-emitted theme link is present
   expect(html).toContain('<link rel="stylesheet" href="../../../theme.css">');
+});
+
+// ─── Phase 2: blocks mode integration ─────────────────────────────────────
+
+test("blocks mode: basic publish with prose block writes valid artifact", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Test",
+    kind: "report",
+    blocks: [{ type: "prose", markdown: "Hello from **blocks** mode." }],
+  });
+
+  expect(result["id"]).toBe("abc123");
+  expect(typeof result["filePath"]).toBe("string");
+  expect(existsSync(result["filePath"] as string)).toBe(true);
+});
+
+test("blocks mode: artifact contains metadata script", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Meta Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+  expect(html).toContain('<script type="application/json" id="cesium-meta">');
+});
+
+test("blocks mode: artifact contains link to theme.css", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Theme Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+  expect(html).toContain('<link rel="stylesheet" href="../../../theme.css">');
+});
+
+test("blocks mode: artifact contains inline fallback CSS", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Fallback Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+  // Fallback CSS is inlined in a <style> tag
+  expect(html).toContain("<style>");
+  expect(html).toContain("fallback");
+});
+
+test("blocks mode: full document structure renders expected HTML", async () => {
+  const blocks: Block[] = [
+    {
+      type: "hero",
+      eyebrow: "Phase 2",
+      title: "Block Mode Report",
+      subtitle: "Structured input test",
+    },
+    { type: "tldr", markdown: "**Summary:** blocks mode is working." },
+    {
+      type: "section",
+      title: "Overview",
+      children: [
+        { type: "prose", markdown: "This is the overview section." },
+        { type: "callout", variant: "warn", title: "Note", markdown: "Be careful." },
+      ],
+    },
+    { type: "code", lang: "typescript", code: "const x = 1;" },
+    {
+      type: "compare_table",
+      headers: ["Mode", "Tokens"],
+      rows: [
+        ["html", "high"],
+        ["blocks", "low"],
+      ],
+    },
+  ];
+
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Full Document Test",
+    kind: "report",
+    blocks,
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+
+  // Hero
+  expect(html).toContain('<h1 class="h-display">Block Mode Report</h1>');
+  expect(html).toContain('class="eyebrow"');
+  // Tldr
+  expect(html).toContain('<aside class="tldr">');
+  // Section
+  expect(html).toContain('<section>');
+  expect(html).toContain('class="h-section"');
+  expect(html).toContain('class="section-num"');
+  // Callout
+  expect(html).toContain('<aside class="callout warn">');
+  // Code
+  expect(html).toContain('<figure class="code">');
+  expect(html).toContain('class="lang-typescript"');
+  // Compare table
+  expect(html).toContain('<table class="compare-table">');
+});
+
+test("blocks mode: embedded metadata round-trip returns expected fields", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Meta Round Trip",
+    kind: "design",
+    blocks: [{ type: "prose", markdown: "Hello." }],
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+  const meta = readEmbeddedMetadata(html);
+
+  if (meta === null) throw new Error("expected embedded metadata");
+  expect(meta["id"]).toBe("abc123");
+  expect(meta["title"]).toBe("Blocks Meta Round Trip");
+  expect(meta["kind"]).toBe("design");
+});
+
+test("blocks mode: validation failure — both html and blocks provided", async () => {
+  const ctx = mockCtx(workDir);
+  const overrides = makeOverrides(stateDir);
+  const t = createPublishTool(ctx, overrides);
+  const result = await t.execute(
+    { title: "Bad", kind: "plan", html: "<p>x</p>", blocks: [{ type: "prose", markdown: "y" }] },
+    {} as never,
+  );
+  expect(typeof result).toBe("string");
+  expect((result as string).startsWith("Error:")).toBe(true);
+  expect(result as string).toContain("exactly one");
+});
+
+test("blocks mode: validation failure — invalid block type", async () => {
+  const ctx = mockCtx(workDir);
+  const overrides = makeOverrides(stateDir);
+  const t = createPublishTool(ctx, overrides);
+  const result = await t.execute(
+    { title: "Bad", kind: "plan", blocks: [{ type: "not_real", markdown: "x" }] },
+    {} as never,
+  );
+  expect(typeof result).toBe("string");
+  expect((result as string).startsWith("Error:")).toBe(true);
+});
+
+test("blocks mode: index updated with artifact from blocks input", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Index Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.json");
+  expect(existsSync(projectIndexPath)).toBe(true);
+  const entries = JSON.parse(readFileSync(projectIndexPath, "utf8")) as unknown[];
+  expect(entries).toHaveLength(1);
+  expect((entries[0] as Record<string, unknown>)["id"]).toBe("abc123");
 });

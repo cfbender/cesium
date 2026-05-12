@@ -2,6 +2,8 @@
 
 import { parseFragment, defaultTreeAdapter as ta } from "parse5";
 import type { DefaultTreeAdapterTypes } from "parse5";
+import type { Block } from "./blocks/types.ts";
+import { blockCatalog } from "./blocks/catalog.ts";
 
 type ChildNode = DefaultTreeAdapterTypes.ChildNode;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -407,17 +409,241 @@ export function validateAskInput(input: unknown): AskValidationResult {
   return { ok: true, value: result };
 }
 
-export interface PublishInput {
-  title: string;
-  kind: PublishKind;
-  html: string;
-  summary?: string;
-  tags?: string[];
-  supersedes?: string;
-}
+// ─── PublishInput — supports html XOR blocks ──────────────────────────────────
+
+export type PublishInput =
+  | {
+      title: string;
+      kind: PublishKind;
+      html: string;
+      blocks?: never;
+      summary?: string;
+      tags?: string[];
+      supersedes?: string;
+    }
+  | {
+      title: string;
+      kind: PublishKind;
+      blocks: Block[];
+      html?: never;
+      summary?: string;
+      tags?: string[];
+      supersedes?: string;
+    };
 
 function isPublishKind(val: unknown): val is PublishKind {
   return typeof val === "string" && (PUBLISH_KINDS as readonly string[]).includes(val);
+}
+
+// ─── Block validation ─────────────────────────────────────────────────────────
+
+type BlockValidationError = { path: string; message: string };
+type BlockValidationResult = { ok: true; blocks: Block[] } | { ok: false; errors: BlockValidationError[] };
+
+function validateBlock(raw: unknown, path: string, depth: number): BlockValidationError[] {
+  const errors: BlockValidationError[] = [];
+
+  if (raw === null || typeof raw !== "object") {
+    errors.push({ path, message: "block must be an object" });
+    return errors;
+  }
+
+  const b = raw as Record<string, unknown>;
+  const type = b["type"];
+
+  if (typeof type !== "string") {
+    errors.push({ path, message: "block.type must be a string" });
+    return errors;
+  }
+
+  if (!(type in blockCatalog)) {
+    errors.push({ path, message: `unknown block type: "${type}"` });
+    return errors;
+  }
+
+  // Per-type required field checks
+  switch (type) {
+    case "hero": {
+      if (typeof b["title"] !== "string" || (b["title"] as string).trim() === "") {
+        errors.push({ path, message: "hero block requires a non-empty title" });
+      }
+      break;
+    }
+    case "tldr": {
+      if (typeof b["markdown"] !== "string") {
+        errors.push({ path, message: "tldr block requires markdown field" });
+      }
+      break;
+    }
+    case "section": {
+      if (typeof b["title"] !== "string" || (b["title"] as string).trim() === "") {
+        errors.push({ path, message: "section block requires a non-empty title" });
+      }
+      if (!Array.isArray(b["children"])) {
+        errors.push({ path, message: "section block requires children array" });
+      } else {
+        if (depth > 3) {
+          errors.push({ path, message: `section nesting depth exceeds maximum of 3 (current depth: ${depth})` });
+        } else {
+          const children = b["children"] as unknown[];
+          for (let i = 0; i < children.length; i++) {
+            const childErrors = validateBlock(children[i], `${path}.children[${i}]`, depth + 1);
+            for (const e of childErrors) errors.push(e);
+          }
+        }
+      }
+      break;
+    }
+    case "prose": {
+      if (typeof b["markdown"] !== "string") {
+        errors.push({ path, message: "prose block requires markdown field" });
+      }
+      break;
+    }
+    case "list": {
+      if (!Array.isArray(b["items"])) {
+        errors.push({ path, message: "list block requires items array" });
+      }
+      break;
+    }
+    case "callout": {
+      if (b["variant"] !== "note" && b["variant"] !== "warn" && b["variant"] !== "risk") {
+        errors.push({ path, message: 'callout block requires variant: "note", "warn", or "risk"' });
+      }
+      if (typeof b["markdown"] !== "string") {
+        errors.push({ path, message: "callout block requires markdown field" });
+      }
+      break;
+    }
+    case "code": {
+      if (typeof b["lang"] !== "string" || (b["lang"] as string).trim() === "") {
+        errors.push({ path, message: 'code block requires a non-empty lang (use "text" if unknown)' });
+      }
+      if (typeof b["code"] !== "string") {
+        errors.push({ path, message: "code block requires code field" });
+      }
+      break;
+    }
+    case "timeline": {
+      if (!Array.isArray(b["items"])) {
+        errors.push({ path, message: "timeline block requires items array" });
+      }
+      break;
+    }
+    case "compare_table": {
+      if (!Array.isArray(b["headers"]) || (b["headers"] as unknown[]).length === 0) {
+        errors.push({ path, message: "compare_table block requires non-empty headers array" });
+      } else {
+        const headers = b["headers"] as unknown[];
+        const headerCount = headers.length;
+        if (Array.isArray(b["rows"])) {
+          const rows = b["rows"] as unknown[];
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!Array.isArray(row) || (row as unknown[]).length !== headerCount) {
+              errors.push({
+                path: `${path}.rows[${i}]`,
+                message: `compare_table row has ${Array.isArray(row) ? (row as unknown[]).length : "?"} cells but headers has ${headerCount}`,
+              });
+            }
+          }
+        } else {
+          errors.push({ path, message: "compare_table block requires rows array" });
+        }
+      }
+      break;
+    }
+    case "risk_table": {
+      if (!Array.isArray(b["rows"])) {
+        errors.push({ path, message: "risk_table block requires rows array" });
+      }
+      break;
+    }
+    case "kv": {
+      if (!Array.isArray(b["rows"])) {
+        errors.push({ path, message: "kv block requires rows array" });
+      }
+      break;
+    }
+    case "pill_row": {
+      if (!Array.isArray(b["items"])) {
+        errors.push({ path, message: "pill_row block requires items array" });
+      }
+      break;
+    }
+    case "divider": {
+      // No required fields beyond type
+      break;
+    }
+    case "diagram": {
+      const hasSvg = typeof b["svg"] === "string";
+      const hasHtml = typeof b["html"] === "string";
+      if (hasSvg && hasHtml) {
+        errors.push({ path, message: "diagram block must have exactly one of svg or html, not both" });
+      } else if (!hasSvg && !hasHtml) {
+        errors.push({ path, message: "diagram block requires exactly one of svg or html" });
+      }
+      break;
+    }
+    case "raw_html": {
+      if (typeof b["html"] !== "string" || (b["html"] as string).trim() === "") {
+        errors.push({ path, message: "raw_html block requires non-empty html field" });
+      }
+      break;
+    }
+  }
+
+  return errors;
+}
+
+function validateBlocksArray(raw: unknown): BlockValidationResult {
+  if (!Array.isArray(raw)) {
+    return { ok: false, errors: [{ path: "blocks", message: "blocks must be an array" }] };
+  }
+
+  if (raw.length > 1000) {
+    return { ok: false, errors: [{ path: "blocks", message: "blocks array exceeds maximum of 1000 blocks" }] };
+  }
+
+  const allErrors: BlockValidationError[] = [];
+
+  // Structural checks: at most one hero (must be first), at most one tldr
+  let heroCount = 0;
+  let tldrCount = 0;
+
+  for (let i = 0; i < raw.length; i++) {
+    const block = raw[i] as Record<string, unknown> | null | undefined;
+    const blockType = block !== null && typeof block === "object" ? block["type"] : undefined;
+
+    if (blockType === "hero") {
+      heroCount++;
+      if (i !== 0) {
+        allErrors.push({ path: `blocks[${i}]`, message: "hero block must be the first block if present" });
+      }
+    }
+    if (blockType === "tldr") {
+      tldrCount++;
+    }
+  }
+
+  if (heroCount > 1) {
+    allErrors.push({ path: "blocks", message: "at most one hero block is allowed per document" });
+  }
+  if (tldrCount > 1) {
+    allErrors.push({ path: "blocks", message: "at most one tldr block is allowed per document" });
+  }
+
+  // Per-block validation (depth 1 at root)
+  for (let i = 0; i < raw.length; i++) {
+    const blockErrors = validateBlock(raw[i], `blocks[${i}]`, 1);
+    for (const e of blockErrors) allErrors.push(e);
+  }
+
+  if (allErrors.length > 0) {
+    return { ok: false, errors: allErrors };
+  }
+
+  return { ok: true, blocks: raw as Block[] };
 }
 
 export function validatePublishInput(input: unknown): ValidationResult<PublishInput> {
@@ -444,11 +670,16 @@ export function validatePublishInput(input: unknown): ValidationResult<PublishIn
   }
   const kind = raw["kind"];
 
-  // html
-  if (!("html" in raw) || typeof raw["html"] !== "string" || raw["html"].trim() === "") {
-    return { ok: false, error: "html is required and must be a non-empty string" };
+  // XOR: exactly one of html or blocks
+  const hasHtml = "html" in raw && raw["html"] !== undefined;
+  const hasBlocks = "blocks" in raw && raw["blocks"] !== undefined;
+
+  if (hasHtml && hasBlocks) {
+    return { ok: false, error: "provide exactly one of html or blocks, not both" };
   }
-  const html = raw["html"];
+  if (!hasHtml && !hasBlocks) {
+    return { ok: false, error: "provide exactly one of html or blocks" };
+  }
 
   // summary (optional)
   if ("summary" in raw && raw["summary"] !== undefined) {
@@ -479,12 +710,37 @@ export function validatePublishInput(input: unknown): ValidationResult<PublishIn
     }
   }
 
-  const result: PublishInput = { title, kind, html };
-  if (typeof raw["summary"] === "string") result.summary = raw["summary"];
-  if (Array.isArray(raw["tags"])) result.tags = raw["tags"] as string[];
-  if (typeof raw["supersedes"] === "string") result.supersedes = raw["supersedes"];
+  const commonFields = {
+    title,
+    kind,
+    ...(typeof raw["summary"] === "string" ? { summary: raw["summary"] } : {}),
+    ...(Array.isArray(raw["tags"]) ? { tags: raw["tags"] as string[] } : {}),
+    ...(typeof raw["supersedes"] === "string" ? { supersedes: raw["supersedes"] } : {}),
+  };
 
-  return { ok: true, value: result };
+  if (hasHtml) {
+    // html branch
+    if (typeof raw["html"] !== "string" || raw["html"].trim() === "") {
+      return { ok: false, error: "html is required and must be a non-empty string" };
+    }
+    return {
+      ok: true,
+      value: { ...commonFields, html: raw["html"] },
+    };
+  } else {
+    // blocks branch
+    const blocksResult = validateBlocksArray(raw["blocks"]);
+    if (!blocksResult.ok) {
+      const errorMessages = blocksResult.errors
+        .map((e) => `${e.path}: ${e.message}`)
+        .join("; ");
+      return { ok: false, error: `blocks validation failed — ${errorMessages}` };
+    }
+    return {
+      ok: true,
+      value: { ...commonFields, blocks: blocksResult.blocks },
+    };
+  }
 }
 
 const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
