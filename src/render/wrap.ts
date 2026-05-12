@@ -25,6 +25,7 @@ export interface ArtifactMeta {
   supersedes: string | null;
   supersededBy: string | null;
   contentSha256: string;
+  inputMode: "html" | "blocks";
 }
 
 export interface WrapOptions {

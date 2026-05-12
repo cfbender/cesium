@@ -236,6 +236,9 @@ function indexJs(): string {
 function renderEntryCard(entry: IndexEntry): string {
   const isSuperseded = entry.supersededBy !== null ? "1" : "0";
   const kindPill = `<span class="pill">${esc(entry.kind)}</span>`;
+  const inputModeBadge = entry.inputMode !== undefined
+    ? ` <span class="tag">${esc(entry.inputMode)}</span>`
+    : "";
   const dateStr = `<span class="card-date">${esc(formatDate(entry.createdAt))}</span>`;
   const supersededBadge =
     entry.supersedes !== null
@@ -255,7 +258,7 @@ function renderEntryCard(entry: IndexEntry): string {
       : "";
 
   return `<div class="entry-card" data-card data-kind="${esc(entry.kind)}" data-title-lower="${esc(entry.title.toLowerCase())}" data-body-text="${esc(entry.bodyText.toLowerCase())}" data-superseded="${isSuperseded}">
-  <div class="card-top">${kindPill}${supersededBadge}${supersededByBadge}${dateStr}</div>
+  <div class="card-top">${kindPill}${inputModeBadge}${supersededBadge}${supersededByBadge}${dateStr}</div>
   <div class="card-title"><a href="artifacts/${esc(entry.filename)}">${esc(entry.title)}</a></div>
   ${summaryHtml}${tagsHtml}
   <div class="card-footer"><a class="open-link" href="artifacts/${esc(entry.filename)}">Open →</a></div>

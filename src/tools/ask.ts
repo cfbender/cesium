@@ -204,6 +204,7 @@ export function createAskTool(
         supersedes: null,
         supersededBy: null,
         contentSha256,
+        inputMode: "html",
       };
 
       // 12. Build interactive data

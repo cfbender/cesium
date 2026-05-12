@@ -19,6 +19,7 @@ export interface IndexEntry {
   projectSlug: string;
   projectName: string;
   bodyText: string;
+  inputMode?: "html" | "blocks";
 }
 
 export async function loadIndex(jsonPath: string): Promise<IndexEntry[]> {

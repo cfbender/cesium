@@ -27,12 +27,17 @@ export function renderSection(block: SectionBlock, ctx: RenderCtx): string {
     `  <h2 class="h-section"><span class="section-num">${escapeHtml(num)}</span> ${escapeHtml(block.title)}</h2>`,
   );
 
-  // Render children with incremented depth
+  // Render children with incremented depth.
+  // Non-section children are grouped into <div class="card"> wrappers for visual polish.
+  // Nested section children are emitted at top level (they carry their own card structure).
   const childCtx: RenderCtx = {
     sectionCounter: ctx.sectionCounter,
     depth: ctx.depth + 1,
     path: `${ctx.path}.children`,
   };
+
+  let buffer: string[] = [];
+
   for (let i = 0; i < block.children.length; i++) {
     const child = block.children[i];
     if (child === undefined) continue;
@@ -40,7 +45,22 @@ export function renderSection(block: SectionBlock, ctx: RenderCtx): string {
       ...childCtx,
       path: `${ctx.path}.children[${i}]`,
     };
-    parts.push(`  ${renderBlock(child, childBlockCtx)}`);
+    const rendered = renderBlock(child, childBlockCtx);
+    if (child.type === "section") {
+      // Flush buffered non-section children into a card first
+      if (buffer.length > 0) {
+        parts.push(`  <div class="card">\n${buffer.join("\n")}\n  </div>`);
+        buffer = [];
+      }
+      parts.push(`  ${rendered}`);
+    } else {
+      buffer.push(`  ${rendered}`);
+    }
+  }
+
+  // Flush any remaining non-section children
+  if (buffer.length > 0) {
+    parts.push(`  <div class="card">\n${buffer.join("\n")}\n  </div>`);
   }
 
   return `<section>\n${parts.join("\n")}\n</section>`;

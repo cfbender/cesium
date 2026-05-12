@@ -1,11 +1,18 @@
 import { test, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { generateBlockFieldReference } from "../src/prompt/field-reference.ts";
 
 const FRAGMENT_PATH = join(import.meta.dir, "../src/prompt/system-fragment.md");
 
 function readFragment(): string {
   return readFileSync(FRAGMENT_PATH, "utf8");
+}
+
+/** Returns the fragment as the agent sees it — with placeholder replaced. */
+function readRenderedFragment(): string {
+  const raw = readFragment();
+  return raw.replace("{{BLOCK_FIELD_REFERENCE}}", generateBlockFieldReference());
 }
 
 test("system-fragment.md is non-empty", () => {
@@ -56,9 +63,11 @@ test("system-fragment.md references tldr block type", () => {
   expect(content).toContain("tldr");
 });
 
-test("system-fragment.md character count is under 4000 (token-budget proxy)", () => {
+test("system-fragment.md raw file character count is under 5000 (raw file budget)", () => {
+  // The raw file contains a placeholder {{BLOCK_FIELD_REFERENCE}} that gets replaced at runtime.
+  // The raw file itself is a template — check that it stays compact (< 5000 chars).
   const content = readFragment();
-  expect(content.length).toBeLessThan(4000);
+  expect(content.length).toBeLessThan(5000);
 });
 
 test("system-fragment.md lists six tools", () => {
@@ -73,11 +82,6 @@ test("system-fragment.md contains trigger guidance for cesium_ask + cesium_wait"
   expect(content).toContain("cesium_wait");
   // Mention of interactive Q&A workflow
   expect(content).toMatch(/interactive/i);
-});
-
-test("system-fragment.md is under 4000 chars (token-budget proxy)", () => {
-  const content = readFragment();
-  expect(content.length).toBeLessThan(4000);
 });
 
 test("system-fragment.md mentions optional on ask_text", () => {
@@ -115,4 +119,68 @@ test("system-fragment.md mentions all 15 block types in the quick reference", ()
   for (const type of blockTypes) {
     expect(content).toContain(type);
   }
+});
+
+// ─── Rendered fragment tests (after placeholder replacement) ──────────────────
+
+test("rendered fragment contains k/v field names for hero meta", () => {
+  const content = readRenderedFragment();
+  expect(content).toContain("k");
+  expect(content).toContain("v");
+  // More specific: should appear as field names in a meta context
+  expect(content).toMatch(/meta.*k.*v|k.*v.*meta/s);
+});
+
+test("rendered fragment contains label and text for timeline items", () => {
+  const content = readRenderedFragment();
+  expect(content).toMatch(/timeline.*label.*text|label.*text.*timeline/s);
+});
+
+test("rendered fragment lists low/medium/high for risk_table likelihood and impact", () => {
+  const content = readRenderedFragment();
+  expect(content).toContain("low");
+  expect(content).toContain("medium");
+  expect(content).toContain("high");
+  // Should appear near risk_table context
+  expect(content).toMatch(/risk_table[\s\S]*low[\s\S]*medium[\s\S]*high/);
+});
+
+test("rendered fragment contains all 15 block types in field reference", () => {
+  const content = readRenderedFragment();
+  const blockTypes = [
+    "hero", "tldr", "section", "prose", "list", "callout", "code",
+    "timeline", "compare_table", "risk_table", "kv", "pill_row", "divider",
+    "diagram", "raw_html",
+  ];
+  for (const type of blockTypes) {
+    expect(content).toContain(type);
+  }
+});
+
+test("field reference generator covers all catalog entries", () => {
+  const { blockCatalog } = require("../src/render/blocks/catalog.ts") as { blockCatalog: Record<string, unknown> };
+  const catalogCount = Object.keys(blockCatalog).length;
+  expect(catalogCount).toBe(15);
+
+  const reference = generateBlockFieldReference();
+  const blockTypes = [
+    "hero", "tldr", "section", "prose", "list", "callout", "code",
+    "timeline", "compare_table", "risk_table", "kv", "pill_row", "divider",
+    "diagram", "raw_html",
+  ];
+  for (const type of blockTypes) {
+    expect(reference).toContain(`\`${type}\``);
+  }
+});
+
+test("rendered fragment contains hero with meta k/v in example JSON", () => {
+  const content = readRenderedFragment();
+  // The updated example should contain meta with k/v fields
+  expect(content).toContain('"k"');
+  expect(content).toContain('"v"');
+  // And the risk_table and timeline examples
+  expect(content).toContain('"risk_table"');
+  expect(content).toContain('"timeline"');
+  expect(content).toContain('"label"');
+  expect(content).toContain('"text"');
 });

@@ -189,6 +189,7 @@ export function createPublishTool(
       // 7. Render body (blocks path or html path)
       let bodyHtml: string;
       let scrubRemovedCount = 0;
+      const inputMode: "html" | "blocks" = input.blocks !== undefined ? "blocks" : "html";
 
       if (input.blocks !== undefined) {
         // Blocks path: render structured blocks → trusted HTML
@@ -233,6 +234,7 @@ export function createPublishTool(
         supersedes: input.supersedes ?? null,
         supersededBy: null,
         contentSha256,
+        inputMode,
       };
 
       // 11. Build warnings
@@ -280,6 +282,7 @@ export function createPublishTool(
         projectSlug: identity.slug,
         projectName: identity.name,
         bodyText,
+        inputMode,
       };
 
       const lockPath = join(config.stateDir, ".index.lock");

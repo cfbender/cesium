@@ -21,11 +21,19 @@ You have access to six tools:
 
 ```json
 { "title": "Migration Guide", "kind": "plan", "blocks": [
-  { "type": "hero", "eyebrow": "v2", "title": "Migration Guide" },
+  { "type": "hero", "eyebrow": "v2", "title": "Migration Guide",
+    "meta": [{ "k": "Status", "v": "Draft" }, { "k": "Owner", "v": "platform" }] },
   { "type": "tldr", "markdown": "**Summary:** Update one import path and bump the SDK." },
   { "type": "section", "title": "What Changed", "children": [
     { "type": "prose", "markdown": "The `auth` module is now a standalone package." },
     { "type": "callout", "variant": "warn", "markdown": "Change `sdk/auth` imports before upgrading." }
+  ]},
+  { "type": "risk_table", "rows": [
+    { "risk": "Missed imports", "likelihood": "medium", "impact": "high", "mitigation": "Run codemods." }
+  ]},
+  { "type": "timeline", "items": [
+    { "label": "Phase 1", "text": "Audit existing imports", "date": "2026-06-01" },
+    { "label": "Phase 2", "text": "Run migration script" }
   ]}
 ]}
 ```
@@ -44,6 +52,8 @@ Call `cesium_styleguide` for full schemas and rendered examples.
 - `kv` — key-value pairs; `pill_row` — pill/tag chips
 - `diagram` — SVG/HTML visual (scrubbed)
 - `raw_html` — custom HTML escape hatch (scrubbed; add `purpose`)
+
+{{BLOCK_FIELD_REFERENCE}}
 
 ## When to use raw_html / diagram
 

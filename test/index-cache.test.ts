@@ -209,3 +209,57 @@ describe("appendEntry — bodyText preserved", () => {
     expect(result[0]?.bodyText).toBe("hello world");
   });
 });
+
+// ─── Phase 2.5 Bug 4: inputMode ─────────────────────────────────────────────
+
+describe("IndexEntry inputMode", () => {
+  test("entry with inputMode='blocks' round-trips correctly", async () => {
+    const jsonPath = join(workDir, "blocks-entry.json");
+    const entry: IndexEntry = { ...makeEntry("blk1", "2026-05-12T10:00:00.000Z"), inputMode: "blocks" };
+    await atomicWrite(jsonPath, JSON.stringify([entry]));
+    const result = await loadIndex(jsonPath);
+    expect(result[0]?.inputMode).toBe("blocks");
+  });
+
+  test("entry with inputMode='html' round-trips correctly", async () => {
+    const jsonPath = join(workDir, "html-entry.json");
+    const entry: IndexEntry = { ...makeEntry("htm1", "2026-05-12T10:00:00.000Z"), inputMode: "html" };
+    await atomicWrite(jsonPath, JSON.stringify([entry]));
+    const result = await loadIndex(jsonPath);
+    expect(result[0]?.inputMode).toBe("html");
+  });
+
+  test("old entry without inputMode: field is undefined (backward compat)", async () => {
+    const jsonPath = join(workDir, "old-entry.json");
+    const oldEntry = {
+      id: "old99",
+      title: "Old",
+      kind: "plan",
+      summary: null,
+      tags: [],
+      createdAt: "2026-05-11T10:00:00.000Z",
+      filename: "old99.html",
+      supersedes: null,
+      supersededBy: null,
+      gitBranch: null,
+      gitCommit: null,
+      contentSha256: "abc",
+      projectSlug: "test-project",
+      projectName: "Test Project",
+      bodyText: "",
+      // inputMode intentionally absent
+    };
+    await atomicWrite(jsonPath, JSON.stringify([oldEntry]));
+    const result = await loadIndex(jsonPath);
+    // inputMode is optional — should be undefined for old entries
+    expect(result[0]?.inputMode).toBeUndefined();
+  });
+
+  test("patchEntry preserves inputMode field", () => {
+    const entries: IndexEntry[] = [
+      { ...makeEntry("abc", "2026-05-11T10:00:00.000Z"), inputMode: "blocks" },
+    ];
+    const result = patchEntry(entries, "abc", { supersededBy: "xyz" });
+    expect(result[0]?.inputMode).toBe("blocks");
+  });
+});

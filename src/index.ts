@@ -10,11 +10,14 @@ import { createWaitTool } from "./tools/wait.ts";
 import { createStyleguideTool } from "./tools/styleguide.ts";
 import { createCritiqueTool } from "./tools/critique.ts";
 import { createStopTool } from "./tools/stop.ts";
+import { generateBlockFieldReference } from "./prompt/field-reference.ts";
 
-const PROMPT_FRAGMENT = await readFile(
+const rawFragment = await readFile(
   join(dirname(fileURLToPath(import.meta.url)), "prompt/system-fragment.md"),
   "utf8",
 );
+
+const PROMPT_FRAGMENT = rawFragment.replace("{{BLOCK_FIELD_REFERENCE}}", generateBlockFieldReference());
 
 export const CesiumPlugin: Plugin = async (ctx): Promise<Hooks> => {
   return {

@@ -875,3 +875,88 @@ test("blocks mode: index updated with artifact from blocks input", async () => {
   expect(entries).toHaveLength(1);
   expect((entries[0] as Record<string, unknown>)["id"]).toBe("abc123");
 });
+
+// ─── Phase 2.5 Bug 4: inputMode in metadata ─────────────────────────────────
+
+test("html mode: embedded metadata contains inputMode='html'", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "HTML Mode Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+  const meta = readEmbeddedMetadata(html);
+  if (meta === null) throw new Error("expected embedded metadata");
+  expect(meta["inputMode"]).toBe("html");
+});
+
+test("blocks mode: embedded metadata contains inputMode='blocks'", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Mode Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const html = readFileSync(result["filePath"] as string, "utf8");
+  const meta = readEmbeddedMetadata(html);
+  if (meta === null) throw new Error("expected embedded metadata");
+  expect(meta["inputMode"]).toBe("blocks");
+});
+
+test("blocks mode: index.json entry contains inputMode='blocks'", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Mode Index Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.json");
+  const entries = JSON.parse(readFileSync(projectIndexPath, "utf8")) as Record<string, unknown>[];
+  expect(entries).toHaveLength(1);
+  const entry = entries[0];
+  if (entry === undefined) throw new Error("expected entry");
+  expect(entry["inputMode"]).toBe("blocks");
+});
+
+test("html mode: index.json entry contains inputMode='html'", async () => {
+  const result = await publish(workDir, stateDir, {
+    title: "HTML Mode Index Test",
+    kind: "plan",
+    html: "<p>content</p>",
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.json");
+  const entries = JSON.parse(readFileSync(projectIndexPath, "utf8")) as Record<string, unknown>[];
+  const entry = entries[0];
+  if (entry === undefined) throw new Error("expected entry");
+  expect(entry["inputMode"]).toBe("html");
+});
+
+test("blocks mode: index.html card contains inputMode tag badge", async () => {
+  const result = await publishBlocks(workDir, stateDir, {
+    title: "Blocks Badge Test",
+    kind: "plan",
+    blocks: [{ type: "prose", markdown: "Content" }],
+  });
+
+  const httpUrl = result["httpUrl"] as string;
+  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
+  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
+  const slug = slugMatch[1];
+
+  const projectIndexPath = join(stateDir, "projects", slug, "index.html");
+  const html = readFileSync(projectIndexPath, "utf8");
+  // The index.html card should show the inputMode badge
+  expect(html).toContain("blocks");
+});

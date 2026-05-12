@@ -3,7 +3,6 @@
 
 import { describe, test, expect } from "bun:test";
 import { validatePublishInput } from "../src/render/validate.ts";
-
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 function validateBlocks(blocks: unknown) {
@@ -376,6 +375,286 @@ describe("happy paths", () => {
         rows: [["A", "Fast", "Expensive"], ["B", "Cheap", "Slow"]],
       },
       { type: "divider", label: "End" },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+});
+
+// ─── Deep field validation (Phase 2.5 Bug 1) ─────────────────────────────────
+
+describe("deep block field validation", () => {
+  // ─ Wrong field names with "did you mean" suggestions ──────────────────────
+
+  test("hero.meta with 'label'/'value' instead of 'k'/'v' → error with path + did you mean", () => {
+    const r = validateBlocks([
+      { type: "hero", title: "My Title", meta: [{ label: "x", value: "y" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].meta[0]");
+      // Should mention label and suggest k
+      expect(r.error).toMatch(/label.*did you mean.*k|did you mean.*k.*label/);
+      // Should mention value and suggest v
+      expect(r.error).toMatch(/value.*did you mean.*v|did you mean.*v.*value/);
+    }
+  });
+
+  test("kv.rows with 'label'/'value' instead of 'k'/'v' → error with path + did you mean", () => {
+    const r = validateBlocks([
+      { type: "kv", rows: [{ label: "Key", value: "Val" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].rows[0]");
+      expect(r.error).toMatch(/label.*did you mean.*k|did you mean.*k.*label/);
+      expect(r.error).toMatch(/value.*did you mean.*v|did you mean.*v.*value/);
+    }
+  });
+
+  test("timeline item with 'title' instead of 'label' → error with path + did you mean", () => {
+    const r = validateBlocks([
+      { type: "timeline", items: [{ title: "Phase 1", text: "Start" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].items[0]");
+      expect(r.error).toMatch(/title.*did you mean.*label|did you mean.*label.*title/);
+    }
+  });
+
+  test("timeline item with 'description' instead of 'text' → error with path + did you mean", () => {
+    const r = validateBlocks([
+      { type: "timeline", items: [{ label: "Phase 1", description: "Start here" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].items[0]");
+      expect(r.error).toMatch(/description.*did you mean.*text|did you mean.*text.*description/);
+    }
+  });
+
+  test("unknown field on hero block → rejected with path and field name", () => {
+    const r = validateBlocks([
+      { type: "hero", title: "Title", bogus: 1 },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0]");
+      expect(r.error).toContain("bogus");
+    }
+  });
+
+  test("unknown field on kv row → rejected with path and field name", () => {
+    const r = validateBlocks([
+      { type: "kv", rows: [{ k: "Key", v: "Val", extra: "nope" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].rows[0]");
+      expect(r.error).toContain("extra");
+    }
+  });
+
+  test("unknown field on prose block → rejected with path and field name", () => {
+    const r = validateBlocks([
+      { type: "prose", markdown: "Hello", badField: true },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0]");
+      expect(r.error).toContain("badField");
+    }
+  });
+
+  // ─ Enum value validation ──────────────────────────────────────────────────
+
+  test("risk_table likelihood 'med' → error with valid set listed", () => {
+    const r = validateBlocks([
+      {
+        type: "risk_table",
+        rows: [{ risk: "r", likelihood: "med", impact: "high", mitigation: "m" }],
+      },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].rows[0].likelihood");
+      expect(r.error).toContain("low");
+      expect(r.error).toContain("medium");
+      expect(r.error).toContain("high");
+    }
+  });
+
+  test("risk_table impact 'crit' → error with valid set listed", () => {
+    const r = validateBlocks([
+      {
+        type: "risk_table",
+        rows: [{ risk: "r", likelihood: "high", impact: "crit", mitigation: "m" }],
+      },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].rows[0].impact");
+      expect(r.error).toContain("low");
+      expect(r.error).toContain("medium");
+      expect(r.error).toContain("high");
+    }
+  });
+
+  test("callout variant 'error' → error with valid set (already tested above, but deep check)", () => {
+    const r = validateBlocks([
+      { type: "callout", variant: "error", markdown: "Bad" },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("variant");
+    }
+  });
+
+  test("list style 'numbered' → error with valid set", () => {
+    const r = validateBlocks([
+      { type: "list", style: "numbered", items: ["a", "b"] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].style");
+      expect(r.error).toContain("bullet");
+      expect(r.error).toContain("number");
+      expect(r.error).toContain("check");
+    }
+  });
+
+  test("pill_row item kind 'badge' → error with valid set", () => {
+    const r = validateBlocks([
+      { type: "pill_row", items: [{ kind: "badge", text: "Hi" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].items[0].kind");
+      expect(r.error).toContain("pill");
+      expect(r.error).toContain("tag");
+    }
+  });
+
+  // ─ Missing required deep fields ───────────────────────────────────────────
+
+  test("timeline item missing 'text' field → rejected with path", () => {
+    const r = validateBlocks([
+      { type: "timeline", items: [{ label: "Phase 1" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].items[0].text");
+    }
+  });
+
+  test("timeline item missing 'label' field → rejected with path", () => {
+    const r = validateBlocks([
+      { type: "timeline", items: [{ text: "Start" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].items[0].label");
+    }
+  });
+
+  test("kv row missing 'k' field → rejected with path", () => {
+    const r = validateBlocks([
+      { type: "kv", rows: [{ v: "value only" }] },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].rows[0].k");
+    }
+  });
+
+  test("risk_table row missing 'mitigation' field → rejected with path", () => {
+    const r = validateBlocks([
+      {
+        type: "risk_table",
+        rows: [{ risk: "r", likelihood: "low", impact: "high" }],
+      },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks[0].rows[0].mitigation");
+    }
+  });
+
+  // ─ Recursive schema validation ─────────────────────────────────────────────
+
+  test("schema validation recurses into compare_table rows", () => {
+    // compare_table rows are string[][] — each row should be string array
+    const r = validateBlocks([
+      {
+        type: "compare_table",
+        headers: ["A", "B"],
+        rows: [["a1", "b1"]],
+      },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+
+  test("schema validation recurses into hero.meta", () => {
+    const r = validateBlocks([
+      {
+        type: "hero",
+        title: "Title",
+        meta: [{ k: "Status", v: "Draft" }, { k: "Author", v: "AI" }],
+      },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+
+  test("schema validation recurses into section.children → catches errors in nested blocks", () => {
+    const r = validateBlocks([
+      {
+        type: "section",
+        title: "Top",
+        children: [
+          { type: "prose", markdown: "ok" },
+          { type: "risk_table", rows: [{ risk: "r", likelihood: "med", impact: "low", mitigation: "m" }] },
+        ],
+      },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      // Error should be inside the section's children
+      expect(r.error).toContain("children[1].rows[0].likelihood");
+    }
+  });
+
+  // ─ Valid blocks that should pass ─────────────────────────────────────────────
+
+  test("hero with valid meta k/v passes deep validation", () => {
+    const r = validateBlocks([
+      { type: "hero", title: "Title", meta: [{ k: "Author", v: "AI" }] },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+
+  test("timeline with valid label/text passes deep validation", () => {
+    const r = validateBlocks([
+      { type: "timeline", items: [{ label: "Phase 1", text: "Start", date: "2026-01-01" }] },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+
+  test("risk_table with valid likelihood/impact passes deep validation", () => {
+    const r = validateBlocks([
+      {
+        type: "risk_table",
+        rows: [{ risk: "Data loss", likelihood: "low", impact: "high", mitigation: "Backups" }],
+      },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+
+  test("pill_row with valid kind 'pill'/'tag' passes deep validation", () => {
+    const r = validateBlocks([
+      {
+        type: "pill_row",
+        items: [{ kind: "pill", text: "TypeScript" }, { kind: "tag", text: "v2" }],
+      },
     ]);
     expect(r.ok).toBe(true);
   });

@@ -4,6 +4,7 @@ import { parseFragment, defaultTreeAdapter as ta } from "parse5";
 import type { DefaultTreeAdapterTypes } from "parse5";
 import type { Block } from "./blocks/types.ts";
 import { blockCatalog } from "./blocks/catalog.ts";
+import { deepValidateBlock } from "./blocks/validate-block.ts";
 
 type ChildNode = DefaultTreeAdapterTypes.ChildNode;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -591,6 +592,14 @@ function validateBlock(raw: unknown, path: string, depth: number): BlockValidati
       }
       break;
     }
+  }
+
+  // Deep field validation against catalog schema — catches unknown fields (with "did you mean"
+  // suggestions) and bad enum values. Only runs when per-type required checks passed to avoid
+  // duplicating error messages.
+  if (errors.length === 0) {
+    const deepErrors = deepValidateBlock(b, path);
+    for (const e of deepErrors) errors.push(e);
   }
 
   return errors;
