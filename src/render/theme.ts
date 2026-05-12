@@ -336,6 +336,34 @@ h1, h2, h3, h4, h5, h6 {
 .code .cm { color: var(--muted); font-style: italic; }
 .code .fn { color: #d4a85a; }
 
+/* figure.code — block-renderer code blocks (figure > figcaption + pre>code) */
+figure.code {
+  margin: 0 0 1.25em 0;
+}
+figure.code pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre;
+}
+figure.code pre code {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+figure.code pre .kw { color: var(--accent); }
+figure.code pre .str { color: var(--olive); }
+figure.code pre .cm { color: var(--muted); font-style: italic; }
+figure.code pre .fn { color: #d4a85a; }
+
 /* timeline */
 .timeline { list-style: none; padding: 0; position: relative; }
 .timeline::before {
@@ -469,7 +497,7 @@ figure.code figcaption {
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   letter-spacing: 0.04em;
 }
 
