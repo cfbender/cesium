@@ -1,5 +1,58 @@
 # Changelog
 
+## v0.5.0 — 2026-05-12
+
+Block-mode refactor — `cesium_publish` now accepts a structured `blocks` array
+alongside the legacy `html` field. The server templates 15 block types from
+JSON; raw HTML stays available as a per-block escape hatch (`raw_html`,
+`diagram`). Framework CSS moves out of every artifact and into a single served
+`/theme.css`. Styleguide is generated from a catalog at request time.
+Critique is mode-aware. Expected savings on a balanced doc: roughly 2× output
+tokens, more on heavily structured artifacts.
+
+- **feat:** `cesium_publish({ blocks: Block[] })` — closed discriminated union
+  of 15 block types: `hero`, `tldr`, `section`, `prose`, `list`, `callout`,
+  `code`, `timeline`, `compare_table`, `risk_table`, `kv`, `pill_row`,
+  `divider`, `diagram`, `raw_html`. Mutually exclusive with `html`.
+- **feat:** Owned markdown subset (~80 lines, no dependency) for `prose`,
+  `tldr`, `callout`, list items, and table cells. Supports paragraphs, lists,
+  blockquotes, hr, hard breaks, `**bold**`, `*italic*`, `` `code` ``, local
+  links, and the safelisted inline tags `<kbd>`, `<span class="pill">`,
+  `<span class="tag">`.
+- **feat:** Sections recurse to depth 3; non-section children get auto-wrapped
+  in `<div class="card">` for visual consistency.
+- **feat:** `theme.css` served from `<state-dir>/theme.css` with a small
+  inline fallback (~8 lines) so standalone-opened `.html` files remain
+  readable. Existing artifacts (with full CSS inlined) are never rewritten and
+  stay self-contained.
+- **feat:** `cesium_styleguide` returns a markdown reference generated from
+  the block catalog at request time — schema, examples, and renderer can no
+  longer drift.
+- **feat:** `cesium_critique` is mode-aware. `html` mode adds a soft
+  `prefer-blocks` nag; `blocks` mode focuses on quality (raw-html overuse,
+  prose walls, missing tldr on long docs, table-shape, redundant raw_html,
+  nesting depth). Findings carry path tags like `blocks[2].children[1]`.
+- **feat:** Deep block validation walks the catalog schema per type. Returns
+  path-tagged errors with "did you mean" suggestions for common drift
+  (`label`→`k`, `value`→`v`, `description`→`text`, `med`→`medium`, etc.).
+- **feat:** System prompt fragment generated from the block catalog at plugin
+  load time — drift between schema and prompt is now physically impossible.
+- **feat:** `inputMode: "html" | "blocks"` recorded in artifact metadata and
+  surfaced as a small badge on index cards.
+- **feat:** Framework CSS extended with rules for every block-renderer
+  pattern: `dl.kv` (2-column grid), `.pill-row`, `.check-list`, `<hr
+  data-label>`, `figure.code`, timeline-item internals, `.lede`, plus
+  `.diagram svg text { fill: currentColor }` so SVGs inherit theme color.
+- **feat:** `escapeHtml` and `escapeAttr` throw a clear error on non-string
+  input instead of crashing inside `.replace()`.
+- **fix:** `ensureThemeCss` respects the configured `themePreset` (regression
+  introduced when the framework CSS was first extracted to a served file).
+- **fix:** `wait` test fixtures use relative timestamps so they don't go
+  stale.
+- **docs:** `AGENTS.md` updated with the new project layout, two-input-modes
+  architecture, catalog-as-source-of-truth, and softened CSS portability
+  invariant ("no external network resources; local `/theme.css` is allowed").
+
 ## v0.3.6 — 2026-05-11
 
 Adds a periodic-table-themed favicon for the cesium HTTP server.
