@@ -1,6 +1,7 @@
 // Assembles the full <!doctype html> document from a body fragment + metadata.
 
-import { frameworkRulesCss, themeTokensCss, type ThemeTokens } from "./theme.ts";
+import { type ThemeTokens } from "./theme.ts";
+import { fallbackCss } from "./fallback.ts";
 import { renderControl, renderAnswered } from "./controls.ts";
 import { getClientJs } from "./client-js.ts";
 import { faviconLinkTag } from "./favicon.ts";
@@ -129,7 +130,7 @@ function renderFooter(meta: ArtifactMeta): string {
 }
 
 export function wrapDocument(opts: WrapOptions): string {
-  const { body, meta, theme, warnings = [], interactive } = opts;
+  const { body, meta, warnings = [], interactive } = opts;
   // Default href: artifact context (three levels deep from stateDir)
   const href =
     opts.themeCssHref === undefined
@@ -140,8 +141,7 @@ export function wrapDocument(opts: WrapOptions): string {
   // Suppress <link> when null is explicitly passed
   const suppressLink = opts.themeCssHref === null;
 
-  const rules = frameworkRulesCss();
-  const tokens = themeTokensCss(theme);
+  const fallback = fallbackCss();
   // Embed interactive into the cesium-meta JSON block when present
   const metaPayload: Record<string, unknown> = { ...meta };
   if (interactive !== undefined) {
@@ -171,9 +171,8 @@ export function wrapDocument(opts: WrapOptions): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${titleEsc} · cesium</title>
-  <style>${rules}
-/* fallback theme tokens — used when theme.css is missing or unreachable */
-${tokens}</style>${linkTag}${faviconTag}
+  <style>/* fallback — standalone-readable; full styles served from /theme.css */
+${fallback}</style>${linkTag}${faviconTag}
   <script type="application/json" id="cesium-meta">${metaJson}</script>
 </head>
 <body>

@@ -625,17 +625,22 @@ test("artifact, project index, and global index all reference the favicon", asyn
   expect(globalIndex).toContain('<link rel="icon" type="image/svg+xml" href="favicon.svg">');
 });
 
-test("after re-publishing with warm theme, theme.css contains warm accent", async () => {
-  // First publish with default (claret)
+test("theme.css contains full framework css with default theme tokens", async () => {
+  // First publish materializes theme.css
   await publish(workDir, stateDir, {
-    title: "Theme Switch Test",
+    title: "Theme CSS Test",
     kind: "plan",
     html: "<p>first</p>",
   });
-  const claretThemeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
-  expect(claretThemeCss).toContain("#C75B7A");
+  const themeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
+  // Default theme (claret-dark) tokens are present
+  expect(themeCss).toContain("#C75B7A"); // claret-dark accent
+  // Framework rules are present in theme.css
+  expect(themeCss).toContain(".card");
+  expect(themeCss).toContain(".eyebrow");
+  expect(themeCss).toContain(".h-section");
 
-  // Second publish with warm theme override via config
+  // Re-publishing does not change theme.css (ensureThemeCss is idempotent)
   const ctx = mockCtx(workDir);
   const overrides: PublishToolOverrides = {
     loadConfig: () => ({
@@ -658,9 +663,9 @@ test("after re-publishing with warm theme, theme.css contains warm accent", asyn
   const t = createPublishTool(ctx, overrides);
   await t.execute({ title: "Warm Test", kind: "plan", html: "<p>warm</p>" }, {} as never);
 
-  const warmThemeCss = readFileSync(join(stateDir, "theme.css"), "utf8");
-  expect(warmThemeCss).toContain("#D97757"); // warm accent
-  expect(warmThemeCss).not.toContain("#8B2252"); // claret accent gone
+  // theme.css is unchanged — always default theme
+  const themeCss2 = readFileSync(join(stateDir, "theme.css"), "utf8");
+  expect(themeCss2).toBe(themeCss);
 });
 
 test("scrub does NOT touch the wrap-emitted theme link", async () => {

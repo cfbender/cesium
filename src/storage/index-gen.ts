@@ -2,8 +2,8 @@
 
 import type { IndexEntry } from "./index-cache.ts";
 import type { ThemeTokens } from "../render/theme.ts";
-import { frameworkRulesCss, themeTokensCss } from "../render/theme.ts";
 import { faviconLinkTag, faviconEmblemSvg } from "../render/favicon.ts";
+import { fallbackCss } from "../render/fallback.ts";
 
 export interface RenderProjectIndexArgs {
   projectSlug: string;
@@ -265,7 +265,7 @@ function renderEntryCard(entry: IndexEntry): string {
 // ─── renderProjectIndex ──────────────────────────────────────────────────────
 
 export function renderProjectIndex(args: RenderProjectIndexArgs): string {
-  const { projectSlug, projectName, entries, theme } = args;
+  const { projectSlug, projectName, entries } = args;
   const href =
     args.themeCssHref === undefined
       ? "../../theme.css"
@@ -274,8 +274,7 @@ export function renderProjectIndex(args: RenderProjectIndexArgs): string {
         : args.themeCssHref;
   const suppressLink = args.themeCssHref === null;
 
-  const rules = frameworkRulesCss();
-  const tokens = themeTokensCss(theme);
+  const fallback = fallbackCss();
   const iCss = indexCss();
   const iJs = indexJs();
 
@@ -358,9 +357,8 @@ ${cardsHtml}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(projectName)} · cesium</title>
-  <style>${rules}
-/* fallback theme tokens — used when theme.css is missing or unreachable */
-${tokens}${iCss}</style>${linkTag}${faviconTag}
+  <style>/* fallback — standalone-readable; full styles served from /theme.css */
+${fallback}${iCss}</style>${linkTag}${faviconTag}
 </head>
 <body>
 <div class="page">
@@ -381,7 +379,7 @@ ${tokens}${iCss}</style>${linkTag}${faviconTag}
 // ─── renderGlobalIndex ───────────────────────────────────────────────────────
 
 export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
-  const { projects, theme } = args;
+  const { projects } = args;
   const href =
     args.themeCssHref === undefined
       ? "theme.css"
@@ -390,8 +388,7 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
         : args.themeCssHref;
   const suppressLink = args.themeCssHref === null;
 
-  const rules = frameworkRulesCss();
-  const tokens = themeTokensCss(theme);
+  const fallback = fallbackCss();
   const iCss = indexCss();
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
@@ -448,9 +445,8 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>All projects · cesium</title>
-  <style>${rules}
-/* fallback theme tokens — used when theme.css is missing or unreachable */
-${tokens}${iCss}</style>${linkTag}${faviconTag}
+  <style>/* fallback — standalone-readable; full styles served from /theme.css */
+${fallback}${iCss}</style>${linkTag}${faviconTag}
 </head>
 <body>
 <div class="page">

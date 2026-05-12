@@ -7,6 +7,7 @@ import { startServer, type ServerHandle } from "./http.ts";
 import { acquireLock } from "../storage/lock.ts";
 import { createApiHandler } from "./api.ts";
 import { createFaviconHandler } from "./favicon.ts";
+import { ensureThemeCss } from "../storage/assets.ts";
 
 export interface LifecycleConfig {
   stateDir: string;
@@ -258,6 +259,9 @@ export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> 
 
     const handle = await tryBindPort(port);
     const boundPort = handle.port;
+
+    // Materialize theme.css before serving — self-heals on plugin upgrade
+    await ensureThemeCss(stateDir);
 
     // Wire API handler before static file fallback
     handle.addHandler(createApiHandler({ stateDir }));

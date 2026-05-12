@@ -13,7 +13,7 @@ import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import type { InteractiveData } from "../render/validate.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
 import { atomicWrite } from "../storage/write.ts";
-import { writeThemeCss } from "../storage/theme-write.ts";
+import { ensureThemeCss } from "../storage/assets.ts";
 import { writeFaviconSvg } from "../storage/favicon-write.ts";
 import { loadIndex, writeIndex, appendEntry, type IndexEntry } from "../storage/index-cache.ts";
 import { withLock } from "../storage/lock.ts";
@@ -228,8 +228,8 @@ export function createAskTool(
       // 14. Build theme + wrap document
       const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
 
-      // 14a. Write theme.css + favicon.svg (idempotent, outside index lock — separate files)
-      await writeThemeCss(config.stateDir, theme);
+      // 14a. Ensure theme.css + favicon.svg (idempotent, outside index lock — separate files)
+      await ensureThemeCss(config.stateDir);
       await writeFaviconSvg(config.stateDir);
 
       const fullHtml = wrapDocument({
