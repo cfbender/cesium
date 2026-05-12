@@ -63,7 +63,7 @@ export const SUPPORTED_LANGUAGES: readonly string[] = [
  * - "claret" / "claret-dark" → "claret-dark" (custom)
  * - "claret-light"           → "claret-light" (custom)
  * - other named preset       → vitesse-dark if codeBg is dark, else vitesse-light
- * - unknown / undefined      → "vitesse-dark"
+ * - unknown / undefined      → "claret-dark" (matches framework default in themeFromPreset)
  */
 export function resolveHighlightTheme(cesiumThemeName: string | undefined): HighlightTheme {
   if (cesiumThemeName === "claret" || cesiumThemeName === "claret-dark") {
@@ -78,7 +78,8 @@ export function resolveHighlightTheme(cesiumThemeName: string | undefined): High
     // All current non-claret presets have a dark codeBg, but check anyway.
     return isHexDark(palette.codeBg) ? "vitesse-dark" : "vitesse-light";
   }
-  return "vitesse-dark";
+  // undefined / unknown — match the framework theme default (claret-dark).
+  return "claret-dark";
 }
 
 /**
@@ -140,7 +141,7 @@ async function getHighlighter(): Promise<import("shiki").Highlighter> {
 export async function highlightCode(
   code: string,
   lang: string,
-  theme: HighlightTheme = "vitesse-dark",
+  theme: HighlightTheme = "claret-dark",
 ): Promise<string> {
   const supported = SUPPORTED_LANGUAGES.includes(lang);
 

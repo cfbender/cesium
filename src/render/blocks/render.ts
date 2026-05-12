@@ -36,7 +36,7 @@ export interface RenderCtx {
   highlightTheme: HighlightTheme;
 }
 
-function makeRootCtx(highlightTheme: HighlightTheme = "vitesse-dark"): RenderCtx {
+function makeRootCtx(highlightTheme: HighlightTheme = "claret-dark"): RenderCtx {
   return {
     sectionCounter: { value: 1 },
     depth: 0,
