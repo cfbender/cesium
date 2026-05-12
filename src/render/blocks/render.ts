@@ -42,7 +42,7 @@ function makeRootCtx(): RenderCtx {
 }
 
 /** Dispatch a single block to its renderer. */
-export function renderBlock(block: Block, ctx: RenderCtx): string {
+export async function renderBlock(block: Block, ctx: RenderCtx): Promise<string> {
   switch (block.type) {
     case "hero":
       return renderHero(block, ctx);
@@ -78,7 +78,7 @@ export function renderBlock(block: Block, ctx: RenderCtx): string {
 }
 
 /** Render an array of blocks, returning the concatenated HTML body string. */
-export function renderBlocks(blocks: Block[], opts?: { title?: string }): string {
+export async function renderBlocks(blocks: Block[], opts?: { title?: string }): Promise<string> {
   const ctx = makeRootCtx();
   const parts: string[] = [];
   for (let i = 0; i < blocks.length; i++) {
@@ -88,7 +88,8 @@ export function renderBlocks(blocks: Block[], opts?: { title?: string }): string
       ...ctx,
       path: `blocks[${i}]`,
     };
-    parts.push(renderBlock(block, blockCtx));
+    // eslint-disable-next-line no-await-in-loop -- sequential render required; section counter is a shared mutable ref
+    parts.push(await renderBlock(block, blockCtx));
   }
   // Unused opts.title kept for API compatibility; wrapDocument handles the title
   void opts;

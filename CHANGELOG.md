@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.5.1 — 2026-05-12
+
+Server-side syntax highlighting for `code` blocks via shiki. The model emits
+plain source code; the render pipeline tokenizes it at publish time and emits
+`<span style="color:...">` tokens styled with the `vitesse-dark` theme.
+The render pipeline is now fully async to accommodate shiki's async API.
+
+- **feat:** `highlightCode(code, lang)` in `src/render/blocks/highlight.ts` —
+  lazy singleton, promise-cached, supports ~25 languages (TypeScript, JS/JSX,
+  TSX, Python, Bash/Shell, JSON, YAML, HTML, CSS, Markdown, Rust, Go, Ruby,
+  SQL, TOML, Dockerfile, Diff, and more).
+- **feat:** Unsupported language strings fall back to plain-escaped output
+  (same `<span class="line">` wrapping) without crashing.
+- **feat:** shiki's token renderer extracts inner token HTML only — cesium's
+  CSS (`figure.code pre`) still controls panel chrome (background, padding,
+  border-radius). No `<pre>` background injected by shiki.
+- **chore:** `renderBlock` and `renderBlocks` are now `async`; all call-sites
+  and tests updated. `generateStyleguideMarkdown` is async; block examples
+  pre-rendered in parallel via `Promise.all`.
+- **dep:** Added `shiki@^4.0.0` as a runtime dependency.
+
 ## v0.5.0 — 2026-05-12
 
 Block-mode refactor — `cesium_publish` now accepts a structured `blocks` array

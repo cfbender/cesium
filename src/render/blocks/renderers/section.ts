@@ -7,7 +7,7 @@ import type { RenderCtx } from "../render.ts";
 import { renderBlock } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 
-export function renderSection(block: SectionBlock, ctx: RenderCtx): string {
+export async function renderSection(block: SectionBlock, ctx: RenderCtx): Promise<string> {
   // Determine section number: explicit or auto-increment
   let num: string;
   if (block.num !== undefined && block.num !== "") {
@@ -45,7 +45,8 @@ export function renderSection(block: SectionBlock, ctx: RenderCtx): string {
       ...childCtx,
       path: `${ctx.path}.children[${i}]`,
     };
-    const rendered = renderBlock(child, childBlockCtx);
+    // eslint-disable-next-line no-await-in-loop -- sequential render required; card buffer tracks contiguous non-section children
+    const rendered = await renderBlock(child, childBlockCtx);
     if (child.type === "section") {
       // Flush buffered non-section children into a card first
       if (buffer.length > 0) {

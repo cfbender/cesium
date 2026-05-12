@@ -193,7 +193,7 @@ export function createPublishTool(
 
       if (input.blocks !== undefined) {
         // Blocks path: render structured blocks → trusted HTML
-        bodyHtml = renderBlocks(input.blocks);
+        bodyHtml = await renderBlocks(input.blocks);
       } else {
         // HTML path: scrub agent-supplied HTML
         const scrubbed = scrub(input.html);

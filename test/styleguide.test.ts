@@ -179,8 +179,8 @@ test("styleguide contains JSON examples (fenced json blocks)", async () => {
 // Determinism
 // ---------------------------------------------------------------------------
 
-test("generateStyleguideMarkdown is deterministic", () => {
-  const a = generateStyleguideMarkdown();
-  const b = generateStyleguideMarkdown();
+test("generateStyleguideMarkdown is deterministic", async () => {
+  const a = await generateStyleguideMarkdown();
+  const b = await generateStyleguideMarkdown();
   expect(a).toBe(b);
 });

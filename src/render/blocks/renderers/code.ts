@@ -1,12 +1,13 @@
-// Code block renderer.
+// Code block renderer — server-side syntax highlighting via shiki.
 // src/render/blocks/renderers/code.ts
 
 import type { CodeBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
 import { escapeHtml, escapeAttr } from "../escape.ts";
+import { highlightCode } from "../highlight.ts";
 
-export function renderCode(block: CodeBlock, _ctx: RenderCtx): string {
+export async function renderCode(block: CodeBlock, _ctx: RenderCtx): Promise<string> {
   const parts: string[] = [];
 
   const captionText = block.filename ?? block.caption;
@@ -14,8 +15,9 @@ export function renderCode(block: CodeBlock, _ctx: RenderCtx): string {
     parts.push(`  <figcaption>${escapeHtml(captionText)}</figcaption>`);
   }
 
+  const highlighted = await highlightCode(block.code, block.lang);
   parts.push(
-    `  <pre><code class="lang-${escapeAttr(block.lang)}">${escapeHtml(block.code)}</code></pre>`,
+    `  <pre><code class="lang-${escapeAttr(block.lang)}">${highlighted}</code></pre>`,
   );
 
   return `<figure class="code">\n${parts.join("\n")}\n</figure>`;

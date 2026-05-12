@@ -18,7 +18,7 @@ function escapeForCodeFence(s: string): string {
 }
 
 /** Generate the full markdown reference from the catalog. Deterministic — same catalog → same output. */
-export function generateStyleguideMarkdown(): string {
+export async function generateStyleguideMarkdown(): Promise<string> {
   const lines: string[] = [];
 
   lines.push("# Cesium publishing reference");
@@ -40,8 +40,26 @@ export function generateStyleguideMarkdown(): string {
   lines.push("## Block reference");
   lines.push("");
 
-  for (const blockType of blockTypes) {
+  // Pre-render all examples in parallel (order preserved via index)
+  const renderedExamples = await Promise.all(
+    blockTypes.map(async (blockType) => {
+      const entry = blockCatalog[blockType];
+      if (entry.renderedExample !== undefined) {
+        return entry.renderedExample;
+      }
+      try {
+        return await renderBlock(entry.example, makeCtx());
+      } catch {
+        return "";
+      }
+    }),
+  );
+
+  for (let i = 0; i < blockTypes.length; i++) {
+    const blockType = blockTypes[i];
+    if (blockType === undefined) continue;
     const entry = blockCatalog[blockType];
+    const rendered = renderedExamples[i] ?? "";
 
     lines.push(`### \`${entry.type}\``);
     lines.push("");
@@ -61,15 +79,6 @@ export function generateStyleguideMarkdown(): string {
     lines.push(escapeForCodeFence(JSON.stringify(entry.example, null, 2)));
     lines.push("```");
     lines.push("");
-
-    // Rendered HTML
-    const rendered = entry.renderedExample ?? (() => {
-      try {
-        return renderBlock(entry.example, makeCtx());
-      } catch {
-        return "";
-      }
-    })();
 
     if (rendered !== "") {
       lines.push("Renders to:");
@@ -117,7 +126,7 @@ export function createStyleguideTool(_ctx: PluginInput): ReturnType<typeof tool>
       "Returns the cesium HTML design system reference page (CSS classes with example usage). Call this once at the start of writing a complex artifact to internalize the available components.",
     args: {},
     async execute(_args, _context) {
-      return generateStyleguideMarkdown();
+      return await generateStyleguideMarkdown();
     },
   });
 }
