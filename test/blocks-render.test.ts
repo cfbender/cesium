@@ -647,7 +647,8 @@ describe("code block highlight theme threading", () => {
     const block: Block = { type: "code", lang: "typescript", code: "const x = 1;" };
     const result = await renderBlock(block, ctx);
     expect(result).toContain('<figure class="code">');
-    expect(result.toLowerCase()).toContain("#8b2252");
+    // light palette rose_1 = #B80842 (canonical light keyword color)
+    expect(result.toLowerCase()).toContain("#b80842");
   });
 
   test("claret-dark and claret-light produce distinct rendered output for same code", async () => {

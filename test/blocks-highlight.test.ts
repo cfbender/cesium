@@ -164,44 +164,61 @@ describe("resolveHighlightTheme", () => {
 });
 
 // ─── claret-dark / claret-light theme colors ──────────────────────────────────
+// Colors verified against:
+//   dark: /claret.nvim/ports/bat/ClaretDark.tmTheme (canonical source)
+//   light: /claret.nvim/lua/claret/palette.lua (light section)
 
 describe("claret-dark theme colors", () => {
-  test("highlighted keyword includes claret accent color #C75B7A", async () => {
-    // 'const' is a keyword — should be colored with claret accent
+  test("highlighted keyword includes claret rose #C75B7A (from tmTheme)", async () => {
+    // 'const' is a storage.type keyword — tmTheme: Keyword scope → #C75B7A
     const result = await highlightCode("const x = 1;", "typescript", "claret-dark");
     expect(result).toContain('<span style="color:');
-    // The claret accent (#C75B7A) should appear for keyword coloring
     expect(result.toLowerCase()).toContain("#c75b7a");
   });
 
-  test("highlighted string includes olive color #8FA86E", async () => {
+  test("highlighted string includes sage green #8FA86E (from tmTheme)", async () => {
+    // tmTheme: String scope → #8FA86E
     const result = await highlightCode('const s = "hello";', "typescript", "claret-dark");
-    // Olive green for strings
     expect(result.toLowerCase()).toContain("#8fa86e");
   });
 
-  test("comment is italicized and muted", async () => {
+  test("comment uses gutter foreground #71685E italic (from tmTheme)", async () => {
+    // tmTheme: Comment scope → #71685E italic
     const result = await highlightCode("// comment", "typescript", "claret-dark");
-    // Muted gray comment color
-    expect(result.toLowerCase()).toContain("#9e9288");
+    expect(result.toLowerCase()).toContain("#71685e");
+  });
+
+  test("function name uses gold #D4A76A (from tmTheme)", async () => {
+    // tmTheme: Function scope → #D4A76A
+    const result = await highlightCode("function greet() {}", "typescript", "claret-dark");
+    expect(result.toLowerCase()).toContain("#d4a76a");
   });
 });
 
 describe("claret-light theme colors", () => {
-  test("highlighted keyword includes deep claret #8B2252", async () => {
+  test("highlighted keyword includes light rose #B80842 (from light palette rose_1)", async () => {
+    // light palette rose_1 = #B80842
     const result = await highlightCode("const x = 1;", "typescript", "claret-light");
     expect(result).toContain('<span style="color:');
-    expect(result.toLowerCase()).toContain("#8b2252");
+    expect(result.toLowerCase()).toContain("#b80842");
   });
 
-  test("highlighted string includes dark olive #5A6B40", async () => {
+  test("highlighted string includes light sage #1B5500 (from light palette sage_1)", async () => {
+    // light palette sage_1 = #1B5500
     const result = await highlightCode('const s = "hello";', "typescript", "claret-light");
-    expect(result.toLowerCase()).toContain("#5a6b40");
+    expect(result.toLowerCase()).toContain("#1b5500");
   });
 
-  test("comment uses muted taupe #7D7068", async () => {
+  test("comment uses muted warm gray #928578 (from light palette text_4)", async () => {
+    // light palette text_4 = #928578
     const result = await highlightCode("// comment", "typescript", "claret-light");
-    expect(result.toLowerCase()).toContain("#7d7068");
+    expect(result.toLowerCase()).toContain("#928578");
+  });
+
+  test("function name uses light gold #946000 (from light palette gold_1)", async () => {
+    // light palette gold_1 = #946000
+    const result = await highlightCode("function greet() {}", "typescript", "claret-light");
+    expect(result.toLowerCase()).toContain("#946000");
   });
 });
 

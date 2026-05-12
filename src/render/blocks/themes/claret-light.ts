@@ -1,149 +1,227 @@
-// Claret-light shiki theme — derived from the cesium claret-light palette.
+// Claret-light shiki theme — derived from claret.nvim light palette.
 // src/render/blocks/themes/claret-light.ts
 //
-// Palette source (src/render/theme.ts, "claret-light" preset):
-//   codeBg  #180810  — code panel background (uses dark bg even in light theme)
-//   codeFg  #DDD3C7  — default text (same as dark — panel is always dark)
-//   accent  #8B2252  — deep claret rose (keywords)
-//   olive   #5A6B40  — dark olive (strings)
-//   muted   #7D7068  — warm taupe (comments)
-//   ink     #2A1F1A  — near-black body text
-//   inkSoft #5A4D42  — warm brown
+// Source of truth: /claret.nvim/lua/claret/palette.lua (light section)
+// Scope-to-role mapping mirrors ClaretDark.tmTheme exactly; colors
+// are substituted from the light palette using the same semantic roles.
 //
-// The claret-light theme uses the SAME dark code panel as claret-dark
-// (codeBg=#180810 / codeFg=#DDD3C7), so token colors are tuned for a
-// dark surface but with the light-palette accent/olive/muted values.
+// Light palette (palette.lua):
+//   bg         #F5E6E2   editor background
+//   bg_mute    #DDD0CC   selection / line highlight
+//   text       #2A1F1A   default fg
+//   text_4     #928578   comment / gutter fg
+//   rose_1     #B80842   keyword / heading / statement
+//   rose_2     #920820   property / data keys
+//   gold_1     #946000   function / number / constant / decorator
+//   sage_1     #1B5500   string
+//   slate_1    #0E3088   type / class / tag / escape / link
+//   slate_2    #0A2575   tag attribute
+//   terra_1    #D42010   invalid / diff deleted
 //
-// Derived values:
-//   gold    #D4A85A  — same as dark (hardcoded in .code .fn CSS)
-//   teal    #6A9FA8  — slightly darker teal for better contrast on #180810
-//   number  #C08048  — warmer amber (deeper than dark variant)
-//   regexp  #A87838  — dark gold for regex
+// Role mapping (matching dark tmTheme):
+//   Comment       → text_4   #928578   italic
+//   Keyword       → rose_1   #B80842
+//   Function      → gold_1   #946000
+//   String        → sage_1   #1B5500
+//   Number        → gold_1   #946000
+//   Constant      → gold_1   #946000
+//   Type          → slate_1  #0E3088
+//   Variable      → text     #2A1F1A
+//   Parameter     → text     #2A1F1A   italic
+//   Property      → rose_2   #920820
+//   Keys          → rose_2   #920820
+//   Operator      → text_4   #928578   (text_3 equivalent; nearest warm muted in light palette)
+//   Punctuation   → text_4   #928578
+//   Decorator     → gold_1   #946000   italic
+//   Tag           → slate_1  #0E3088
+//   Tag Attribute → slate_2  #0A2575
+//   Invalid       → terra_1  #D42010
+//   Escape        → slate_1  #0E3088
+//   Markup Heading→ rose_1   #B80842   bold
+//   Markup Bold   → (no fg)            bold
+//   Markup Italic → (no fg)            italic
+//   Markup Link   → slate_1  #0E3088
+//   Diff Added    → sage_1   #1B5500
+//   Diff Deleted  → terra_1  #D42010
+//   Diff Changed  → gold_1   #946000
 
 import type { ThemeRegistration } from "shiki";
 
 export const claretLight: ThemeRegistration = {
   name: "claret-light",
   type: "light",
-  fg: "#DDD3C7",
-  bg: "#180810",
+  fg: "#2A1F1A",
+  bg: "#F5E6E2",
   colors: {
-    "editor.foreground": "#DDD3C7",
-    "editor.background": "#180810",
+    "editor.foreground": "#2A1F1A",
+    "editor.background": "#F5E6E2",
+    "editor.selectionBackground": "#DDD0CC",
+    "editor.lineHighlightBackground": "#DDD0CC",
+    "editorLineNumber.foreground": "#928578",
   },
   tokenColors: [
-    // Comments — muted taupe, italic
+    // Comment — #928578 italic
     {
-      scope: ["comment", "punctuation.definition.comment", "string.comment"],
-      settings: { foreground: "#7D7068", fontStyle: "italic" },
+      name: "Comment",
+      scope: ["comment", "punctuation.definition.comment"],
+      settings: { foreground: "#928578", fontStyle: "italic" },
     },
-    // Keywords, storage — deep claret rose
+    // Keyword — #B80842
     {
-      scope: [
-        "keyword",
-        "storage.type",
-        "storage.modifier",
-        "storage.type.function.arrow",
-        "keyword.control",
-        "keyword.operator.new",
-        "keyword.operator.delete",
-        "keyword.operator.typeof",
-        "keyword.operator.void",
-        "keyword.operator.in",
-        "keyword.operator.instanceof",
-        "keyword.import",
-        "keyword.export",
-        "constant.language.undefined",
-        "constant.language.null",
-        "constant.language.boolean",
-        "constant.language",
-      ],
-      settings: { foreground: "#8B2252" },
+      name: "Keyword",
+      scope: ["keyword", "storage.type", "storage.modifier"],
+      settings: { foreground: "#B80842" },
     },
-    // Strings — dark olive
+    // Function — #946000
     {
-      scope: [
-        "string",
-        "string.quoted",
-        "string.template",
-        "attribute.value",
-      ],
-      settings: { foreground: "#5A6B40" },
+      name: "Function",
+      scope: ["entity.name.function", "support.function"],
+      settings: { foreground: "#946000" },
     },
-    // String delimiters — dimmed olive
+    // String — #1B5500
     {
-      scope: ["punctuation.definition.string"],
-      settings: { foreground: "#4E5E37" },
+      name: "String",
+      scope: ["string", "punctuation.definition.string"],
+      settings: { foreground: "#1B5500" },
     },
-    // Functions / methods — gold
+    // Number — #946000
     {
-      scope: [
-        "entity.name.function",
-        "support.function",
-        "meta.function-call entity.name.function",
-      ],
-      settings: { foreground: "#D4A85A" },
+      name: "Number",
+      scope: ["constant.numeric"],
+      settings: { foreground: "#946000" },
     },
-    // Types, interfaces, classes — teal
+    // Constant — #946000
     {
+      name: "Constant",
+      scope: ["constant", "constant.language", "variable.language"],
+      settings: { foreground: "#946000" },
+    },
+    // Type — #0E3088
+    {
+      name: "Type",
       scope: [
         "entity.name.type",
         "entity.name.class",
-        "entity.name.interface",
         "support.type",
         "support.class",
-        "support.type.primitive",
       ],
-      settings: { foreground: "#6A9FA8" },
+      settings: { foreground: "#0E3088" },
     },
-    // Numbers — warm amber
+    // Variable — #2A1F1A
     {
-      scope: ["constant.numeric", "number", "keyword.operator.quantifier.regexp"],
-      settings: { foreground: "#C08048" },
+      name: "Variable",
+      scope: ["variable", "variable.parameter"],
+      settings: { foreground: "#2A1F1A" },
     },
-    // Variables — soft default fg
+    // Parameter — #2A1F1A italic (overrides Variable for parameters)
     {
-      scope: ["variable", "variable.other", "identifier"],
-      settings: { foreground: "#BDB3A7" },
-    },
-    // Parameters — slightly lighter
-    {
+      name: "Parameter",
       scope: ["variable.parameter"],
-      settings: { foreground: "#CFC8BE" },
+      settings: { foreground: "#2A1F1A", fontStyle: "italic" },
     },
-    // Properties / object keys
+    // Property — #920820
     {
+      name: "Property",
+      scope: ["variable.other.property", "variable.other.member"],
+      settings: { foreground: "#920820" },
+    },
+    // JSON/YAML/TOML Keys — #920820
+    {
+      name: "JSON/YAML/TOML Keys",
       scope: [
-        "variable.other.property",
-        "meta.object-literal.key",
-        "meta.property-name",
+        "meta.mapping.key string",
+        "support.type.property-name.json",
+        "punctuation.support.type.property-name.json",
+        "support.type.property-name.toml",
+        "punctuation.support.type.property-name.toml",
         "entity.name.tag.yaml",
-        "support.type.property-name",
+        "support.type.property-name.yaml",
       ],
-      settings: { foreground: "#BDB3A7" },
+      settings: { foreground: "#920820" },
     },
-    // Operators and punctuation — muted
+    // Operator — #928578
     {
-      scope: [
-        "keyword.operator",
-        "keyword.operator.assignment",
-        "keyword.operator.arithmetic",
-        "keyword.operator.logical",
-        "keyword.operator.comparison",
-        "keyword.operator.type.annotation",
-        "punctuation",
-        "meta.brace",
-        "delimiter",
-        "punctuation.separator",
-        "punctuation.terminator",
-        "punctuation.accessor",
-      ],
-      settings: { foreground: "#7D7068" },
+      name: "Operator",
+      scope: ["keyword.operator"],
+      settings: { foreground: "#928578" },
     },
-    // Regex — dark gold
+    // Punctuation — #928578
     {
-      scope: ["string.regexp", "source.regexp"],
-      settings: { foreground: "#A87838" },
+      name: "Punctuation",
+      scope: ["punctuation"],
+      settings: { foreground: "#928578" },
+    },
+    // Decorator — #946000 italic
+    {
+      name: "Decorator",
+      scope: ["meta.decorator", "punctuation.decorator"],
+      settings: { foreground: "#946000", fontStyle: "italic" },
+    },
+    // Tag — #0E3088
+    {
+      name: "Tag",
+      scope: ["entity.name.tag"],
+      settings: { foreground: "#0E3088" },
+    },
+    // Tag Attribute — #0A2575
+    {
+      name: "Tag Attribute",
+      scope: ["entity.other.attribute-name"],
+      settings: { foreground: "#0A2575" },
+    },
+    // Invalid — #D42010
+    {
+      name: "Invalid",
+      scope: ["invalid", "invalid.illegal"],
+      settings: { foreground: "#D42010" },
+    },
+    // Escape — #0E3088
+    {
+      name: "Escape",
+      scope: ["constant.character.escape"],
+      settings: { foreground: "#0E3088" },
+    },
+    // Markup Heading — #B80842 bold
+    {
+      name: "Markup Heading",
+      scope: ["markup.heading"],
+      settings: { foreground: "#B80842", fontStyle: "bold" },
+    },
+    // Markup Bold — bold (no color override)
+    {
+      name: "Markup Bold",
+      scope: ["markup.bold"],
+      settings: { fontStyle: "bold" },
+    },
+    // Markup Italic — italic (no color override)
+    {
+      name: "Markup Italic",
+      scope: ["markup.italic"],
+      settings: { fontStyle: "italic" },
+    },
+    // Markup Link — #0E3088
+    {
+      name: "Markup Link",
+      scope: ["markup.underline.link", "string.other.link"],
+      settings: { foreground: "#0E3088" },
+    },
+    // Diff Added — #1B5500
+    {
+      name: "Diff Added",
+      scope: ["markup.inserted"],
+      settings: { foreground: "#1B5500" },
+    },
+    // Diff Deleted — #D42010
+    {
+      name: "Diff Deleted",
+      scope: ["markup.deleted"],
+      settings: { foreground: "#D42010" },
+    },
+    // Diff Changed — #946000
+    {
+      name: "Diff Changed",
+      scope: ["markup.changed"],
+      settings: { foreground: "#946000" },
     },
   ],
 };
