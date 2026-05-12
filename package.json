@@ -2,28 +2,26 @@
   "name": "@cfbender/cesium",
   "version": "0.5.1",
   "description": "Beautiful self-contained HTML artifacts from your opencode agent.",
-  "license": "MIT",
-  "author": "Cody Bender",
+  "keywords": [
+    "agent",
+    "artifact",
+    "claret",
+    "cli",
+    "html",
+    "opencode",
+    "plugin"
+  ],
   "homepage": "https://github.com/cfbender/cesium#readme",
   "bugs": "https://github.com/cfbender/cesium/issues",
+  "license": "MIT",
+  "author": "Cody Bender",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cfbender/cesium.git"
   },
-  "keywords": [
-    "opencode",
-    "agent",
-    "html",
-    "artifact",
-    "plugin",
-    "cli",
-    "claret"
-  ],
   "bin": {
     "cesium": "./src/cli/index.ts"
   },
-  "type": "module",
-  "main": "src/index.ts",
   "files": [
     "src",
     "assets/styleguide.html",
@@ -31,11 +29,10 @@
     "ARCHITECTURE.md",
     "CHANGELOG.md"
   ],
+  "type": "module",
+  "main": "src/index.ts",
   "publishConfig": {
     "access": "public"
-  },
-  "engines": {
-    "bun": ">=1.0.0"
   },
   "scripts": {
     "test": "bun test",
@@ -58,5 +55,8 @@
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "typescript": "^5.4.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
   }
 }

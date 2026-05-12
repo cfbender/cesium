@@ -165,7 +165,9 @@ describe("createCritiqueTool — execute html mode", () => {
   });
 
   test("sample with one warn-level finding includes 'warn:' and message", async () => {
-    const output = await executeCritiqueHtml('<script src="https://evil.com/x.js"></script><p>hi</p>');
+    const output = await executeCritiqueHtml(
+      '<script src="https://evil.com/x.js"></script><p>hi</p>',
+    );
     expect(output).toContain("warn:");
     expect(output).toContain("External resource");
   });

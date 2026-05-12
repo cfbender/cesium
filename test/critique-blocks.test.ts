@@ -30,9 +30,7 @@ function codeBlock(lang: string, code = "const x = 1;"): Block {
 }
 
 function rawHtmlBlock(html: string, purpose?: string): Block {
-  return purpose !== undefined
-    ? { type: "raw_html", html, purpose }
-    : { type: "raw_html", html };
+  return purpose !== undefined ? { type: "raw_html", html, purpose } : { type: "raw_html", html };
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +54,10 @@ describe("critiqueBlocks — +5 baseline bonus", () => {
     const blocks: Block[] = [
       { type: "hero", title: "My Document" },
       { type: "tldr", markdown: "Short summary." },
-      sectionBlock("Introduction", [proseBlock("First paragraph."), proseBlock("Second paragraph.")]),
+      sectionBlock("Introduction", [
+        proseBlock("First paragraph."),
+        proseBlock("Second paragraph."),
+      ]),
     ];
     const r = critiqueBlocks(blocks);
     expect(r.findings).toHaveLength(0);
@@ -72,7 +73,10 @@ describe("critiqueBlocks — +5 baseline bonus", () => {
     const suggestFindings = r.findings.filter((f) => f.severity === "suggest");
     const expectedScore = Math.min(
       100,
-      Math.max(0, 105 - warnFindings.length * 10 - suggestFindings.length * 3 - infoFindings.length * 1),
+      Math.max(
+        0,
+        105 - warnFindings.length * 10 - suggestFindings.length * 3 - infoFindings.length * 1,
+      ),
     );
     expect(r.score).toBe(expectedScore);
   });
@@ -88,7 +92,10 @@ describe("critiqueBlocks — +5 baseline bonus", () => {
     const warns = r.findings.filter((f) => f.severity === "warn");
     const suggests = r.findings.filter((f) => f.severity === "suggest");
     const infos = r.findings.filter((f) => f.severity === "info");
-    const expected = Math.min(100, Math.max(0, 105 - warns.length * 10 - suggests.length * 3 - infos.length));
+    const expected = Math.min(
+      100,
+      Math.max(0, 105 - warns.length * 10 - suggests.length * 3 - infos.length),
+    );
     expect(r.score).toBe(expected);
   });
 });
@@ -129,10 +136,7 @@ describe("critiqueBlocks — raw-html-overuse (warn)", () => {
     // Make raw_html dominate character count
     const longHtml = "<div>" + "x".repeat(1000) + "</div>";
     const shortProse = "hi";
-    const blocks: Block[] = [
-      rawHtmlBlock(longHtml),
-      proseBlock(shortProse),
-    ];
+    const blocks: Block[] = [rawHtmlBlock(longHtml), proseBlock(shortProse)];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "raw-html-overuse");
     expect(f).toBeDefined();
@@ -155,10 +159,7 @@ describe("critiqueBlocks — raw-html-overuse (warn)", () => {
   });
 
   test("raw_html below 30% does NOT fire ratio check", () => {
-    const blocks: Block[] = [
-      rawHtmlBlock("<div>short</div>"),
-      proseBlock("x".repeat(500)),
-    ];
+    const blocks: Block[] = [rawHtmlBlock("<div>short</div>"), proseBlock("x".repeat(500))];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "raw-html-overuse");
     expect(f).toBeUndefined();
@@ -250,7 +251,10 @@ describe("critiqueBlocks — prose-wall (suggest)", () => {
 
   test("prose-wall inside a section fires with correct path", () => {
     const blocks: Block[] = [
-      sectionBlock("Big section", Array.from({ length: 9 }, () => proseBlock())),
+      sectionBlock(
+        "Big section",
+        Array.from({ length: 9 }, () => proseBlock()),
+      ),
     ];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "prose-wall");
@@ -349,11 +353,7 @@ describe("critiqueBlocks — nesting-depth (warn)", () => {
     // depth 1: top-level section, depth 2: nested, depth 3: nested, depth 4: too deep
     const blocks: Block[] = [
       sectionBlock("L1", [
-        sectionBlock("L2", [
-          sectionBlock("L3", [
-            sectionBlock("L4 — too deep", [proseBlock()]),
-          ]),
-        ]),
+        sectionBlock("L2", [sectionBlock("L3", [sectionBlock("L4 — too deep", [proseBlock()])])]),
       ]),
     ];
     const r = critiqueBlocks(blocks);
@@ -364,11 +364,7 @@ describe("critiqueBlocks — nesting-depth (warn)", () => {
 
   test("section nested exactly 3 levels does NOT fire nesting-depth", () => {
     const blocks: Block[] = [
-      sectionBlock("L1", [
-        sectionBlock("L2", [
-          sectionBlock("L3", [proseBlock()]),
-        ]),
-      ]),
+      sectionBlock("L1", [sectionBlock("L2", [sectionBlock("L3", [proseBlock()])])]),
     ];
     const r = critiqueBlocks(blocks);
     expect(find(r.findings, "nesting-depth")).toBeUndefined();
@@ -391,27 +387,21 @@ describe("critiqueBlocks — redundant-raw-html (suggest)", () => {
   });
 
   test("raw_html containing div.card fires redundant-raw-html", () => {
-    const blocks: Block[] = [
-      rawHtmlBlock('<div class="card">Some content</div>'),
-    ];
+    const blocks: Block[] = [rawHtmlBlock('<div class="card">Some content</div>')];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "redundant-raw-html");
     expect(f).toBeDefined();
   });
 
   test("raw_html containing callout class fires redundant-raw-html", () => {
-    const blocks: Block[] = [
-      rawHtmlBlock('<aside class="callout note">Note text</aside>'),
-    ];
+    const blocks: Block[] = [rawHtmlBlock('<aside class="callout note">Note text</aside>')];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "redundant-raw-html");
     expect(f).toBeDefined();
   });
 
   test("redundant-raw-html finding includes path", () => {
-    const blocks: Block[] = [
-      rawHtmlBlock('<div class="card">Content</div>'),
-    ];
+    const blocks: Block[] = [rawHtmlBlock('<div class="card">Content</div>')];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "redundant-raw-html");
     expect(f?.path).toBe("blocks[0]");
@@ -419,7 +409,9 @@ describe("critiqueBlocks — redundant-raw-html (suggest)", () => {
 
   test("raw_html with non-framework markup does NOT fire redundant-raw-html", () => {
     const blocks: Block[] = [
-      rawHtmlBlock('<div style="display:grid;grid-template-columns:1fr 1fr"><div>A</div><div>B</div></div>'),
+      rawHtmlBlock(
+        '<div style="display:grid;grid-template-columns:1fr 1fr"><div>A</div><div>B</div></div>',
+      ),
     ];
     const r = critiqueBlocks(blocks);
     expect(find(r.findings, "redundant-raw-html")).toBeUndefined();
@@ -432,9 +424,7 @@ describe("critiqueBlocks — redundant-raw-html (suggest)", () => {
 
 describe("critiqueBlocks — tldr-too-long (suggest)", () => {
   test("tldr with >400 chars fires tldr-too-long", () => {
-    const blocks: Block[] = [
-      { type: "tldr", markdown: "x".repeat(401) },
-    ];
+    const blocks: Block[] = [{ type: "tldr", markdown: "x".repeat(401) }];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "tldr-too-long");
     expect(f).toBeDefined();
@@ -442,18 +432,14 @@ describe("critiqueBlocks — tldr-too-long (suggest)", () => {
   });
 
   test("tldr-too-long finding includes path", () => {
-    const blocks: Block[] = [
-      { type: "tldr", markdown: "x".repeat(401) },
-    ];
+    const blocks: Block[] = [{ type: "tldr", markdown: "x".repeat(401) }];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "tldr-too-long");
     expect(f?.path).toBe("blocks[0]");
   });
 
   test("tldr with exactly 400 chars does NOT fire tldr-too-long", () => {
-    const blocks: Block[] = [
-      { type: "tldr", markdown: "x".repeat(400) },
-    ];
+    const blocks: Block[] = [{ type: "tldr", markdown: "x".repeat(400) }];
     const r = critiqueBlocks(blocks);
     expect(find(r.findings, "tldr-too-long")).toBeUndefined();
   });
@@ -465,10 +451,7 @@ describe("critiqueBlocks — tldr-too-long (suggest)", () => {
 
 describe("critiqueBlocks — hero-not-first (warn)", () => {
   test("hero block at index 1 fires hero-not-first", () => {
-    const blocks: Block[] = [
-      proseBlock("Preamble."),
-      { type: "hero", title: "Misplaced Hero" },
-    ];
+    const blocks: Block[] = [proseBlock("Preamble."), { type: "hero", title: "Misplaced Hero" }];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "hero-not-first");
     expect(f).toBeDefined();
@@ -477,10 +460,7 @@ describe("critiqueBlocks — hero-not-first (warn)", () => {
   });
 
   test("hero block at index 0 does NOT fire hero-not-first", () => {
-    const blocks: Block[] = [
-      { type: "hero", title: "Correct position" },
-      proseBlock(),
-    ];
+    const blocks: Block[] = [{ type: "hero", title: "Correct position" }, proseBlock()];
     const r = critiqueBlocks(blocks);
     expect(find(r.findings, "hero-not-first")).toBeUndefined();
   });
@@ -553,10 +533,7 @@ describe("critiqueBlocks — path tags", () => {
   });
 
   test("code-without-meaningful-lang finding has path pointing to the block", () => {
-    const blocks: Block[] = [
-      proseBlock(),
-      codeBlock("text"),
-    ];
+    const blocks: Block[] = [proseBlock(), codeBlock("text")];
     const r = critiqueBlocks(blocks);
     const f = find(r.findings, "code-without-meaningful-lang");
     expect(f?.path).toBe("blocks[1]");

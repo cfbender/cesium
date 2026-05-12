@@ -236,9 +236,8 @@ function indexJs(): string {
 function renderEntryCard(entry: IndexEntry): string {
   const isSuperseded = entry.supersededBy !== null ? "1" : "0";
   const kindPill = `<span class="pill">${esc(entry.kind)}</span>`;
-  const inputModeBadge = entry.inputMode !== undefined
-    ? ` <span class="tag">${esc(entry.inputMode)}</span>`
-    : "";
+  const inputModeBadge =
+    entry.inputMode !== undefined ? ` <span class="tag">${esc(entry.inputMode)}</span>` : "";
   const dateStr = `<span class="card-date">${esc(formatDate(entry.createdAt))}</span>`;
   const supersededBadge =
     entry.supersedes !== null

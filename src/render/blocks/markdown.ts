@@ -11,8 +11,7 @@ import { escapeHtml, escapeAttr } from "./escape.ts";
 
 // ─── Safelist placeholder pass ───────────────────────────────────────────────
 
-const SAFELIST_RE =
-  /<(kbd)>(.*?)<\/kbd>|<span\s+class="(pill|tag)">(.*?)<\/span>/gi;
+const SAFELIST_RE = /<(kbd)>(.*?)<\/kbd>|<span\s+class="(pill|tag)">(.*?)<\/span>/gi;
 
 function extractSafelist(input: string): { text: string; map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -72,7 +71,10 @@ function renderInline(text: string): string {
   // **bold**
   working = working.replace(/\*\*(.+?)\*\*/g, (_m, inner: string) => `<strong>${inner}</strong>`);
   // *italic* (not preceded by another *)
-  working = working.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, (_m, inner: string) => `<em>${inner}</em>`);
+  working = working.replace(
+    /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g,
+    (_m, inner: string) => `<em>${inner}</em>`,
+  );
   // [text](href) — only relative/anchor hrefs; external → plain text
   working = working.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, linkText: string, href: string) => {
     if (RELATIVE_HREF_RE.test(href)) {
@@ -159,7 +161,11 @@ export function renderMarkdown(md: string): string {
     // Bullet list
     if (isBullet(line)) {
       const items: string[] = [];
-      while (i < lines.length && (isBullet(lines[i] ?? "") || (!isBlank(lines[i] ?? "") && /^[ \t]{2,}/.test(lines[i] ?? "")))) {
+      while (
+        i < lines.length &&
+        (isBullet(lines[i] ?? "") ||
+          (!isBlank(lines[i] ?? "") && /^[ \t]{2,}/.test(lines[i] ?? "")))
+      ) {
         const cur = lines[i] ?? "";
         if (isBullet(cur)) {
           items.push(renderInline(applyHardBreak(getBulletContent(cur))));
@@ -173,7 +179,11 @@ export function renderMarkdown(md: string): string {
     // Ordered list
     if (isOrdered(line)) {
       const items: string[] = [];
-      while (i < lines.length && (isOrdered(lines[i] ?? "") || (!isBlank(lines[i] ?? "") && /^[ \t]{2,}/.test(lines[i] ?? "")))) {
+      while (
+        i < lines.length &&
+        (isOrdered(lines[i] ?? "") ||
+          (!isBlank(lines[i] ?? "") && /^[ \t]{2,}/.test(lines[i] ?? "")))
+      ) {
         const cur = lines[i] ?? "";
         if (isOrdered(cur)) {
           items.push(renderInline(applyHardBreak(getOrderedContent(cur))));
@@ -187,7 +197,11 @@ export function renderMarkdown(md: string): string {
     // Blockquote
     if (isBlockquote(line)) {
       const bqLines: string[] = [];
-      while (i < lines.length && (isBlockquote(lines[i] ?? "") || (!isBlank(lines[i] ?? "") && !/^[-*]/.test(lines[i] ?? "")))) {
+      while (
+        i < lines.length &&
+        (isBlockquote(lines[i] ?? "") ||
+          (!isBlank(lines[i] ?? "") && !/^[-*]/.test(lines[i] ?? "")))
+      ) {
         const cur = lines[i] ?? "";
         if (isBlockquote(cur)) {
           bqLines.push(renderInline(applyHardBreak(getBlockquoteContent(cur))));
@@ -202,7 +216,14 @@ export function renderMarkdown(md: string): string {
 
     // Paragraph — collect until blank or block-level
     const paraLines: string[] = [];
-    while (i < lines.length && !isBlank(lines[i] ?? "") && !isHr(lines[i] ?? "") && !isBullet(lines[i] ?? "") && !isOrdered(lines[i] ?? "") && !isBlockquote(lines[i] ?? "")) {
+    while (
+      i < lines.length &&
+      !isBlank(lines[i] ?? "") &&
+      !isHr(lines[i] ?? "") &&
+      !isBullet(lines[i] ?? "") &&
+      !isOrdered(lines[i] ?? "") &&
+      !isBlockquote(lines[i] ?? "")
+    ) {
       paraLines.push(applyHardBreak(lines[i] ?? ""));
       i++;
     }

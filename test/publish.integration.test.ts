@@ -641,9 +641,7 @@ test("artifact, project index, and global index all reference the favicon", asyn
   const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
   if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
   const projIndex = readFileSync(join(stateDir, "projects", slugMatch[1], "index.html"), "utf8");
-  expect(projIndex).toContain(
-    '<link rel="icon" type="image/svg+xml" href="../../favicon.svg">',
-  );
+  expect(projIndex).toContain('<link rel="icon" type="image/svg+xml" href="../../favicon.svg">');
   // Global index (root)
   const globalIndex = readFileSync(join(stateDir, "index.html"), "utf8");
   expect(globalIndex).toContain('<link rel="icon" type="image/svg+xml" href="favicon.svg">');
@@ -804,7 +802,7 @@ test("blocks mode: full document structure renders expected HTML", async () => {
   // Tldr
   expect(html).toContain('<aside class="tldr">');
   // Section
-  expect(html).toContain('<section>');
+  expect(html).toContain("<section>");
   expect(html).toContain('class="h-section"');
   expect(html).toContain('class="section-num"');
   // Callout

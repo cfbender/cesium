@@ -16,9 +16,7 @@ export async function renderCode(block: CodeBlock, ctx: RenderCtx): Promise<stri
   }
 
   const highlighted = await highlightCode(block.code, block.lang, ctx.highlightTheme);
-  parts.push(
-    `  <pre><code class="lang-${escapeAttr(block.lang)}">${highlighted}</code></pre>`,
-  );
+  parts.push(`  <pre><code class="lang-${escapeAttr(block.lang)}">${highlighted}</code></pre>`);
 
   return `<figure class="code">\n${parts.join("\n")}\n</figure>`;
 }

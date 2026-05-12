@@ -13,11 +13,7 @@ import { THEME_PRESETS, isThemePresetName } from "../../render/theme.ts";
 
 // ─── Highlight theme type ─────────────────────────────────────────────────────
 
-export type HighlightTheme =
-  | "claret-dark"
-  | "claret-light"
-  | "vitesse-dark"
-  | "vitesse-light";
+export type HighlightTheme = "claret-dark" | "claret-light" | "vitesse-dark" | "vitesse-light";
 
 // ─── Supported languages ─────────────────────────────────────────────────────
 
@@ -88,12 +84,13 @@ export function resolveHighlightTheme(cesiumThemeName: string | undefined): High
  */
 function isHexDark(hex: string): boolean {
   const clean = hex.replace("#", "");
-  const full = clean.length === 3
-    ? clean
-        .split("")
-        .map((c) => c + c)
-        .join("")
-    : clean;
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean;
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);

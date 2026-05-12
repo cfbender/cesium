@@ -27,7 +27,8 @@ export function renderTimeline(block: TimelineBlock, _ctx: RenderCtx): string {
 
 export const meta: BlockMeta = {
   type: "timeline",
-  description: "Milestone list with dot connectors. Each item has a label, text, and optional date.",
+  description:
+    "Milestone list with dot connectors. Each item has a label, text, and optional date.",
   schema: {
     type: "object",
     properties: {

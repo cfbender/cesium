@@ -225,7 +225,7 @@ describe("claret-light theme colors", () => {
 // ─── All four themes load and produce distinct output ─────────────────────────
 
 describe("all four themes produce distinct output", () => {
-  const snippet = 'const greet = (name: string): string => `Hello, ${name}!`;';
+  const snippet = "const greet = (name: string): string => `Hello, ${name}!`;";
 
   test("claret-dark and vitesse-dark differ on same input", async () => {
     const [a, b] = await Promise.all([

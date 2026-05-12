@@ -117,9 +117,7 @@ export function createPublishTool(
       html: tool.schema
         .string()
         .optional()
-        .describe(
-          "Body HTML — escape valve / legacy mode. Provide exactly one of html or blocks.",
-        ),
+        .describe("Body HTML — escape valve / legacy mode. Provide exactly one of html or blocks."),
       blocks: tool.schema
         .array(tool.schema.any())
         .optional()

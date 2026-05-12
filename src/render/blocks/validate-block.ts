@@ -23,11 +23,7 @@ function levenshtein(a: string, b: string): number {
     curr[0] = i;
     for (let j = 1; j <= bLen; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      curr[j] = Math.min(
-        (prev[j] ?? 0) + 1,
-        (curr[j - 1] ?? 0) + 1,
-        (prev[j - 1] ?? 0) + cost,
-      );
+      curr[j] = Math.min((prev[j] ?? 0) + 1, (curr[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
     }
     [prev, curr] = [curr, prev];
   }
@@ -91,11 +87,19 @@ function isSchemaNode(v: unknown): v is SchemaNode {
  * Validate a single value against a JSON Schema fragment node.
  * Appends any findings to `errors`. `path` is the dotted path for error messages.
  */
-function validateNode(value: unknown, schema: SchemaNode, path: string, errors: BlockFieldError[]): void {
+function validateNode(
+  value: unknown,
+  schema: SchemaNode,
+  path: string,
+  errors: BlockFieldError[],
+): void {
   // const node
   if ("const" in schema) {
     if (value !== schema.const) {
-      errors.push({ path, message: `expected ${JSON.stringify(schema.const)}, got ${JSON.stringify(value)}` });
+      errors.push({
+        path,
+        message: `expected ${JSON.stringify(schema.const)}, got ${JSON.stringify(value)}`,
+      });
     }
     return;
   }
@@ -143,7 +147,10 @@ function validateNode(value: unknown, schema: SchemaNode, path: string, errors: 
     }
     case "object": {
       if (value === null || typeof value !== "object" || Array.isArray(value)) {
-        errors.push({ path, message: `expected object, got ${Array.isArray(value) ? "array" : typeof value}` });
+        errors.push({
+          path,
+          message: `expected object, got ${Array.isArray(value) ? "array" : typeof value}`,
+        });
         return;
       }
       const obj = value as Record<string, unknown>;
@@ -171,7 +178,10 @@ function validateNode(value: unknown, schema: SchemaNode, path: string, errors: 
             // Unknown field — suggest closest known
             const suggestion = didYouMean(key, knownKeys);
             const suggestionMsg = suggestion !== null ? `; did you mean "${suggestion}"?` : "";
-            errors.push({ path: `${path}.${key}`, message: `unknown field "${key}"${suggestionMsg}` });
+            errors.push({
+              path: `${path}.${key}`,
+              message: `unknown field "${key}"${suggestionMsg}`,
+            });
           } else if (isSchemaNode(propSchema)) {
             validateNode(val, propSchema, `${path}.${key}`, errors);
           }

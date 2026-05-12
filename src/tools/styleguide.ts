@@ -101,21 +101,17 @@ export async function generateStyleguideMarkdown(): Promise<string> {
     "- Inline: `**bold**`, `*italic*`, `` `code` ``, `[text](href)` (relative or anchor only).",
   );
   lines.push(
-    "- HTML safelist: `<kbd>`, `<span class=\"pill\">`, `<span class=\"tag\">`. Anything else is escaped.",
+    '- HTML safelist: `<kbd>`, `<span class="pill">`, `<span class="tag">`. Anything else is escaped.',
   );
   lines.push("");
   lines.push("## When to reach for raw_html / diagram");
   lines.push("");
-  lines.push(
-    "- `diagram` — inline SVG visualizations or bespoke composed HTML diagrams.",
-  );
+  lines.push("- `diagram` — inline SVG visualizations or bespoke composed HTML diagrams.");
   lines.push(
     "- `raw_html` — anything genuinely creative that doesn't fit a known block type." +
       " Include a `purpose` string describing what you're building.",
   );
-  lines.push(
-    "- Critique flags raw_html overuse (>2 blocks or >30% of body characters).",
-  );
+  lines.push("- Critique flags raw_html overuse (>2 blocks or >30% of body characters).");
 
   return lines.join("\n");
 }

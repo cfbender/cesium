@@ -379,7 +379,11 @@ export async function ensureServerRunning(cfg: LifecycleConfig): Promise<Running
 
   // Use a spawn-only lock to prevent concurrent spawns. Release it immediately
   // after spawning so the child can acquire its own (.server-start.lock) lock.
-  const spawnLock = await acquireLock({ lockPath: spawnLockPath, timeoutMs: 15_000, staleMs: 30_000 });
+  const spawnLock = await acquireLock({
+    lockPath: spawnLockPath,
+    timeoutMs: 15_000,
+    staleMs: 30_000,
+  });
   try {
     // Re-check after acquiring lock
     const existingAfterLock = readPidFile(pidFilePath);

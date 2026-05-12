@@ -46,13 +46,17 @@ describe("XOR: html vs blocks", () => {
 
 describe("blocks top-level structural rules", () => {
   test("rejects blocks exceeding 1000", () => {
-    const r = validateBlocks(Array.from({ length: 1001 }, () => ({ type: "prose", markdown: "x" })));
+    const r = validateBlocks(
+      Array.from({ length: 1001 }, () => ({ type: "prose", markdown: "x" })),
+    );
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain("1000");
   });
 
   test("accepts exactly 1000 blocks", () => {
-    const r = validateBlocks(Array.from({ length: 1000 }, () => ({ type: "prose", markdown: "x" })));
+    const r = validateBlocks(
+      Array.from({ length: 1000 }, () => ({ type: "prose", markdown: "x" })),
+    );
     expect(r.ok).toBe(true);
   });
 
@@ -69,7 +73,10 @@ describe("blocks top-level structural rules", () => {
   });
 
   test("accepts hero as first block", () => {
-    const r = validateBlocks([{ type: "hero", title: "Big Title" }, { type: "prose", markdown: "x" }]);
+    const r = validateBlocks([
+      { type: "hero", title: "Big Title" },
+      { type: "prose", markdown: "x" },
+    ]);
     expect(r.ok).toBe(true);
   });
 
@@ -255,7 +262,10 @@ describe("compare_table cell count mismatch", () => {
       {
         type: "compare_table",
         headers: ["A", "B", "C"],
-        rows: [["a1", "b1", "c1"], ["a2", "b2", "c2"]],
+        rows: [
+          ["a1", "b1", "c1"],
+          ["a2", "b2", "c2"],
+        ],
       },
     ]);
     expect(r.ok).toBe(true);
@@ -372,7 +382,10 @@ describe("happy paths", () => {
       {
         type: "compare_table",
         headers: ["Option", "Pro", "Con"],
-        rows: [["A", "Fast", "Expensive"], ["B", "Cheap", "Slow"]],
+        rows: [
+          ["A", "Fast", "Expensive"],
+          ["B", "Cheap", "Slow"],
+        ],
       },
       { type: "divider", label: "End" },
     ]);
@@ -400,9 +413,7 @@ describe("deep block field validation", () => {
   });
 
   test("kv.rows with 'label'/'value' instead of 'k'/'v' → error with path + did you mean", () => {
-    const r = validateBlocks([
-      { type: "kv", rows: [{ label: "Key", value: "Val" }] },
-    ]);
+    const r = validateBlocks([{ type: "kv", rows: [{ label: "Key", value: "Val" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].rows[0]");
@@ -412,9 +423,7 @@ describe("deep block field validation", () => {
   });
 
   test("timeline item with 'title' instead of 'label' → error with path + did you mean", () => {
-    const r = validateBlocks([
-      { type: "timeline", items: [{ title: "Phase 1", text: "Start" }] },
-    ]);
+    const r = validateBlocks([{ type: "timeline", items: [{ title: "Phase 1", text: "Start" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].items[0]");
@@ -434,9 +443,7 @@ describe("deep block field validation", () => {
   });
 
   test("unknown field on hero block → rejected with path and field name", () => {
-    const r = validateBlocks([
-      { type: "hero", title: "Title", bogus: 1 },
-    ]);
+    const r = validateBlocks([{ type: "hero", title: "Title", bogus: 1 }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0]");
@@ -445,9 +452,7 @@ describe("deep block field validation", () => {
   });
 
   test("unknown field on kv row → rejected with path and field name", () => {
-    const r = validateBlocks([
-      { type: "kv", rows: [{ k: "Key", v: "Val", extra: "nope" }] },
-    ]);
+    const r = validateBlocks([{ type: "kv", rows: [{ k: "Key", v: "Val", extra: "nope" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].rows[0]");
@@ -456,9 +461,7 @@ describe("deep block field validation", () => {
   });
 
   test("unknown field on prose block → rejected with path and field name", () => {
-    const r = validateBlocks([
-      { type: "prose", markdown: "Hello", badField: true },
-    ]);
+    const r = validateBlocks([{ type: "prose", markdown: "Hello", badField: true }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0]");
@@ -501,9 +504,7 @@ describe("deep block field validation", () => {
   });
 
   test("callout variant 'error' → error with valid set (already tested above, but deep check)", () => {
-    const r = validateBlocks([
-      { type: "callout", variant: "error", markdown: "Bad" },
-    ]);
+    const r = validateBlocks([{ type: "callout", variant: "error", markdown: "Bad" }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("variant");
@@ -511,9 +512,7 @@ describe("deep block field validation", () => {
   });
 
   test("list style 'numbered' → error with valid set", () => {
-    const r = validateBlocks([
-      { type: "list", style: "numbered", items: ["a", "b"] },
-    ]);
+    const r = validateBlocks([{ type: "list", style: "numbered", items: ["a", "b"] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].style");
@@ -524,9 +523,7 @@ describe("deep block field validation", () => {
   });
 
   test("pill_row item kind 'badge' → error with valid set", () => {
-    const r = validateBlocks([
-      { type: "pill_row", items: [{ kind: "badge", text: "Hi" }] },
-    ]);
+    const r = validateBlocks([{ type: "pill_row", items: [{ kind: "badge", text: "Hi" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].items[0].kind");
@@ -538,9 +535,7 @@ describe("deep block field validation", () => {
   // ─ Missing required deep fields ───────────────────────────────────────────
 
   test("timeline item missing 'text' field → rejected with path", () => {
-    const r = validateBlocks([
-      { type: "timeline", items: [{ label: "Phase 1" }] },
-    ]);
+    const r = validateBlocks([{ type: "timeline", items: [{ label: "Phase 1" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].items[0].text");
@@ -548,9 +543,7 @@ describe("deep block field validation", () => {
   });
 
   test("timeline item missing 'label' field → rejected with path", () => {
-    const r = validateBlocks([
-      { type: "timeline", items: [{ text: "Start" }] },
-    ]);
+    const r = validateBlocks([{ type: "timeline", items: [{ text: "Start" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].items[0].label");
@@ -558,9 +551,7 @@ describe("deep block field validation", () => {
   });
 
   test("kv row missing 'k' field → rejected with path", () => {
-    const r = validateBlocks([
-      { type: "kv", rows: [{ v: "value only" }] },
-    ]);
+    const r = validateBlocks([{ type: "kv", rows: [{ v: "value only" }] }]);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("blocks[0].rows[0].k");
@@ -599,7 +590,10 @@ describe("deep block field validation", () => {
       {
         type: "hero",
         title: "Title",
-        meta: [{ k: "Status", v: "Draft" }, { k: "Author", v: "AI" }],
+        meta: [
+          { k: "Status", v: "Draft" },
+          { k: "Author", v: "AI" },
+        ],
       },
     ]);
     expect(r.ok).toBe(true);
@@ -612,7 +606,10 @@ describe("deep block field validation", () => {
         title: "Top",
         children: [
           { type: "prose", markdown: "ok" },
-          { type: "risk_table", rows: [{ risk: "r", likelihood: "med", impact: "low", mitigation: "m" }] },
+          {
+            type: "risk_table",
+            rows: [{ risk: "r", likelihood: "med", impact: "low", mitigation: "m" }],
+          },
         ],
       },
     ]);
@@ -626,9 +623,7 @@ describe("deep block field validation", () => {
   // ─ Valid blocks that should pass ─────────────────────────────────────────────
 
   test("hero with valid meta k/v passes deep validation", () => {
-    const r = validateBlocks([
-      { type: "hero", title: "Title", meta: [{ k: "Author", v: "AI" }] },
-    ]);
+    const r = validateBlocks([{ type: "hero", title: "Title", meta: [{ k: "Author", v: "AI" }] }]);
     expect(r.ok).toBe(true);
   });
 
@@ -653,7 +648,10 @@ describe("deep block field validation", () => {
     const r = validateBlocks([
       {
         type: "pill_row",
-        items: [{ kind: "pill", text: "TypeScript" }, { kind: "tag", text: "v2" }],
+        items: [
+          { kind: "pill", text: "TypeScript" },
+          { kind: "tag", text: "v2" },
+        ],
       },
     ]);
     expect(r.ok).toBe(true);

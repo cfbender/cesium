@@ -41,8 +41,7 @@ function parseDuration(input: string): number | null {
   const n = parseFloat(match[1] ?? "");
   if (!isFinite(n) || n < 0) return null;
   const unit = match[2] ?? "ms";
-  const mul =
-    unit === "ms" ? 1 : unit === "s" ? 1000 : unit === "m" ? 60_000 : /* h */ 3_600_000;
+  const mul = unit === "ms" ? 1 : unit === "s" ? 1000 : unit === "m" ? 60_000 : /* h */ 3_600_000;
   return Math.floor(n * mul);
 }
 

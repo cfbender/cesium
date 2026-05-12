@@ -86,8 +86,8 @@ export function generateBlockFieldReference(): string {
   lines.push("");
   lines.push(
     "All `markdown` fields support `**bold**`, `*italic*`, `` `code` ``, lists, blockquotes, " +
-    "and the safelisted inline tags `<kbd>`, `<span class=\"pill\">`, `<span class=\"tag\">`. " +
-    "External URLs in links render as plain text.",
+      'and the safelisted inline tags `<kbd>`, `<span class="pill">`, `<span class="tag">`. ' +
+      "External URLs in links render as plain text.",
   );
 
   return lines.join("\n");

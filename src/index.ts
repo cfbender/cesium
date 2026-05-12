@@ -17,7 +17,10 @@ const rawFragment = await readFile(
   "utf8",
 );
 
-const PROMPT_FRAGMENT = rawFragment.replace("{{BLOCK_FIELD_REFERENCE}}", generateBlockFieldReference());
+const PROMPT_FRAGMENT = rawFragment.replace(
+  "{{BLOCK_FIELD_REFERENCE}}",
+  generateBlockFieldReference(),
+);
 
 export const CesiumPlugin: Plugin = async (ctx): Promise<Hooks> => {
   return {

@@ -99,12 +99,7 @@ export const claretLight: ThemeRegistration = {
     // Type — #0E3088
     {
       name: "Type",
-      scope: [
-        "entity.name.type",
-        "entity.name.class",
-        "support.type",
-        "support.class",
-      ],
+      scope: ["entity.name.type", "entity.name.class", "support.type", "support.class"],
       settings: { foreground: "#0E3088" },
     },
     // Variable — #2A1F1A

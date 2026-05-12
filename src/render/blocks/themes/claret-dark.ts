@@ -78,12 +78,7 @@ export const claretDark: ThemeRegistration = {
     // Type — #8995A8
     {
       name: "Type",
-      scope: [
-        "entity.name.type",
-        "entity.name.class",
-        "support.type",
-        "support.class",
-      ],
+      scope: ["entity.name.type", "entity.name.class", "support.type", "support.class"],
       settings: { foreground: "#8995A8" },
     },
     // Variable — #DDD3C7

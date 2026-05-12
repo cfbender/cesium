@@ -23,7 +23,6 @@ export const meta: BlockMeta = {
   },
   example: {
     type: "prose",
-    markdown:
-      "This is a paragraph with **bold** and *italic* text.\n\n- Item one\n- Item two",
+    markdown: "This is a paragraph with **bold** and *italic* text.\n\n- Item one\n- Item two",
   },
 };

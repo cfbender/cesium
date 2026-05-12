@@ -215,7 +215,10 @@ describe("appendEntry — bodyText preserved", () => {
 describe("IndexEntry inputMode", () => {
   test("entry with inputMode='blocks' round-trips correctly", async () => {
     const jsonPath = join(workDir, "blocks-entry.json");
-    const entry: IndexEntry = { ...makeEntry("blk1", "2026-05-12T10:00:00.000Z"), inputMode: "blocks" };
+    const entry: IndexEntry = {
+      ...makeEntry("blk1", "2026-05-12T10:00:00.000Z"),
+      inputMode: "blocks",
+    };
     await atomicWrite(jsonPath, JSON.stringify([entry]));
     const result = await loadIndex(jsonPath);
     expect(result[0]?.inputMode).toBe("blocks");
@@ -223,7 +226,10 @@ describe("IndexEntry inputMode", () => {
 
   test("entry with inputMode='html' round-trips correctly", async () => {
     const jsonPath = join(workDir, "html-entry.json");
-    const entry: IndexEntry = { ...makeEntry("htm1", "2026-05-12T10:00:00.000Z"), inputMode: "html" };
+    const entry: IndexEntry = {
+      ...makeEntry("htm1", "2026-05-12T10:00:00.000Z"),
+      inputMode: "html",
+    };
     await atomicWrite(jsonPath, JSON.stringify([entry]));
     const result = await loadIndex(jsonPath);
     expect(result[0]?.inputMode).toBe("html");

@@ -8,9 +8,7 @@ import { escapeHtml } from "../escape.ts";
 import { renderMarkdown } from "../markdown.ts";
 
 export function renderCompareTable(block: CompareTableBlock, _ctx: RenderCtx): string {
-  const headerCells = block.headers
-    .map((h) => `      <th>${escapeHtml(h)}</th>`)
-    .join("\n");
+  const headerCells = block.headers.map((h) => `      <th>${escapeHtml(h)}</th>`).join("\n");
 
   const bodyRows = block.rows
     .map((row) => {
@@ -34,7 +32,8 @@ export function renderCompareTable(block: CompareTableBlock, _ctx: RenderCtx): s
 
 export const meta: BlockMeta = {
   type: "compare_table",
-  description: "Bordered comparison grid. Headers define columns; rows must have matching cell count.",
+  description:
+    "Bordered comparison grid. Headers define columns; rows must have matching cell count.",
   schema: {
     type: "object",
     properties: {

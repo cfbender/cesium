@@ -382,15 +382,15 @@ state directory, hostname, and theme settings flow through.
 
 Optional `~/.config/opencode/cesium.json`:
 
-| Key             | Type   | Default                 | Description                                                                              |
-| --------------- | ------ | ----------------------- | ---------------------------------------------------------------------------------------- |
-| `stateDir`      | string | `~/.local/state/cesium` | Where artifacts and indexes live                                                         |
-| `port`          | number | `3030`                  | First port to try for the local HTTP server                                              |
-| `portMax`       | number | `3050`                  | Upper bound when scanning for free ports                                                 |
-| `hostname`      | string | `127.0.0.1`             | Bind address. Use `0.0.0.0` to expose on the LAN                                         |
+| Key             | Type   | Default                 | Description                                                                                 |
+| --------------- | ------ | ----------------------- | ------------------------------------------------------------------------------------------- |
+| `stateDir`      | string | `~/.local/state/cesium` | Where artifacts and indexes live                                                            |
+| `port`          | number | `3030`                  | First port to try for the local HTTP server                                                 |
+| `portMax`       | number | `3050`                  | Upper bound when scanning for free ports                                                    |
+| `hostname`      | string | `127.0.0.1`             | Bind address. Use `0.0.0.0` to expose on the LAN                                            |
 | `idleTimeoutMs` | number | `1800000`               | Plugin server idle-shutdown threshold (30 min). Does not apply to foreground `cesium serve` |
-| `themePreset`   | string | `"claret-dark"`         | Named color palette (`claret-dark`/`claret-light`/`claret`/`warm`/`cool`/`mono`/`paper`) |
-| `theme`         | object | (claret-dark palette)   | Per-token color overrides (stacked on preset)                                            |
+| `themePreset`   | string | `"claret-dark"`         | Named color palette (`claret-dark`/`claret-light`/`claret`/`warm`/`cool`/`mono`/`paper`)    |
+| `theme`         | object | (claret-dark palette)   | Per-token color overrides (stacked on preset)                                               |
 
 Environment overrides: `CESIUM_PORT`, `CESIUM_STATE_DIR`, `CESIUM_HOSTNAME`, `CESIUM_THEME_PRESET`.
 

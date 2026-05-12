@@ -10,11 +10,11 @@ longer kill the plugin host process.
 - **fix (critical):** Lazy-started cesium server now runs as a detached
   subprocess. Previously `ensureRunning` (called from publish/ask plugin
   paths) ran `Bun.serve()` in-process and wrote `pid: process.pid` to the PID
-  file — meaning that PID was the *plugin host* (e.g. opencode). Any
+  file — meaning that PID was the _plugin host_ (e.g. opencode). Any
   invocation of `cesium stop` (CLI, tool, or test) would signal the host
   process and kill it. Now lazy-start spawns `bun run cli serve` as a
   detached child; the PID file points at that child. Foreground `cesium
-  serve` still runs in-process (correct for its semantics).
+serve` still runs in-process (correct for its semantics).
 - **api:** Split `ensureRunning` into `runServerForeground` (in-process, for
   the foreground CLI) and `ensureServerRunning` (detached subprocess, for
   plugins). `ensureRunning` is kept as a backward-compat alias for
@@ -82,7 +82,7 @@ tokens, more on heavily structured artifacts.
   surfaced as a small badge on index cards.
 - **feat:** Framework CSS extended with rules for every block-renderer
   pattern: `dl.kv` (2-column grid), `.pill-row`, `.check-list`, `<hr
-  data-label>`, `figure.code`, timeline-item internals, `.lede`, plus
+data-label>`, `figure.code`, timeline-item internals, `.lede`, plus
   `.diagram svg text { fill: currentColor }` so SVGs inherit theme color.
 - **feat:** `escapeHtml` and `escapeAttr` throw a clear error on non-string
   input instead of crashing inside `.replace()`.

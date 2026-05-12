@@ -69,10 +69,15 @@ describe("tldr renderer", () => {
 describe("section renderer", () => {
   test("renders section with h2.h-section and section-num", async () => {
     const counter: SectionCounter = { value: 1 };
-    const ctx: RenderCtx = { sectionCounter: counter, depth: 0, path: "blocks[0]", highlightTheme: "vitesse-dark" };
+    const ctx: RenderCtx = {
+      sectionCounter: counter,
+      depth: 0,
+      path: "blocks[0]",
+      highlightTheme: "vitesse-dark",
+    };
     const block: Block = { type: "section", title: "Goals", children: [] };
     const result = await renderBlock(block, ctx);
-    expect(result).toContain('<section>');
+    expect(result).toContain("<section>");
     expect(result).toContain('class="h-section"');
     expect(result).toContain('class="section-num"');
     expect(result).toContain("01");
@@ -93,7 +98,12 @@ describe("section renderer", () => {
 
   test("uses explicit num when provided", async () => {
     const counter: SectionCounter = { value: 1 };
-    const ctx: RenderCtx = { sectionCounter: counter, depth: 0, path: "blocks[0]", highlightTheme: "vitesse-dark" };
+    const ctx: RenderCtx = {
+      sectionCounter: counter,
+      depth: 0,
+      path: "blocks[0]",
+      highlightTheme: "vitesse-dark",
+    };
     const block: Block = { type: "section", title: "Custom", num: "A", children: [] };
     const result = await renderBlock(block, ctx);
     expect(result).toContain(">A<");
@@ -270,7 +280,10 @@ describe("compare_table renderer", () => {
     const block: Block = {
       type: "compare_table",
       headers: ["Col A", "Col B"],
-      rows: [["a1", "b1"], ["a2", "b2"]],
+      rows: [
+        ["a1", "b1"],
+        ["a2", "b2"],
+      ],
     };
     const result = await renderBlock(block, makeCtx());
     expect(result).toContain('class="compare-table"');
@@ -296,9 +309,7 @@ describe("risk_table renderer", () => {
   test("renders table.risk-table with fixed headers", async () => {
     const block: Block = {
       type: "risk_table",
-      rows: [
-        { risk: "Data loss", likelihood: "low", impact: "high", mitigation: "Backups" },
-      ],
+      rows: [{ risk: "Data loss", likelihood: "low", impact: "high", mitigation: "Backups" }],
     };
     const result = await renderBlock(block, makeCtx());
     expect(result).toContain('class="risk-table"');
@@ -314,7 +325,13 @@ describe("risk_table renderer", () => {
 
 describe("kv renderer", () => {
   test("renders dl.kv with dt/dd pairs", async () => {
-    const block: Block = { type: "kv", rows: [{ k: "Author", v: "AI" }, { k: "Date", v: "2026" }] };
+    const block: Block = {
+      type: "kv",
+      rows: [
+        { k: "Author", v: "AI" },
+        { k: "Date", v: "2026" },
+      ],
+    };
     const result = await renderBlock(block, makeCtx());
     expect(result).toContain('class="kv"');
     expect(result).toContain("<dt>Author</dt>");
@@ -453,14 +470,17 @@ describe("renderBlocks", () => {
       {
         type: "compare_table",
         headers: ["Mode", "Tokens"],
-        rows: [["html", "high"], ["blocks", "low"]],
+        rows: [
+          ["html", "high"],
+          ["blocks", "low"],
+        ],
       },
     ];
     const result = await renderBlocks(blocks);
 
     expect(result).toContain('<h1 class="h-display">Phase 2 Summary</h1>');
     expect(result).toContain('<aside class="tldr">');
-    expect(result).toContain('<section>');
+    expect(result).toContain("<section>");
     expect(result).toContain('<aside class="callout warn">');
     expect(result).toContain('<figure class="code">');
     expect(result).toContain('<table class="compare-table">');
@@ -498,13 +518,13 @@ describe("section card-wrap", () => {
     const result = await renderBlock(block, makeCtx());
     // Outer section should NOT have a card wrapping the nested section
     // The nested section itself should be rendered at top level
-    expect(result).toContain('<section>');
+    expect(result).toContain("<section>");
     // The nested section's prose children should be in a card (inside the nested section)
     expect(result).toContain('<div class="card">');
     // No card should wrap the nested <section> tag itself — verify card doesn't contain a section
     // by checking that the first <div class="card"> comes AFTER a <section>
     const firstCardIdx = result.indexOf('<div class="card">');
-    const firstNestedSectionIdx = result.indexOf('<section>', result.indexOf('<section>') + 1);
+    const firstNestedSectionIdx = result.indexOf("<section>", result.indexOf("<section>") + 1);
     // Nested section should appear before the card that's inside it
     expect(firstNestedSectionIdx).toBeLessThan(firstCardIdx);
   });
@@ -655,7 +675,7 @@ describe("code block highlight theme threading", () => {
     const block: Block = {
       type: "code",
       lang: "typescript",
-      code: 'interface Greeter { greet(name: string): void; }',
+      code: "interface Greeter { greet(name: string): void; }",
     };
     const [dark, light] = await Promise.all([
       renderBlock(block, {
@@ -675,9 +695,7 @@ describe("code block highlight theme threading", () => {
   });
 
   test("renderBlocks with highlightTheme option threads theme into code blocks", async () => {
-    const blocks: Block[] = [
-      { type: "code", lang: "typescript", code: "const x = 1;" },
-    ];
+    const blocks: Block[] = [{ type: "code", lang: "typescript", code: "const x = 1;" }];
     const result = await renderBlocks(blocks, { highlightTheme: "claret-dark" });
     expect(result.toLowerCase()).toContain("#c75b7a");
   });

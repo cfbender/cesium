@@ -175,7 +175,7 @@ describe("frameworkRulesCss", () => {
       ".timeline-text",
       ".timeline-date",
       ".diagram svg text",
-      ".diagram svg [fill=\"#222\"]",
+      '.diagram svg [fill="#222"]',
       "hr[data-label]",
       ".card + .card",
     ];
