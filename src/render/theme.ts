@@ -363,6 +363,26 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--oat);
   border: 2px solid var(--accent);
 }
+/* timeline item inner spans */
+.timeline-item { display: flex; flex-direction: column; gap: 0.15em; }
+.timeline-label {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.timeline-date {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-left: 0.5em;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.timeline-text { color: var(--ink-soft); font-size: 0.95rem; }
 
 /* diagram */
 .diagram {
@@ -379,6 +399,112 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 10px;
   font-family: var(--sans);
 }
+/* svg text/stroke/fill overrides — defense-in-depth for dark themes */
+.diagram svg text,
+figure.diagram svg text { fill: currentColor; }
+.diagram svg [stroke="#888"],
+.diagram svg [stroke="#999"],
+.diagram svg [stroke="#666"] { stroke: currentColor; opacity: 0.55; }
+.diagram svg [fill="#222"],
+.diagram svg [fill="#000"],
+.diagram svg [fill="black"] { fill: currentColor; }
+
+/* kv — key-value definition list (hero meta, standalone kv block) */
+dl.kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1.5rem;
+  margin: 1.25rem 0;
+  align-items: baseline;
+}
+dl.kv dt {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+dl.kv dd { margin: 0; color: var(--ink-soft); }
+
+/* lede — hero subtitle paragraph */
+.lede {
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+  margin-bottom: 1em;
+  line-height: 1.5;
+}
+
+/* divider — plain hr + labeled variant */
+hr {
+  border: none;
+  border-top: 1.5px solid var(--rule);
+  margin: 2em 0;
+}
+hr[data-label] {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  border: none;
+  margin: 2em 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+hr[data-label]::before {
+  content: "";
+  flex: 1;
+  border-top: 1.5px solid var(--rule);
+  display: block;
+}
+hr[data-label]::after {
+  content: attr(data-label);
+  flex-shrink: 0;
+}
+
+/* figure.code — caption above the code block */
+figure.code figcaption {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+/* pill-row — horizontal chip container */
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-bottom: 1.25em;
+}
+
+/* check-list — checklist style (ul style="check") */
+.check-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1em;
+}
+.check-list .check {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-bottom: 0.4em;
+  padding-left: 0.25em;
+}
+.check-list .check::before {
+  content: "✓";
+  font-family: var(--mono);
+  font-size: 0.8em;
+  font-weight: 700;
+  color: var(--olive);
+  flex-shrink: 0;
+}
+
+/* card stack — sibling cards within a section */
+.card + .card { margin-top: 1em; }
 
 /* compare-table */
 .compare-table {

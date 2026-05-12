@@ -160,6 +160,30 @@ describe("frameworkRulesCss", () => {
     }
   });
 
+  test("contains block-renderer pattern selectors (phase 2.6 additions)", () => {
+    const css = frameworkRulesCss();
+    const selectors = [
+      "dl.kv",
+      "dl.kv dt",
+      "dl.kv dd",
+      ".lede",
+      ".pill-row",
+      ".check-list",
+      ".check-list .check",
+      "figure.code figcaption",
+      ".timeline-label",
+      ".timeline-text",
+      ".timeline-date",
+      ".diagram svg text",
+      ".diagram svg [fill=\"#222\"]",
+      "hr[data-label]",
+      ".card + .card",
+    ];
+    for (const sel of selectors) {
+      expect(css).toContain(sel);
+    }
+  });
+
   test("uses css variables (not hardcoded colors)", () => {
     const css = frameworkRulesCss();
     expect(css).toContain("var(--");
@@ -192,6 +216,16 @@ describe("frameworkCss", () => {
     ".pill",
     ".tag",
     ".byline",
+    "dl.kv",
+    ".lede",
+    ".pill-row",
+    ".check-list",
+    "figure.code figcaption",
+    ".timeline-label",
+    ".timeline-text",
+    ".diagram svg text",
+    "hr[data-label]",
+    ".card + .card",
   ];
 
   for (const cls of designDocClasses) {

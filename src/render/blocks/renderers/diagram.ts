@@ -25,7 +25,7 @@ export function renderDiagram(block: DiagramBlock, _ctx: RenderCtx): string {
 export const meta: BlockMeta = {
   type: "diagram",
   description:
-    "Escape-hatch for inline SVG or bespoke HTML diagrams. Exactly one of svg or html required. Payload is scrubbed.",
+    "Escape-hatch for inline SVG or bespoke HTML diagrams. Exactly one of svg or html required. Payload is scrubbed. For SVG, prefer fill=\"currentColor\" and stroke=\"currentColor\" so the diagram inherits the theme's text color. Use explicit colors only for emphasis (accents, warnings).",
   schema: {
     type: "object",
     properties: {
