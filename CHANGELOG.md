@@ -2,34 +2,44 @@
 
 ## v0.5.1 — 2026-05-12
 
-Server-side syntax highlighting for `code` blocks via shiki. The model emits
-plain source code; the render pipeline tokenizes it at publish time and emits
-`<span style="color:...">` tokens. Two custom shiki themes — `claret-dark` and
-`claret-light` — are authored directly from the cesium palette tokens so code
-highlighting feels native to the claret themes. Other presets fall back to
-vitesse-dark (all non-claret presets have dark code panels).
+Server-side syntax highlighting for `code` blocks via shiki, custom claret
+themes derived from the canonical `claret.nvim` sources, and a critical fix
+to the lazy-start lifecycle so `cesium stop` (or test friendly-fire) can no
+longer kill the plugin host process.
 
-- **feat:** `claret-dark` shiki theme (`src/render/blocks/themes/claret-dark.ts`)
-  — keywords in `#C75B7A` (claret rose accent), strings in `#8FA86E` (olive),
-  comments in `#9E9288` (muted gray/italic), functions in `#D4A85A` (gold),
-  types in `#7AAEB5` (teal), numbers in `#C99A6E` (warm amber).
-- **feat:** `claret-light` shiki theme (`src/render/blocks/themes/claret-light.ts`)
-  — same dark code panel (`#180810`) as claret-light CSS uses; keywords in
-  `#8B2252` (deep claret rose), strings in `#5A6B40` (dark olive), comments
-  in `#7D7068` (muted taupe/italic), functions in `#D4A85A` (gold), types in
-  `#6A9FA8` (teal), numbers in `#C08048` (warm amber).
-- **feat:** `resolveHighlightTheme(cesiumThemeName)` — maps cesium theme preset
-  names to the right shiki theme. `claret`/`claret-dark` → custom claret-dark,
-  `claret-light` → custom claret-light, all others → `vitesse-dark` (detected
-  via codeBg luminance; all current non-claret presets have dark code panels).
-- **feat:** `highlightCode(code, lang, theme?)` — extended with optional theme
-  parameter defaulting to `"vitesse-dark"`. Highlighter singleton loads all
-  four themes (`claret-dark`, `claret-light`, `vitesse-dark`, `vitesse-light`)
-  upfront.
-- **feat:** `RenderCtx.highlightTheme` — threaded from `renderBlocks` opts
-  through the context tree into the code renderer. `publish.ts` derives the
-  theme via `resolveHighlightTheme(config.themePreset)`.
-- **dep:** Added `shiki@^4.0.0` as a runtime dependency.
+- **fix (critical):** Lazy-started cesium server now runs as a detached
+  subprocess. Previously `ensureRunning` (called from publish/ask plugin
+  paths) ran `Bun.serve()` in-process and wrote `pid: process.pid` to the PID
+  file — meaning that PID was the *plugin host* (e.g. opencode). Any
+  invocation of `cesium stop` (CLI, tool, or test) would signal the host
+  process and kill it. Now lazy-start spawns `bun run cli serve` as a
+  detached child; the PID file points at that child. Foreground `cesium
+  serve` still runs in-process (correct for its semantics).
+- **api:** Split `ensureRunning` into `runServerForeground` (in-process, for
+  the foreground CLI) and `ensureServerRunning` (detached subprocess, for
+  plugins). `ensureRunning` is kept as a backward-compat alias for
+  `runServerForeground`.
+- **fix:** `test/cli-entry.test.ts` now sets `CESIUM_STATE_DIR` to a temp
+  dir per spawned subprocess, so the `cesium stop` test no longer reads the
+  user's real PID file.
+- **feat:** Server-side syntax highlighting via shiki. `code` blocks are
+  tokenized at publish time and emit styled token spans. Async cascade
+  through `renderBlock`/`renderBlocks`/`renderSection`/`renderCode`.
+- **feat:** Custom `claret-dark` shiki theme — converted directly from
+  `claret.nvim`'s `ports/bat/ClaretDark.tmTheme` so colors are faithful to
+  the canonical claret palette (keywords claret rose, strings olive,
+  comments muted italic, functions gold, etc.).
+- **feat:** Custom `claret-light` shiki theme — derived from claret.nvim's
+  light palette using the same scope grammar as the dark theme.
+- **feat:** `resolveHighlightTheme(cesiumThemeName)` — maps cesium presets
+  to the right shiki theme. `claret`/`claret-dark` → claret-dark,
+  `claret-light` → claret-light, all others → `vitesse-dark`.
+- **feat:** `RenderCtx.highlightTheme` threaded from publish through the
+  render context. Default is `claret-dark` (matches the framework default).
+- **feat:** `cesium serve` gains a `--state-dir` flag and respects
+  `CESIUM_STATE_DIR` / `CESIUM_PORT` env vars (used by the detached spawn).
+- **dep:** Added `shiki@^4.0.0` as a runtime dependency (~3.8MB on disk;
+  languages loaded lazily).
 
 ## v0.5.0 — 2026-05-12
 
