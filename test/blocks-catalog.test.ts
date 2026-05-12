@@ -13,7 +13,7 @@ function makeCtx(path = "blocks[0]"): RenderCtx {
 }
 
 test("every block type has a catalog entry", () => {
-  expect(blockTypes).toHaveLength(15);
+  expect(blockTypes).toHaveLength(16);
   for (const t of blockTypes) {
     expect(blockCatalog[t]).toBeDefined();
   }
@@ -34,7 +34,9 @@ test("every example block renders without throwing", async () => {
 });
 
 test("every example block type matches catalog key", () => {
-  for (const [type, entry] of Object.entries(blockCatalog) as Array<[Block["type"], (typeof blockCatalog)[Block["type"]]]>) {
+  for (const [type, entry] of Object.entries(blockCatalog) as Array<
+    [Block["type"], (typeof blockCatalog)[Block["type"]]]
+  >) {
     expect(entry.example.type).toBe(type);
   }
 });

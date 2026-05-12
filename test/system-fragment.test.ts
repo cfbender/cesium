@@ -112,9 +112,21 @@ test("system-fragment.md mentions when to use raw_html and diagram", () => {
 test("system-fragment.md mentions all 15 block types in the quick reference", () => {
   const content = readFragment();
   const blockTypes = [
-    "hero", "tldr", "section", "prose", "list", "callout", "code",
-    "timeline", "compare_table", "risk_table", "kv", "pill_row", "divider",
-    "diagram", "raw_html",
+    "hero",
+    "tldr",
+    "section",
+    "prose",
+    "list",
+    "callout",
+    "code",
+    "timeline",
+    "compare_table",
+    "risk_table",
+    "kv",
+    "pill_row",
+    "divider",
+    "diagram",
+    "raw_html",
   ];
   for (const type of blockTypes) {
     expect(content).toContain(type);
@@ -148,9 +160,21 @@ test("rendered fragment lists low/medium/high for risk_table likelihood and impa
 test("rendered fragment contains all 15 block types in field reference", () => {
   const content = readRenderedFragment();
   const blockTypes = [
-    "hero", "tldr", "section", "prose", "list", "callout", "code",
-    "timeline", "compare_table", "risk_table", "kv", "pill_row", "divider",
-    "diagram", "raw_html",
+    "hero",
+    "tldr",
+    "section",
+    "prose",
+    "list",
+    "callout",
+    "code",
+    "timeline",
+    "compare_table",
+    "risk_table",
+    "kv",
+    "pill_row",
+    "divider",
+    "diagram",
+    "raw_html",
   ];
   for (const type of blockTypes) {
     expect(content).toContain(type);
@@ -158,15 +182,29 @@ test("rendered fragment contains all 15 block types in field reference", () => {
 });
 
 test("field reference generator covers all catalog entries", () => {
-  const { blockCatalog } = require("../src/render/blocks/catalog.ts") as { blockCatalog: Record<string, unknown> };
+  const { blockCatalog } = require("../src/render/blocks/catalog.ts") as {
+    blockCatalog: Record<string, unknown>;
+  };
   const catalogCount = Object.keys(blockCatalog).length;
-  expect(catalogCount).toBe(15);
+  expect(catalogCount).toBe(16);
 
   const reference = generateBlockFieldReference();
   const blockTypes = [
-    "hero", "tldr", "section", "prose", "list", "callout", "code",
-    "timeline", "compare_table", "risk_table", "kv", "pill_row", "divider",
-    "diagram", "raw_html",
+    "hero",
+    "tldr",
+    "section",
+    "prose",
+    "list",
+    "callout",
+    "code",
+    "timeline",
+    "compare_table",
+    "risk_table",
+    "kv",
+    "pill_row",
+    "divider",
+    "diagram",
+    "raw_html",
   ];
   for (const type of blockTypes) {
     expect(reference).toContain(`\`${type}\``);

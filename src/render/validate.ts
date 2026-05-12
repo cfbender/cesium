@@ -439,7 +439,9 @@ function isPublishKind(val: unknown): val is PublishKind {
 // ─── Block validation ─────────────────────────────────────────────────────────
 
 type BlockValidationError = { path: string; message: string };
-type BlockValidationResult = { ok: true; blocks: Block[] } | { ok: false; errors: BlockValidationError[] };
+type BlockValidationResult =
+  | { ok: true; blocks: Block[] }
+  | { ok: false; errors: BlockValidationError[] };
 
 function validateBlock(raw: unknown, path: string, depth: number): BlockValidationError[] {
   const errors: BlockValidationError[] = [];
@@ -484,7 +486,10 @@ function validateBlock(raw: unknown, path: string, depth: number): BlockValidati
         errors.push({ path, message: "section block requires children array" });
       } else {
         if (depth > 3) {
-          errors.push({ path, message: `section nesting depth exceeds maximum of 3 (current depth: ${depth})` });
+          errors.push({
+            path,
+            message: `section nesting depth exceeds maximum of 3 (current depth: ${depth})`,
+          });
         } else {
           const children = b["children"] as unknown[];
           for (let i = 0; i < children.length; i++) {
@@ -518,7 +523,10 @@ function validateBlock(raw: unknown, path: string, depth: number): BlockValidati
     }
     case "code": {
       if (typeof b["lang"] !== "string" || (b["lang"] as string).trim() === "") {
-        errors.push({ path, message: 'code block requires a non-empty lang (use "text" if unknown)' });
+        errors.push({
+          path,
+          message: 'code block requires a non-empty lang (use "text" if unknown)',
+        });
       }
       if (typeof b["code"] !== "string") {
         errors.push({ path, message: "code block requires code field" });
@@ -580,7 +588,10 @@ function validateBlock(raw: unknown, path: string, depth: number): BlockValidati
       const hasSvg = typeof b["svg"] === "string";
       const hasHtml = typeof b["html"] === "string";
       if (hasSvg && hasHtml) {
-        errors.push({ path, message: "diagram block must have exactly one of svg or html, not both" });
+        errors.push({
+          path,
+          message: "diagram block must have exactly one of svg or html, not both",
+        });
       } else if (!hasSvg && !hasHtml) {
         errors.push({ path, message: "diagram block requires exactly one of svg or html" });
       }
@@ -589,6 +600,35 @@ function validateBlock(raw: unknown, path: string, depth: number): BlockValidati
     case "raw_html": {
       if (typeof b["html"] !== "string" || (b["html"] as string).trim() === "") {
         errors.push({ path, message: "raw_html block requires non-empty html field" });
+      }
+      break;
+    }
+    case "diff": {
+      const hasPatch = "patch" in b && b["patch"] !== undefined;
+      const hasBefore = "before" in b && b["before"] !== undefined;
+      const hasAfter = "after" in b && b["after"] !== undefined;
+
+      if (hasPatch && (hasBefore || hasAfter)) {
+        errors.push({
+          path,
+          message: "provide exactly one of patch or before/after, not both",
+        });
+      } else if (!hasPatch && !hasBefore && !hasAfter) {
+        errors.push({
+          path,
+          message: "diff block requires either patch or before+after",
+        });
+      } else if (hasPatch) {
+        if (typeof b["patch"] !== "string" || (b["patch"] as string).trim() === "") {
+          errors.push({ path, message: "diff block patch must be a non-empty string" });
+        }
+      } else {
+        // before/after arm
+        if (hasBefore && !hasAfter) {
+          errors.push({ path, message: "diff block before/after arm requires both fields" });
+        } else if (!hasBefore && hasAfter) {
+          errors.push({ path, message: "diff block before/after arm requires both fields" });
+        }
       }
       break;
     }
@@ -611,7 +651,10 @@ function validateBlocksArray(raw: unknown): BlockValidationResult {
   }
 
   if (raw.length > 1000) {
-    return { ok: false, errors: [{ path: "blocks", message: "blocks array exceeds maximum of 1000 blocks" }] };
+    return {
+      ok: false,
+      errors: [{ path: "blocks", message: "blocks array exceeds maximum of 1000 blocks" }],
+    };
   }
 
   const allErrors: BlockValidationError[] = [];
@@ -627,7 +670,10 @@ function validateBlocksArray(raw: unknown): BlockValidationResult {
     if (blockType === "hero") {
       heroCount++;
       if (i !== 0) {
-        allErrors.push({ path: `blocks[${i}]`, message: "hero block must be the first block if present" });
+        allErrors.push({
+          path: `blocks[${i}]`,
+          message: "hero block must be the first block if present",
+        });
       }
     }
     if (blockType === "tldr") {
@@ -740,9 +786,7 @@ export function validatePublishInput(input: unknown): ValidationResult<PublishIn
     // blocks branch
     const blocksResult = validateBlocksArray(raw["blocks"]);
     if (!blocksResult.ok) {
-      const errorMessages = blocksResult.errors
-        .map((e) => `${e.path}: ${e.message}`)
-        .join("; ");
+      const errorMessages = blocksResult.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
       return { ok: false, error: `blocks validation failed — ${errorMessages}` };
     }
     return {

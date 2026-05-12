@@ -18,6 +18,7 @@ import { renderPillRow } from "./renderers/pill-row.ts";
 import { renderDivider } from "./renderers/divider.ts";
 import { renderDiagram } from "./renderers/diagram.ts";
 import { renderRawHtml } from "./renderers/raw-html.ts";
+import { renderDiff } from "./renderers/diff.ts";
 
 /** Shared mutable counter — all section renderers increment this via the ctx ref. */
 export interface SectionCounter {
@@ -78,6 +79,8 @@ export async function renderBlock(block: Block, ctx: RenderCtx): Promise<string>
       return renderDiagram(block, ctx);
     case "raw_html":
       return renderRawHtml(block, ctx);
+    case "diff":
+      return renderDiff(block, ctx);
   }
 }
 

@@ -5,8 +5,8 @@ import { test, expect } from "bun:test";
 import { blockCatalog, blockTypes } from "../src/render/blocks/catalog.ts";
 import type { Block } from "../src/render/blocks/types.ts";
 
-test("blockTypes array has exactly 15 entries", () => {
-  expect(blockTypes).toHaveLength(15);
+test("blockTypes array has exactly 16 entries", () => {
+  expect(blockTypes).toHaveLength(16);
 });
 
 test("blockTypes contains all expected discriminator strings", () => {
@@ -26,6 +26,7 @@ test("blockTypes contains all expected discriminator strings", () => {
     "divider",
     "diagram",
     "raw_html",
+    "diff",
   ];
   for (const t of expected) {
     expect(blockTypes).toContain(t);
@@ -39,7 +40,9 @@ test("blockCatalog has an entry for every block type in blockTypes", () => {
 });
 
 test("every catalog entry has required fields: type, description, schema, example", () => {
-  for (const [type, entry] of Object.entries(blockCatalog) as Array<[Block["type"], (typeof blockCatalog)[Block["type"]]]>) {
+  for (const [type, entry] of Object.entries(blockCatalog) as Array<
+    [Block["type"], (typeof blockCatalog)[Block["type"]]]
+  >) {
     expect(entry.type).toBe(type);
     expect(typeof entry.description).toBe("string");
     expect(entry.description.length).toBeGreaterThan(0);

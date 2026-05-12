@@ -13,6 +13,9 @@ export interface ThemePalette {
   olive: string;
   codeBg: string;
   codeFg: string;
+  diffAdd: string; // line-tint and connector color for additions
+  diffRemove: string; // line-tint and connector color for deletions
+  diffChange: string; // connector color for replacements
 }
 
 export interface ThemeFonts {
@@ -56,6 +59,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#8FA86E",
     codeBg: "#2B1F22",
     codeFg: "#DDD3C7",
+    diffAdd: "#6D9E60",
+    diffRemove: "#C75B5B",
+    diffChange: "#D4A85A",
   },
   // claret-light: deep-rose-on-warm-cream — derived from claret.nvim light palette.
   // (this is the old "claret" palette, now renamed)
@@ -72,6 +78,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#5A6B40",
     codeBg: "#180810",
     codeFg: "#DDD3C7",
+    diffAdd: "#5A6B40",
+    diffRemove: "#9E3838",
+    diffChange: "#B07A2A",
   },
   // claret: alias for claret-dark (backward compat)
   claret: {
@@ -87,6 +96,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#8FA86E",
     codeBg: "#2B1F22",
     codeFg: "#DDD3C7",
+    diffAdd: "#6D9E60",
+    diffRemove: "#C75B5B",
+    diffChange: "#D4A85A",
   },
   // Warm: ivory/clay/oat — the html-effectiveness reference palette.
   warm: {
@@ -102,6 +114,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#788C5D",
     codeBg: "#141413",
     codeFg: "#E8E6DE",
+    diffAdd: "#788C5D",
+    diffRemove: "#C0392B",
+    diffChange: "#D97757",
   },
   // Cool: desaturated blue-grey — technical, trustworthy.
   cool: {
@@ -117,6 +132,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#4E8A6A",
     codeBg: "#1B2333",
     codeFg: "#D8E0ED",
+    diffAdd: "#4E8A6A",
+    diffRemove: "#B6443A",
+    diffChange: "#3A7BB8",
   },
   // Mono: black/white/grey — editorial, high-contrast.
   mono: {
@@ -132,6 +150,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#5A7A5A",
     codeBg: "#111111",
     codeFg: "#EBEBEB",
+    diffAdd: "#5A7A5A",
+    diffRemove: "#A03A2B",
+    diffChange: "#666666",
   },
   // Paper: sepia/cream — soft, book-like, warm and aged.
   paper: {
@@ -147,6 +168,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, ThemePalette>> = {
     olive: "#607848",
     codeBg: "#2A2218",
     codeFg: "#E8DEC8",
+    diffAdd: "#607848",
+    diffRemove: "#A0392B",
+    diffChange: "#B05A2A",
   },
 };
 
@@ -198,6 +222,9 @@ export function themeToCssVars(theme: ThemeTokens): string {
   --olive: ${colors.olive};
   --code-bg: ${colors.codeBg};
   --code-fg: ${colors.codeFg};
+  --diff-add: ${colors.diffAdd};
+  --diff-remove: ${colors.diffRemove};
+  --diff-change: ${colors.diffChange};
   --serif: ${fonts.serif};
   --sans: ${fonts.sans};
   --mono: ${fonts.mono};
@@ -935,6 +962,110 @@ textarea.cs-text { font-family: var(--mono); }
   text-align: center;
   font-weight: 600;
   z-index: 10;
+}
+
+/* diff block */
+.diff-block {
+  margin: var(--space-6, 1.5rem) 0;
+  border: 1.5px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--code-bg);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--code-fg);
+}
+.diff-block.fallback pre {
+  margin: 0;
+  padding: 12px 14px;
+  white-space: pre;
+  overflow-x: auto;
+}
+.diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid color-mix(in oklab, var(--rule), transparent 40%);
+  background: color-mix(in oklab, var(--code-bg), var(--code-fg) 5%);
+  font-size: 12px;
+  color: color-mix(in oklab, var(--code-fg), transparent 30%);
+}
+.diff-filename { font-weight: 500; }
+.diff-stat { font-variant-numeric: tabular-nums; display: inline-flex; gap: 8px; }
+.diff-stat .add { color: var(--diff-add); }
+.diff-stat .rem { color: var(--diff-remove); }
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  align-items: start;
+}
+.diff-side {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  overflow-x: auto;
+  min-width: 0;
+}
+.diff-line {
+  display: grid;
+  grid-template-columns: 3.25em 1fr;
+  gap: 0;
+  height: 22px;
+  line-height: 22px;
+  white-space: pre;
+}
+.diff-line .num {
+  text-align: right;
+  padding-right: 12px;
+  color: color-mix(in oklab, var(--code-fg), transparent 60%);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.diff-line .content {
+  padding-right: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.diff-line.add  { background: color-mix(in oklab, transparent, var(--diff-add) 14%); }
+.diff-line.remove { background: color-mix(in oklab, transparent, var(--diff-remove) 14%); }
+.diff-line.hunk-sep {
+  background: color-mix(in oklab, var(--code-bg), var(--code-fg) 8%);
+  color: color-mix(in oklab, var(--code-fg), transparent 50%);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.diff-connector {
+  position: relative;
+  align-self: stretch;
+  padding: 8px 0;
+  background: color-mix(in oklab, var(--code-bg), var(--code-fg) 2%);
+  border-left: 1px solid color-mix(in oklab, var(--rule), transparent 60%);
+  border-right: 1px solid color-mix(in oklab, var(--rule), transparent 60%);
+}
+.diff-connector svg {
+  display: block;
+  width: 100%;
+}
+.diff-conn { stroke-width: 1; }
+.diff-conn.add    { fill: var(--diff-add);    stroke: var(--diff-add);    fill-opacity: 0.22; }
+.diff-conn.remove { fill: var(--diff-remove); stroke: var(--diff-remove); fill-opacity: 0.22; }
+.diff-conn.change { fill: var(--diff-change); stroke: var(--diff-change); fill-opacity: 0.18; }
+
+.diff-block figcaption {
+  padding: 8px 14px;
+  border-top: 1px solid color-mix(in oklab, var(--rule), transparent 40%);
+  font-size: 12px;
+  font-family: var(--sans);
+  color: color-mix(in oklab, var(--code-fg), transparent 30%);
+}
+
+@media (max-width: 720px) {
+  .diff-grid { grid-template-columns: 1fr; }
+  .diff-connector { display: none; }
+  .diff-side.before { border-bottom: 1px solid color-mix(in oklab, var(--rule), transparent 60%); }
 }
 `;
 }

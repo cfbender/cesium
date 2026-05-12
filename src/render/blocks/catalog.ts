@@ -17,6 +17,7 @@ import { meta as pillRowMeta } from "./renderers/pill-row.ts";
 import { meta as dividerMeta } from "./renderers/divider.ts";
 import { meta as diagramMeta } from "./renderers/diagram.ts";
 import { meta as rawHtmlMeta } from "./renderers/raw-html.ts";
+import { meta as diffMeta } from "./renderers/diff.ts";
 
 export const blockCatalog: Record<Block["type"], BlockMeta> = {
   hero: heroMeta,
@@ -34,6 +35,7 @@ export const blockCatalog: Record<Block["type"], BlockMeta> = {
   divider: dividerMeta,
   diagram: diagramMeta,
   raw_html: rawHtmlMeta,
+  diff: diffMeta,
 };
 
 export const blockTypes = Object.keys(blockCatalog) as Array<Block["type"]>;

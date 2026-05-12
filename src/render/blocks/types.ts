@@ -16,7 +16,8 @@ export type Block =
   | PillRowBlock
   | DividerBlock
   | DiagramBlock
-  | RawHtmlBlock;
+  | RawHtmlBlock
+  | DiffBlock;
 
 export type HeroBlock = {
   type: "hero";
@@ -114,6 +115,17 @@ export type RawHtmlBlock = {
   type: "raw_html";
   html: string;
   purpose?: string; // brief reason; surfaced in critique findings
+};
+
+export type DiffBlock = {
+  type: "diff";
+  // Provide exactly one of these arms:
+  patch?: string; // unified diff format
+  before?: string; // OR
+  after?: string; //   (paired with before)
+  lang?: string; // for per-line shiki highlight; default "text"
+  filename?: string; // optional, shown in header strip
+  caption?: string; // optional, shown below the diff
 };
 
 // ─── BlockMeta ───────────────────────────────────────────────────────────────
