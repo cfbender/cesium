@@ -2,19 +2,32 @@
 
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { frameworkRulesCss, themeTokensCss, defaultTheme } from "../render/theme.ts";
+import {
+  frameworkRulesCss,
+  themeTokensCss,
+  defaultTheme,
+  type ThemeTokens,
+} from "../render/theme.ts";
 import { atomicWrite } from "./write.ts";
 import { readFile } from "node:fs/promises";
 
-/** Full CSS for theme.css: tokens + framework rules.
- *  Computed once at module load and cached. */
-const BUNDLED_CSS: string = (() => {
-  const theme = defaultTheme();
-  return themeTokensCss(theme) + "\n" + frameworkRulesCss();
-})();
+/** Per-theme CSS cache: built CSS string keyed by theme content hash. */
+const cssCache = new Map<string, string>();
 
-/** SHA-256 of the bundled CSS — computed once at module load. */
-const BUNDLED_HASH: string = createHash("sha256").update(BUNDLED_CSS).digest("hex");
+/** Returns a stable cache key for a theme (hash of its JSON representation). */
+function themeKey(theme: ThemeTokens): string {
+  return createHash("sha256").update(JSON.stringify(theme)).digest("hex");
+}
+
+/** Build the full theme.css string for a given theme (tokens + framework rules). */
+function buildCss(theme: ThemeTokens): string {
+  const key = themeKey(theme);
+  const cached = cssCache.get(key);
+  if (cached !== undefined) return cached;
+  const css = themeTokensCss(theme) + "\n" + frameworkRulesCss();
+  cssCache.set(key, css);
+  return css;
+}
 
 /** Returns the absolute path to theme.css in stateDir. */
 export function themeCssAssetPath(stateDir: string): string {
@@ -23,22 +36,31 @@ export function themeCssAssetPath(stateDir: string): string {
 
 /**
  * Writes <stateDir>/theme.css with the full framework CSS (tokens + rules)
- * iff the on-disk file is missing or its content hash differs from the
- * bundled version.  Idempotent and self-healing on plugin upgrade.
+ * for the given theme, iff the on-disk file is missing or its content hash
+ * differs from the expected content.  Idempotent and self-healing on plugin
+ * upgrade or theme change.
+ *
+ * When called without a theme argument, falls back to defaultTheme() so
+ * existing call sites remain valid.
  */
-export async function ensureThemeCss(stateDir: string): Promise<void> {
+export async function ensureThemeCss(
+  stateDir: string,
+  theme: ThemeTokens = defaultTheme(),
+): Promise<void> {
   const dest = themeCssAssetPath(stateDir);
+  const bundledCss = buildCss(theme);
+  const bundledHash = createHash("sha256").update(bundledCss).digest("hex");
 
-  // Fast path: compare hash of existing file to bundled hash.
+  // Fast path: compare hash of existing file to expected hash.
   try {
     const existing = await readFile(dest, "utf8");
     const existingHash = createHash("sha256").update(existing).digest("hex");
-    if (existingHash === BUNDLED_HASH) {
+    if (existingHash === bundledHash) {
       return; // already up-to-date
     }
   } catch {
     // ENOENT or unreadable — fall through to write
   }
 
-  await atomicWrite(dest, BUNDLED_CSS);
+  await atomicWrite(dest, bundledCss);
 }

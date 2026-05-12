@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { loadConfig, type CesiumConfig } from "../../config.ts";
 import { ensureRunning, stopRunning } from "../../server/lifecycle.ts";
 import { resolveDisplayHost } from "../../tools/publish.ts";
+import { themeFromPreset, mergeTheme } from "../../render/theme.ts";
 
 export interface ServeContext {
   stdout: { write: (s: string) => void };
@@ -160,12 +161,14 @@ export async function serveCommand(argv: string[], ctx?: Partial<ServeContext>):
 
   let serverInfo: { port: number; url: string };
   try {
+    const theme = mergeTheme(themeFromPreset(effectiveCfg.themePreset), effectiveCfg.theme);
     serverInfo = await ensureRunning({
       stateDir: effectiveCfg.stateDir,
       port: effectiveCfg.port,
       portMax: effectiveCfg.portMax,
       idleTimeoutMs: effectiveCfg.idleTimeoutMs,
       hostname: effectiveCfg.hostname,
+      theme,
     });
   } catch (err) {
     const e = err as Error;

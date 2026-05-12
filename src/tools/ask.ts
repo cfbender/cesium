@@ -229,7 +229,7 @@ export function createAskTool(
       const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
 
       // 14a. Ensure theme.css + favicon.svg (idempotent, outside index lock — separate files)
-      await ensureThemeCss(config.stateDir);
+      await ensureThemeCss(config.stateDir, theme);
       await writeFaviconSvg(config.stateDir);
 
       const fullHtml = wrapDocument({
@@ -309,6 +309,7 @@ export function createAskTool(
           portMax: config.portMax,
           idleTimeoutMs: config.idleTimeoutMs,
           hostname: config.hostname,
+          theme,
         });
         if (maybeInfo !== null) {
           serverInfo = maybeInfo;

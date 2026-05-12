@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ensureThemeCss, themeCssAssetPath } from "../src/storage/assets.ts";
-import { frameworkRulesCss, themeTokensCss, defaultTheme } from "../src/render/theme.ts";
+import {
+  frameworkRulesCss,
+  themeTokensCss,
+  defaultTheme,
+  themeFromPreset,
+} from "../src/render/theme.ts";
 import { createHash } from "node:crypto";
 
 let stateDir: string;
@@ -110,5 +115,42 @@ describe("ensureThemeCss", () => {
     } finally {
       rmSync(stateDir2, { recursive: true, force: true });
     }
+  });
+
+  test("different themes produce different theme.css contents", async () => {
+    const stateDir2 = mkdtempSync(join(tmpdir(), "cesium-assets-warm-"));
+    try {
+      const defaultT = defaultTheme(); // claret-dark
+      const warmTheme = themeFromPreset("warm");
+
+      await ensureThemeCss(stateDir, defaultT);
+      await ensureThemeCss(stateDir2, warmTheme);
+
+      const claretContent = readFileSync(join(stateDir, "theme.css"), "utf8");
+      const warmContent = readFileSync(join(stateDir2, "theme.css"), "utf8");
+
+      // The two theme.css files must differ
+      expect(claretContent).not.toBe(warmContent);
+
+      // Each file must contain its own accent color
+      expect(claretContent).toContain("#C75B7A"); // claret-dark accent
+      expect(warmContent).toContain("#D97757"); // warm accent
+
+      // Both files must still contain the framework rules
+      expect(claretContent).toContain(".card");
+      expect(warmContent).toContain(".card");
+    } finally {
+      rmSync(stateDir2, { recursive: true, force: true });
+    }
+  });
+
+  test("explicit theme argument overrides default: warm preset reflects in theme.css", async () => {
+    const warmTheme = themeFromPreset("warm");
+    await ensureThemeCss(stateDir, warmTheme);
+    const content = readFileSync(join(stateDir, "theme.css"), "utf8");
+    // warm accent
+    expect(content).toContain("#D97757");
+    // must NOT contain claret-dark accent
+    expect(content).not.toContain("#C75B7A");
   });
 });

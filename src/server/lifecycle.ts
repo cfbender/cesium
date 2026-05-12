@@ -8,6 +8,7 @@ import { acquireLock } from "../storage/lock.ts";
 import { createApiHandler } from "./api.ts";
 import { createFaviconHandler } from "./favicon.ts";
 import { ensureThemeCss } from "../storage/assets.ts";
+import { defaultTheme, type ThemeTokens } from "../render/theme.ts";
 
 export interface LifecycleConfig {
   stateDir: string;
@@ -15,6 +16,7 @@ export interface LifecycleConfig {
   portMax: number; // upper bound (inclusive)
   idleTimeoutMs: number;
   hostname?: string; // default "127.0.0.1"
+  theme?: ThemeTokens; // default: defaultTheme()
 }
 
 export interface RunningInfo {
@@ -201,7 +203,7 @@ export async function stopRunning(stateDir: string): Promise<void> {
 }
 
 export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> {
-  const { stateDir, port, portMax, idleTimeoutMs, hostname = "127.0.0.1" } = cfg;
+  const { stateDir, port, portMax, idleTimeoutMs, hostname = "127.0.0.1", theme = defaultTheme() } = cfg;
   const pidFilePath = join(stateDir, ".server.pid");
   const lockPath = join(stateDir, ".server-start.lock");
 
@@ -261,7 +263,7 @@ export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> 
     const boundPort = handle.port;
 
     // Materialize theme.css before serving — self-heals on plugin upgrade
-    await ensureThemeCss(stateDir);
+    await ensureThemeCss(stateDir, theme);
 
     // Wire API handler before static file fallback
     handle.addHandler(createApiHandler({ stateDir }));
