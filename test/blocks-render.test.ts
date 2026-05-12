@@ -10,7 +10,7 @@ import type { Block } from "../src/render/blocks/types.ts";
 
 function makeCtx(path = "blocks[0]"): RenderCtx {
   const counter: SectionCounter = { value: 1 };
-  return { sectionCounter: counter, depth: 0, path };
+  return { sectionCounter: counter, depth: 0, path, highlightTheme: "vitesse-dark" };
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ describe("tldr renderer", () => {
 describe("section renderer", () => {
   test("renders section with h2.h-section and section-num", async () => {
     const counter: SectionCounter = { value: 1 };
-    const ctx: RenderCtx = { sectionCounter: counter, depth: 0, path: "blocks[0]" };
+    const ctx: RenderCtx = { sectionCounter: counter, depth: 0, path: "blocks[0]", highlightTheme: "vitesse-dark" };
     const block: Block = { type: "section", title: "Goals", children: [] };
     const result = await renderBlock(block, ctx);
     expect(result).toContain('<section>');
@@ -93,7 +93,7 @@ describe("section renderer", () => {
 
   test("uses explicit num when provided", async () => {
     const counter: SectionCounter = { value: 1 };
-    const ctx: RenderCtx = { sectionCounter: counter, depth: 0, path: "blocks[0]" };
+    const ctx: RenderCtx = { sectionCounter: counter, depth: 0, path: "blocks[0]", highlightTheme: "vitesse-dark" };
     const block: Block = { type: "section", title: "Custom", num: "A", children: [] };
     const result = await renderBlock(block, ctx);
     expect(result).toContain(">A<");
@@ -615,5 +615,69 @@ describe("escape helpers defensive type checks", () => {
 
   test("escapeAttr works correctly for valid string", () => {
     expect(escapeAttr('"hello"')).toBe("&quot;hello&quot;");
+  });
+});
+
+// ─── Code block theme threading ───────────────────────────────────────────────
+
+describe("code block highlight theme threading", () => {
+  test("claret-dark theme produces output with claret accent color", async () => {
+    const counter: SectionCounter = { value: 1 };
+    const ctx: RenderCtx = {
+      sectionCounter: counter,
+      depth: 0,
+      path: "blocks[0]",
+      highlightTheme: "claret-dark",
+    };
+    const block: Block = { type: "code", lang: "typescript", code: "const x = 1;" };
+    const result = await renderBlock(block, ctx);
+    expect(result).toContain('<figure class="code">');
+    // claret-dark accent color appears in token output
+    expect(result.toLowerCase()).toContain("#c75b7a");
+  });
+
+  test("claret-light theme produces output with deep claret keyword color", async () => {
+    const counter: SectionCounter = { value: 1 };
+    const ctx: RenderCtx = {
+      sectionCounter: counter,
+      depth: 0,
+      path: "blocks[0]",
+      highlightTheme: "claret-light",
+    };
+    const block: Block = { type: "code", lang: "typescript", code: "const x = 1;" };
+    const result = await renderBlock(block, ctx);
+    expect(result).toContain('<figure class="code">');
+    expect(result.toLowerCase()).toContain("#8b2252");
+  });
+
+  test("claret-dark and claret-light produce distinct rendered output for same code", async () => {
+    const block: Block = {
+      type: "code",
+      lang: "typescript",
+      code: 'interface Greeter { greet(name: string): void; }',
+    };
+    const [dark, light] = await Promise.all([
+      renderBlock(block, {
+        sectionCounter: { value: 1 },
+        depth: 0,
+        path: "blocks[0]",
+        highlightTheme: "claret-dark",
+      }),
+      renderBlock(block, {
+        sectionCounter: { value: 1 },
+        depth: 0,
+        path: "blocks[0]",
+        highlightTheme: "claret-light",
+      }),
+    ]);
+    expect(dark).not.toBe(light);
+  });
+
+  test("renderBlocks with highlightTheme option threads theme into code blocks", async () => {
+    const blocks: Block[] = [
+      { type: "code", lang: "typescript", code: "const x = 1;" },
+    ];
+    const result = await renderBlocks(blocks, { highlightTheme: "claret-dark" });
+    expect(result.toLowerCase()).toContain("#c75b7a");
   });
 });

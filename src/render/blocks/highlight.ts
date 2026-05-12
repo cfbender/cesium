@@ -7,6 +7,17 @@
 
 import type { ThemedToken, BundledLanguage } from "shiki";
 import { escapeHtml } from "./escape.ts";
+import { claretDark } from "./themes/claret-dark.ts";
+import { claretLight } from "./themes/claret-light.ts";
+import { THEME_PRESETS, isThemePresetName } from "../../render/theme.ts";
+
+// ─── Highlight theme type ─────────────────────────────────────────────────────
+
+export type HighlightTheme =
+  | "claret-dark"
+  | "claret-light"
+  | "vitesse-dark"
+  | "vitesse-light";
 
 // ─── Supported languages ─────────────────────────────────────────────────────
 
@@ -44,6 +55,52 @@ export const SUPPORTED_LANGUAGES: readonly string[] = [
   "diff",
 ];
 
+// ─── Theme resolution ─────────────────────────────────────────────────────────
+
+/**
+ * Map a cesium theme preset name to the appropriate shiki highlight theme.
+ *
+ * - "claret" / "claret-dark" → "claret-dark" (custom)
+ * - "claret-light"           → "claret-light" (custom)
+ * - other named preset       → vitesse-dark if codeBg is dark, else vitesse-light
+ * - unknown / undefined      → "vitesse-dark"
+ */
+export function resolveHighlightTheme(cesiumThemeName: string | undefined): HighlightTheme {
+  if (cesiumThemeName === "claret" || cesiumThemeName === "claret-dark") {
+    return "claret-dark";
+  }
+  if (cesiumThemeName === "claret-light") {
+    return "claret-light";
+  }
+  if (cesiumThemeName !== undefined && isThemePresetName(cesiumThemeName)) {
+    const palette = THEME_PRESETS[cesiumThemeName];
+    // Use the code panel background color to choose the shiki theme.
+    // All current non-claret presets have a dark codeBg, but check anyway.
+    return isHexDark(palette.codeBg) ? "vitesse-dark" : "vitesse-light";
+  }
+  return "vitesse-dark";
+}
+
+/**
+ * Returns true if the hex color's perceived luminance is dark (< 0.5).
+ * Accepts 3- or 6-digit hex with or without leading '#'.
+ */
+function isHexDark(hex: string): boolean {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3
+    ? clean
+        .split("")
+        .map((c) => c + c)
+        .join("")
+    : clean;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  // Simple average luminance threshold
+  const avg = (r + g + b) / 3;
+  return avg < 128;
+}
+
 // ─── Highlighter singleton ────────────────────────────────────────────────────
 
 /** Promise cache — concurrent first-calls share one init. */
@@ -53,7 +110,14 @@ async function getHighlighter(): Promise<import("shiki").Highlighter> {
   if (highlighterPromise === null) {
     const { createHighlighter } = await import("shiki");
     highlighterPromise = createHighlighter({
-      themes: ["vitesse-dark"],
+      themes: [
+        // Custom claret themes passed as ThemeRegistration objects
+        claretDark,
+        claretLight,
+        // Vitesse themes loaded by name from the bundled set
+        "vitesse-dark",
+        "vitesse-light",
+      ],
       langs: SUPPORTED_LANGUAGES as string[],
     });
   }
@@ -63,7 +127,7 @@ async function getHighlighter(): Promise<import("shiki").Highlighter> {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Highlight `code` in language `lang`.
+ * Highlight `code` in language `lang` with the given `theme`.
  * Returns the inner HTML for a `<code>` element: one `<span class="line">` per
  * source line, each containing `<span style="color:...">` token spans.
  *
@@ -73,7 +137,11 @@ async function getHighlighter(): Promise<import("shiki").Highlighter> {
  * shiki internally escapes `<`, `>`, `&` in token content, so XSS is covered.
  * The plain-text fallback goes through `escapeHtml` for the same guarantee.
  */
-export async function highlightCode(code: string, lang: string): Promise<string> {
+export async function highlightCode(
+  code: string,
+  lang: string,
+  theme: HighlightTheme = "vitesse-dark",
+): Promise<string> {
   const supported = SUPPORTED_LANGUAGES.includes(lang);
 
   if (!supported) {
@@ -81,7 +149,7 @@ export async function highlightCode(code: string, lang: string): Promise<string>
   }
 
   const hi = await getHighlighter();
-  const result = hi.codeToTokens(code, { theme: "vitesse-dark", lang: lang as BundledLanguage });
+  const result = hi.codeToTokens(code, { theme, lang: lang as BundledLanguage });
 
   return tokensToHtml(result.tokens);
 }

@@ -9,7 +9,7 @@ import type { Block } from "../src/render/blocks/types.ts";
 
 function makeCtx(path = "blocks[0]"): RenderCtx {
   const counter: SectionCounter = { value: 1 };
-  return { sectionCounter: counter, depth: 0, path };
+  return { sectionCounter: counter, depth: 0, path, highlightTheme: "vitesse-dark" };
 }
 
 test("every block type has a catalog entry", () => {

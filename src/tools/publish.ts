@@ -11,6 +11,7 @@ import { extractTextContent } from "../render/extract.ts";
 import { themeFromPreset, mergeTheme } from "../render/theme.ts";
 import { validatePublishInput, htmlBodyWarnings, PUBLISH_KINDS } from "../render/validate.ts";
 import { renderBlocks } from "../render/blocks/render.ts";
+import { resolveHighlightTheme } from "../render/blocks/highlight.ts";
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
 import { atomicWrite, patchEmbeddedMetadata } from "../storage/write.ts";
@@ -193,7 +194,8 @@ export function createPublishTool(
 
       if (input.blocks !== undefined) {
         // Blocks path: render structured blocks → trusted HTML
-        bodyHtml = await renderBlocks(input.blocks);
+        const highlightTheme = resolveHighlightTheme(config.themePreset);
+        bodyHtml = await renderBlocks(input.blocks, { highlightTheme });
       } else {
         // HTML path: scrub agent-supplied HTML
         const scrubbed = scrub(input.html);

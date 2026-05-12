@@ -1,8 +1,12 @@
 // Tests for server-side syntax highlighting via shiki.
 // test/blocks-highlight.test.ts
 
-import { test, expect } from "bun:test";
-import { highlightCode, SUPPORTED_LANGUAGES } from "../src/render/blocks/highlight.ts";
+import { test, expect, describe } from "bun:test";
+import {
+  highlightCode,
+  resolveHighlightTheme,
+  SUPPORTED_LANGUAGES,
+} from "../src/render/blocks/highlight.ts";
 
 // ─── Basic highlighting ───────────────────────────────────────────────────────
 
@@ -117,4 +121,135 @@ test("SUPPORTED_LANGUAGES includes expected languages", () => {
   for (const lang of mustHave) {
     expect(SUPPORTED_LANGUAGES).toContain(lang);
   }
+});
+
+// ─── resolveHighlightTheme ────────────────────────────────────────────────────
+
+describe("resolveHighlightTheme", () => {
+  test("claret-dark → claret-dark", () => {
+    expect(resolveHighlightTheme("claret-dark")).toBe("claret-dark");
+  });
+
+  test("claret (alias) → claret-dark", () => {
+    expect(resolveHighlightTheme("claret")).toBe("claret-dark");
+  });
+
+  test("claret-light → claret-light", () => {
+    expect(resolveHighlightTheme("claret-light")).toBe("claret-light");
+  });
+
+  test("warm → vitesse-dark (dark code panel)", () => {
+    expect(resolveHighlightTheme("warm")).toBe("vitesse-dark");
+  });
+
+  test("cool → vitesse-dark (dark code panel)", () => {
+    expect(resolveHighlightTheme("cool")).toBe("vitesse-dark");
+  });
+
+  test("mono → vitesse-dark (dark code panel)", () => {
+    expect(resolveHighlightTheme("mono")).toBe("vitesse-dark");
+  });
+
+  test("paper → vitesse-dark (dark code panel)", () => {
+    expect(resolveHighlightTheme("paper")).toBe("vitesse-dark");
+  });
+
+  test("undefined → vitesse-dark", () => {
+    expect(resolveHighlightTheme(undefined)).toBe("vitesse-dark");
+  });
+
+  test("unknown string → vitesse-dark", () => {
+    expect(resolveHighlightTheme("mystery-theme")).toBe("vitesse-dark");
+  });
+});
+
+// ─── claret-dark / claret-light theme colors ──────────────────────────────────
+
+describe("claret-dark theme colors", () => {
+  test("highlighted keyword includes claret accent color #C75B7A", async () => {
+    // 'const' is a keyword — should be colored with claret accent
+    const result = await highlightCode("const x = 1;", "typescript", "claret-dark");
+    expect(result).toContain('<span style="color:');
+    // The claret accent (#C75B7A) should appear for keyword coloring
+    expect(result.toLowerCase()).toContain("#c75b7a");
+  });
+
+  test("highlighted string includes olive color #8FA86E", async () => {
+    const result = await highlightCode('const s = "hello";', "typescript", "claret-dark");
+    // Olive green for strings
+    expect(result.toLowerCase()).toContain("#8fa86e");
+  });
+
+  test("comment is italicized and muted", async () => {
+    const result = await highlightCode("// comment", "typescript", "claret-dark");
+    // Muted gray comment color
+    expect(result.toLowerCase()).toContain("#9e9288");
+  });
+});
+
+describe("claret-light theme colors", () => {
+  test("highlighted keyword includes deep claret #8B2252", async () => {
+    const result = await highlightCode("const x = 1;", "typescript", "claret-light");
+    expect(result).toContain('<span style="color:');
+    expect(result.toLowerCase()).toContain("#8b2252");
+  });
+
+  test("highlighted string includes dark olive #5A6B40", async () => {
+    const result = await highlightCode('const s = "hello";', "typescript", "claret-light");
+    expect(result.toLowerCase()).toContain("#5a6b40");
+  });
+
+  test("comment uses muted taupe #7D7068", async () => {
+    const result = await highlightCode("// comment", "typescript", "claret-light");
+    expect(result.toLowerCase()).toContain("#7d7068");
+  });
+});
+
+// ─── All four themes load and produce distinct output ─────────────────────────
+
+describe("all four themes produce distinct output", () => {
+  const snippet = 'const greet = (name: string): string => `Hello, ${name}!`;';
+
+  test("claret-dark and vitesse-dark differ on same input", async () => {
+    const [a, b] = await Promise.all([
+      highlightCode(snippet, "typescript", "claret-dark"),
+      highlightCode(snippet, "typescript", "vitesse-dark"),
+    ]);
+    expect(a).not.toBe(b);
+  });
+
+  test("claret-light and vitesse-light differ on same input", async () => {
+    const [a, b] = await Promise.all([
+      highlightCode(snippet, "typescript", "claret-light"),
+      highlightCode(snippet, "typescript", "vitesse-light"),
+    ]);
+    expect(a).not.toBe(b);
+  });
+
+  test("claret-dark and claret-light differ on same input", async () => {
+    const [a, b] = await Promise.all([
+      highlightCode(snippet, "typescript", "claret-dark"),
+      highlightCode(snippet, "typescript", "claret-light"),
+    ]);
+    expect(a).not.toBe(b);
+  });
+
+  test("all four themes produce non-empty highlighted output", async () => {
+    const themes = ["claret-dark", "claret-light", "vitesse-dark", "vitesse-light"] as const;
+    const results = await Promise.all(
+      themes.map((theme) => highlightCode(snippet, "typescript", theme)),
+    );
+    for (const result of results) {
+      expect(result).toContain('<span style="color:');
+      expect(result).toContain('<span class="line">');
+    }
+  });
+});
+
+// ─── Fallback theme default ───────────────────────────────────────────────────
+
+test("highlightCode with no theme argument defaults to vitesse-dark", async () => {
+  const withDefault = await highlightCode("const x = 1;", "typescript");
+  const withExplicit = await highlightCode("const x = 1;", "typescript", "vitesse-dark");
+  expect(withDefault).toBe(withExplicit);
 });

@@ -2,6 +2,7 @@
 // src/render/blocks/render.ts
 
 import type { Block } from "./types.ts";
+import type { HighlightTheme } from "./highlight.ts";
 import { renderHero } from "./renderers/hero.ts";
 import { renderTldr } from "./renderers/tldr.ts";
 import { renderSection } from "./renderers/section.ts";
@@ -31,13 +32,16 @@ export interface RenderCtx {
   depth: number;
   /** Path string for error messages (e.g. "blocks[2].children[1]"). */
   path: string;
+  /** Shiki highlight theme derived from the active cesium theme preset. */
+  highlightTheme: HighlightTheme;
 }
 
-function makeRootCtx(): RenderCtx {
+function makeRootCtx(highlightTheme: HighlightTheme = "vitesse-dark"): RenderCtx {
   return {
     sectionCounter: { value: 1 },
     depth: 0,
     path: "blocks",
+    highlightTheme,
   };
 }
 
@@ -78,8 +82,11 @@ export async function renderBlock(block: Block, ctx: RenderCtx): Promise<string>
 }
 
 /** Render an array of blocks, returning the concatenated HTML body string. */
-export async function renderBlocks(blocks: Block[], opts?: { title?: string }): Promise<string> {
-  const ctx = makeRootCtx();
+export async function renderBlocks(
+  blocks: Block[],
+  opts?: { title?: string; highlightTheme?: HighlightTheme },
+): Promise<string> {
+  const ctx = makeRootCtx(opts?.highlightTheme);
   const parts: string[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];

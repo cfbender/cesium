@@ -4,21 +4,31 @@
 
 Server-side syntax highlighting for `code` blocks via shiki. The model emits
 plain source code; the render pipeline tokenizes it at publish time and emits
-`<span style="color:...">` tokens styled with the `vitesse-dark` theme.
-The render pipeline is now fully async to accommodate shiki's async API.
+`<span style="color:...">` tokens. Two custom shiki themes — `claret-dark` and
+`claret-light` — are authored directly from the cesium palette tokens so code
+highlighting feels native to the claret themes. Other presets fall back to
+vitesse-dark (all non-claret presets have dark code panels).
 
-- **feat:** `highlightCode(code, lang)` in `src/render/blocks/highlight.ts` —
-  lazy singleton, promise-cached, supports ~25 languages (TypeScript, JS/JSX,
-  TSX, Python, Bash/Shell, JSON, YAML, HTML, CSS, Markdown, Rust, Go, Ruby,
-  SQL, TOML, Dockerfile, Diff, and more).
-- **feat:** Unsupported language strings fall back to plain-escaped output
-  (same `<span class="line">` wrapping) without crashing.
-- **feat:** shiki's token renderer extracts inner token HTML only — cesium's
-  CSS (`figure.code pre`) still controls panel chrome (background, padding,
-  border-radius). No `<pre>` background injected by shiki.
-- **chore:** `renderBlock` and `renderBlocks` are now `async`; all call-sites
-  and tests updated. `generateStyleguideMarkdown` is async; block examples
-  pre-rendered in parallel via `Promise.all`.
+- **feat:** `claret-dark` shiki theme (`src/render/blocks/themes/claret-dark.ts`)
+  — keywords in `#C75B7A` (claret rose accent), strings in `#8FA86E` (olive),
+  comments in `#9E9288` (muted gray/italic), functions in `#D4A85A` (gold),
+  types in `#7AAEB5` (teal), numbers in `#C99A6E` (warm amber).
+- **feat:** `claret-light` shiki theme (`src/render/blocks/themes/claret-light.ts`)
+  — same dark code panel (`#180810`) as claret-light CSS uses; keywords in
+  `#8B2252` (deep claret rose), strings in `#5A6B40` (dark olive), comments
+  in `#7D7068` (muted taupe/italic), functions in `#D4A85A` (gold), types in
+  `#6A9FA8` (teal), numbers in `#C08048` (warm amber).
+- **feat:** `resolveHighlightTheme(cesiumThemeName)` — maps cesium theme preset
+  names to the right shiki theme. `claret`/`claret-dark` → custom claret-dark,
+  `claret-light` → custom claret-light, all others → `vitesse-dark` (detected
+  via codeBg luminance; all current non-claret presets have dark code panels).
+- **feat:** `highlightCode(code, lang, theme?)` — extended with optional theme
+  parameter defaulting to `"vitesse-dark"`. Highlighter singleton loads all
+  four themes (`claret-dark`, `claret-light`, `vitesse-dark`, `vitesse-light`)
+  upfront.
+- **feat:** `RenderCtx.highlightTheme` — threaded from `renderBlocks` opts
+  through the context tree into the code renderer. `publish.ts` derives the
+  theme via `resolveHighlightTheme(config.themePreset)`.
 - **dep:** Added `shiki@^4.0.0` as a runtime dependency.
 
 ## v0.5.0 — 2026-05-12

@@ -34,6 +34,7 @@ export async function renderSection(block: SectionBlock, ctx: RenderCtx): Promis
     sectionCounter: ctx.sectionCounter,
     depth: ctx.depth + 1,
     path: `${ctx.path}.children`,
+    highlightTheme: ctx.highlightTheme,
   };
 
   let buffer: string[] = [];

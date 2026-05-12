@@ -7,7 +7,7 @@ import type { RenderCtx } from "../render.ts";
 import { escapeHtml, escapeAttr } from "../escape.ts";
 import { highlightCode } from "../highlight.ts";
 
-export async function renderCode(block: CodeBlock, _ctx: RenderCtx): Promise<string> {
+export async function renderCode(block: CodeBlock, ctx: RenderCtx): Promise<string> {
   const parts: string[] = [];
 
   const captionText = block.filename ?? block.caption;
@@ -15,7 +15,7 @@ export async function renderCode(block: CodeBlock, _ctx: RenderCtx): Promise<str
     parts.push(`  <figcaption>${escapeHtml(captionText)}</figcaption>`);
   }
 
-  const highlighted = await highlightCode(block.code, block.lang);
+  const highlighted = await highlightCode(block.code, block.lang, ctx.highlightTheme);
   parts.push(
     `  <pre><code class="lang-${escapeAttr(block.lang)}">${highlighted}</code></pre>`,
   );
