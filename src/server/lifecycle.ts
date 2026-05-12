@@ -2,7 +2,10 @@
 
 import { join } from "node:path";
 import { readFileSync, unlinkSync } from "node:fs";
-import { unlink, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import { spawn } from "node:child_process";
 import { startServer, type ServerHandle } from "./http.ts";
 import { acquireLock } from "../storage/lock.ts";
 import { createApiHandler } from "./api.ts";
@@ -202,8 +205,19 @@ export async function stopRunning(stateDir: string): Promise<void> {
   }
 }
 
-export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> {
-  const { stateDir, port, portMax, idleTimeoutMs, hostname = "127.0.0.1", theme = defaultTheme() } = cfg;
+// ─── In-process (foreground) server start ────────────────────────────────────
+// Used by `cesium serve` CLI. Runs Bun.serve() in-process; killing the process
+// IS stopping the server, which is the user's intent for a foreground invocation.
+
+export async function runServerForeground(cfg: LifecycleConfig): Promise<RunningInfo> {
+  const {
+    stateDir,
+    port,
+    portMax,
+    idleTimeoutMs,
+    hostname = "127.0.0.1",
+    theme = defaultTheme(),
+  } = cfg;
   const pidFilePath = join(stateDir, ".server.pid");
   const lockPath = join(stateDir, ".server-start.lock");
 
@@ -309,6 +323,173 @@ export async function ensureRunning(cfg: LifecycleConfig): Promise<RunningInfo> 
     await lock.release();
   }
 }
+
+// ─── Detached (lazy) server start ────────────────────────────────────────────
+// Used by plugin callers (publish, ask). Spawns `cesium serve` as a detached
+// subprocess so the subprocess PID is what ends up in the PID file. Sending a
+// signal to that PID kills only the server child, never the plugin host.
+
+// Locate CLI entry relative to this file: src/server/lifecycle.ts → src/cli/index.ts
+const HERE = dirname(fileURLToPath(import.meta.url));
+const CLI_ENTRY = join(HERE, "..", "cli", "index.ts");
+
+// Readiness poll backoff schedule (ms between attempts)
+const POLL_SCHEDULE = [50, 100, 200, 500, 1000, 1000, 1000, 1000, 1000, 1000];
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function httpProbe(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(1000) });
+    // Any HTTP response (even 404) means the server is up
+    return res.status < 600;
+  } catch {
+    return false;
+  }
+}
+
+export async function ensureServerRunning(cfg: LifecycleConfig): Promise<RunningInfo> {
+  const { stateDir, port, idleTimeoutMs } = cfg;
+  const pidFilePath = join(stateDir, ".server.pid");
+  // Use a separate lock from runServerForeground's ".server-start.lock" to avoid
+  // deadlock: the child process runs runServerForeground which acquires that lock,
+  // so the parent must not hold it while waiting for the child.
+  const spawnLockPath = join(stateDir, ".server-spawn.lock");
+
+  // Fast path: read existing PID file and probe liveness
+  const existing = readPidFile(pidFilePath);
+  if (existing !== null && isAlive(existing.pid)) {
+    const probeUrl = `http://${existing.hostname}:${existing.port}/`;
+    const alive = await httpProbe(probeUrl);
+    if (alive) {
+      return {
+        port: existing.port,
+        url: `http://${existing.hostname}:${existing.port}`,
+        pid: existing.pid,
+        startedAt: existing.startedAt,
+      };
+    }
+    // Process alive but not responding — fall through to spawn fresh
+  }
+
+  // Ensure state dir exists before trying to acquire lock or write files
+  await mkdir(stateDir, { recursive: true });
+
+  // Use a spawn-only lock to prevent concurrent spawns. Release it immediately
+  // after spawning so the child can acquire its own (.server-start.lock) lock.
+  const spawnLock = await acquireLock({ lockPath: spawnLockPath, timeoutMs: 15_000, staleMs: 30_000 });
+  try {
+    // Re-check after acquiring lock
+    const existingAfterLock = readPidFile(pidFilePath);
+    if (existingAfterLock !== null && isAlive(existingAfterLock.pid)) {
+      const probeUrl = `http://${existingAfterLock.hostname}:${existingAfterLock.port}/`;
+      const alive = await httpProbe(probeUrl);
+      if (alive) {
+        return {
+          port: existingAfterLock.port,
+          url: `http://${existingAfterLock.hostname}:${existingAfterLock.port}`,
+          pid: existingAfterLock.pid,
+          startedAt: existingAfterLock.startedAt,
+        };
+      }
+    }
+
+    // Clean up stale PID file if present
+    try {
+      await unlink(pidFilePath);
+    } catch {
+      // ENOENT is fine
+    }
+
+    // Build spawn args — rely on env vars for config; CLI flags as defense in depth.
+    // portMax is not a serve flag; the child will scan ports starting from `port`.
+    // Port 0 means "auto-assign" — the CLI flag rejects 0, so rely on CESIUM_PORT=0 env var.
+    const spawnArgs: string[] = ["run", CLI_ENTRY, "serve", "--state-dir", stateDir];
+    if (port > 0) {
+      spawnArgs.push("--port", String(port));
+    }
+    // Pass idle timeout so the detached child self-terminates on inactivity.
+    // Serve command defaults to 0 (never) for foreground use; we override for daemon mode.
+    if (idleTimeoutMs > 0) {
+      spawnArgs.push("--idle-timeout", String(idleTimeoutMs));
+    }
+
+    const child = spawn("bun", spawnArgs, {
+      detached: true,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        CESIUM_STATE_DIR: stateDir,
+        CESIUM_PORT: String(port),
+      },
+    });
+
+    // Unref so the parent can exit without waiting for the child
+    child.unref();
+
+    if (child.pid === undefined) {
+      throw new Error("cesium: failed to spawn server subprocess (no PID assigned)");
+    }
+  } finally {
+    // Release spawn lock immediately — the child needs to acquire its own lock
+    // (.server-start.lock via runServerForeground). Holding the spawn lock any
+    // longer would deadlock the child.
+    await spawnLock.release();
+  }
+
+  // Wait for the child to write its PID file and respond to HTTP.
+  // This polling happens OUTSIDE the spawn lock so the child can run freely.
+  const deadline = Date.now() + 10_000;
+  let lastError = "timeout";
+  let scheduleIdx = 0;
+
+  while (Date.now() < deadline) {
+    const waitMs = POLL_SCHEDULE[scheduleIdx] ?? 1000;
+    scheduleIdx = Math.min(scheduleIdx + 1, POLL_SCHEDULE.length - 1);
+    await sleep(waitMs);
+
+    const pidContent = readPidFile(pidFilePath);
+    if (pidContent !== null && isAlive(pidContent.pid)) {
+      const probeUrl = `http://${pidContent.hostname}:${pidContent.port}/`;
+      const alive = await httpProbe(probeUrl);
+      if (alive) {
+        return {
+          port: pidContent.port,
+          url: `http://${pidContent.hostname}:${pidContent.port}`,
+          pid: pidContent.pid,
+          startedAt: pidContent.startedAt,
+        };
+      }
+      lastError = `pid ${pidContent.pid} alive but not yet responding on port ${pidContent.port}`;
+    } else if (pidContent !== null) {
+      lastError = `pid ${pidContent.pid} in PID file is not alive`;
+    } else {
+      lastError = "PID file not yet written";
+    }
+  }
+
+  // Timeout — try to clean up the spawned process
+  const staleContent = readPidFile(pidFilePath);
+  if (staleContent !== null && isAlive(staleContent.pid)) {
+    try {
+      process.kill(staleContent.pid, "SIGTERM");
+    } catch {
+      // best-effort
+    }
+  }
+
+  throw new Error(
+    `cesium: timed out waiting for server to start in ${stateDir} (last: ${lastError})`,
+  );
+}
+
+// ─── Backward-compat alias ────────────────────────────────────────────────────
+// Internal callers have been updated to use runServerForeground or ensureServerRunning.
+// Keep ensureRunning exported for any external consumers that haven't migrated.
+
+export { runServerForeground as ensureRunning };
 
 // ─── Test reset hook ──────────────────────────────────────────────────────────
 // This function is intended for test use only. It clears module-level singleton

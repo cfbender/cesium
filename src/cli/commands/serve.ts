@@ -2,7 +2,7 @@
 
 import { parseArgs } from "node:util";
 import { loadConfig, type CesiumConfig } from "../../config.ts";
-import { ensureRunning, stopRunning } from "../../server/lifecycle.ts";
+import { runServerForeground, stopRunning } from "../../server/lifecycle.ts";
 import { resolveDisplayHost } from "../../tools/publish.ts";
 import { themeFromPreset, mergeTheme } from "../../render/theme.ts";
 
@@ -22,6 +22,7 @@ function defaultCtx(): ServeContext {
 export interface ServeOptions {
   port?: number;
   hostname?: string;
+  stateDir?: string;
   /**
    * Idle timeout in milliseconds. 0 (the default for `cesium serve`) means the
    * server runs forever until SIGINT/SIGTERM. Override with --idle-timeout to
@@ -54,6 +55,7 @@ export function parseServeArgs(
     port: string | undefined;
     hostname: string | undefined;
     "idle-timeout": string | undefined;
+    "state-dir": string | undefined;
     help: boolean;
   };
 
@@ -64,6 +66,7 @@ export function parseServeArgs(
         port: { type: "string", short: "p" },
         hostname: { type: "string", short: "H" },
         "idle-timeout": { type: "string" },
+        "state-dir": { type: "string" },
         help: { type: "boolean", short: "h", default: false },
       },
       allowPositionals: false,
@@ -85,6 +88,7 @@ export function parseServeArgs(
         "Options:",
         "  --port, -p N        Override configured port (default: 3030)",
         "  --hostname, -H H    Override configured bind address (default: 127.0.0.1)",
+        "  --state-dir DIR     Override the cesium state directory",
         "  --idle-timeout DUR  Auto-shutdown after DUR of inactivity. Accepts plain",
         "                      milliseconds or a suffixed value (90s, 30m, 2h).",
         "                      Use 0 / never / off to disable. Default: 0 (never).",
@@ -121,6 +125,14 @@ export function parseServeArgs(
     opts.hostname = values.hostname;
   }
 
+  if (values["state-dir"] !== undefined) {
+    if (values["state-dir"].length === 0) {
+      ctx.stderr.write(`cesium serve: --state-dir must not be empty\n`);
+      return null;
+    }
+    opts.stateDir = values["state-dir"];
+  }
+
   if (values["idle-timeout"] !== undefined) {
     const ms = parseDuration(values["idle-timeout"]);
     if (ms === null) {
@@ -154,6 +166,7 @@ export async function serveCommand(argv: string[], ctx?: Partial<ServeContext>):
   // Apply overrides from CLI flags
   const effectiveCfg = {
     ...cfg,
+    ...(opts.stateDir !== undefined ? { stateDir: opts.stateDir } : {}),
     ...(opts.port !== undefined ? { port: opts.port, portMax: opts.port } : {}),
     ...(opts.hostname !== undefined ? { hostname: opts.hostname } : {}),
     idleTimeoutMs: effectiveIdleTimeoutMs,
@@ -162,7 +175,7 @@ export async function serveCommand(argv: string[], ctx?: Partial<ServeContext>):
   let serverInfo: { port: number; url: string };
   try {
     const theme = mergeTheme(themeFromPreset(effectiveCfg.themePreset), effectiveCfg.theme);
-    serverInfo = await ensureRunning({
+    serverInfo = await runServerForeground({
       stateDir: effectiveCfg.stateDir,
       port: effectiveCfg.port,
       portMax: effectiveCfg.portMax,

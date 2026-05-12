@@ -1,5 +1,7 @@
 import { test, expect } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // ─── Entry point tests via spawned subprocess ─────────────────────────────────
@@ -7,9 +9,18 @@ import { join } from "node:path";
 const CLI_PATH = join(import.meta.dir, "..", "src", "cli", "index.ts");
 
 function runCli(args: string[]): { stdout: string; stderr: string; exitCode: number } {
+  // Each call gets a fresh isolated state dir so stop/status operations never
+  // touch the real user state dir (which could have a live PID file pointing
+  // at a running opencode process).
+  const isolatedStateDir = mkdtempSync(join(tmpdir(), "cesium-cli-test-"));
   const result = spawnSync("bun", ["run", CLI_PATH, ...args], {
     encoding: "utf8",
     timeout: 10_000,
+    env: {
+      ...process.env,
+      CESIUM_STATE_DIR: isolatedStateDir,
+      XDG_STATE_HOME: undefined,
+    },
   });
   return {
     stdout: result.stdout ?? "",

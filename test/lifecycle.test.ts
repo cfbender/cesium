@@ -6,6 +6,7 @@ import {
   isAlive,
   readPidFile,
   writePidFile,
+  runServerForeground,
   ensureRunning,
   stopRunning,
   resetForTests,
@@ -240,5 +241,26 @@ describe("ensureRunning", () => {
     const res = await fetch(`${info.url}/`);
     expect(res.ok || res.status === 404).toBe(true);
     expect(existsSync(pidPath)).toBe(true);
+  });
+});
+
+// ─── runServerForeground (in-process path) ────────────────────────────────────
+
+describe("runServerForeground", () => {
+  test("starts a server in-process — PID file contains process.pid", async () => {
+    const info = await runServerForeground(makeCfg());
+    expect(info.pid).toBe(process.pid);
+    expect(info.port).toBeGreaterThan(0);
+
+    const pidPath = join(stateDir, ".server.pid");
+    const pid = readPidFile(pidPath);
+    expect(pid).not.toBeNull();
+    if (pid === null) throw new Error("expected pid file");
+    expect(pid.pid).toBe(process.pid);
+  });
+
+  test("ensureRunning is an alias for runServerForeground", () => {
+    // Both should refer to the same implementation
+    expect(ensureRunning).toBe(runServerForeground);
   });
 });

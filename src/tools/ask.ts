@@ -20,7 +20,7 @@ import { withLock } from "../storage/lock.ts";
 import { renderProjectIndex, renderGlobalIndex } from "../storage/index-gen.ts";
 import { buildProjectSummaries } from "../storage/project-summaries.ts";
 import {
-  ensureRunning as defaultEnsureRunning,
+  ensureServerRunning as defaultEnsureServerRunning,
   type RunningInfo,
   type LifecycleConfig,
 } from "../server/lifecycle.ts";
@@ -58,7 +58,7 @@ export function createAskTool(
   const resolveConfig = overrides?.loadConfig ?? loadConfig;
   const now = overrides?.now ?? (() => new Date());
   const genId = overrides?.nanoid ?? defaultNanoid;
-  const runEnsureRunning = overrides?.ensureRunning ?? defaultEnsureRunning;
+  const runEnsureRunning = overrides?.ensureRunning ?? defaultEnsureServerRunning;
 
   return tool({
     description: TOOL_DESCRIPTION,

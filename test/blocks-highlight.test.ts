@@ -154,12 +154,12 @@ describe("resolveHighlightTheme", () => {
     expect(resolveHighlightTheme("paper")).toBe("vitesse-dark");
   });
 
-  test("undefined → vitesse-dark", () => {
-    expect(resolveHighlightTheme(undefined)).toBe("vitesse-dark");
+  test("undefined → claret-dark (matches framework default)", () => {
+    expect(resolveHighlightTheme(undefined)).toBe("claret-dark");
   });
 
-  test("unknown string → vitesse-dark", () => {
-    expect(resolveHighlightTheme("mystery-theme")).toBe("vitesse-dark");
+  test("unknown string → claret-dark (matches framework default)", () => {
+    expect(resolveHighlightTheme("mystery-theme")).toBe("claret-dark");
   });
 });
 
@@ -265,8 +265,8 @@ describe("all four themes produce distinct output", () => {
 
 // ─── Fallback theme default ───────────────────────────────────────────────────
 
-test("highlightCode with no theme argument defaults to vitesse-dark", async () => {
+test("highlightCode with no theme argument defaults to claret-dark", async () => {
   const withDefault = await highlightCode("const x = 1;", "typescript");
-  const withExplicit = await highlightCode("const x = 1;", "typescript", "vitesse-dark");
+  const withExplicit = await highlightCode("const x = 1;", "typescript", "claret-dark");
   expect(withDefault).toBe(withExplicit);
 });
