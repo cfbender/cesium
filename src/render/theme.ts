@@ -318,6 +318,13 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 12px;
   padding: 18px 22px;
   margin-bottom: 1.5em;
+  /* contain wide children (tables, long URLs, code) inside the card.
+   * min-width:0 lets the card shrink in grid/flex contexts (.cards-grid)
+   * so it actually obeys its track instead of growing to its widest child.
+   * overflow-x:auto then scrolls any content that's STILL too wide
+   * (e.g. a many-column table) rather than bursting the card border. */
+  min-width: 0;
+  overflow-x: auto;
 }
 
 /* tldr */
@@ -329,6 +336,8 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1.5em;
   font-size: 1.05rem;
   color: var(--ink-soft);
+  min-width: 0;
+  overflow-x: auto;
 }
 
 /* callout */
@@ -340,6 +349,8 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--surface-2);
   color: var(--ink-soft);
   font-size: 0.95rem;
+  min-width: 0;
+  overflow-x: auto;
 }
 .callout.note { border-color: var(--olive); background: color-mix(in srgb, var(--olive) 10%, var(--surface)); }
 .callout.warn { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
@@ -573,6 +584,11 @@ figure.code figcaption {
   padding: 10px 14px;
   text-align: left;
   vertical-align: top;
+  /* let long URLs / identifiers / paths wrap inside the cell instead of
+   * pushing the table beyond its container. Many-column tables that are
+   * still wider than the card fall through to the card's overflow-x. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .compare-table th {
   background: var(--surface-2);
@@ -594,6 +610,8 @@ figure.code figcaption {
   padding: 10px 14px;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .risk-table th {
   background: var(--surface-2);

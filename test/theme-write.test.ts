@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeThemeCss, themeCssPath } from "../src/storage/theme-write.ts";
+import { ensureThemeCss } from "../src/storage/assets.ts";
 import { defaultTheme, themeFromPreset } from "../src/render/theme.ts";
 
 let stateDir: string;
@@ -55,13 +56,15 @@ describe("writeThemeCss", () => {
     expect(content).toContain("--accent: #C75B7A");
   });
 
-  test("content does NOT include framework rules (only tokens)", async () => {
+  test("content includes framework rules (tokens + framework)", async () => {
+    // After phase 1, theme.css carries the full framework — tokens AND component
+    // rules. Without this, `cesium theme apply` would clobber the full CSS that
+    // the publish flow writes, leaving artifacts unstyled.
     await writeThemeCss(stateDir, defaultTheme());
     const content = readFileSync(join(stateDir, "theme.css"), "utf8");
-    // Framework rules: box-sizing, .card, etc. should NOT be here
-    expect(content).not.toContain("box-sizing");
-    expect(content).not.toContain(".card");
-    expect(content).not.toContain(".eyebrow");
+    expect(content).toContain("box-sizing");
+    expect(content).toContain(".card");
+    expect(content).toContain(".eyebrow");
   });
 
   test("idempotent: writing twice with same theme produces same content", async () => {
@@ -86,5 +89,18 @@ describe("writeThemeCss", () => {
     await writeThemeCss(stateDir, defaultTheme());
     const content = readFileSync(join(stateDir, "theme.css"), "utf8");
     expect(content.endsWith("\n")).toBe(true);
+  });
+
+  test("writeThemeCss + ensureThemeCss produce byte-identical content", async () => {
+    // Regression: the two writers were once split (theme-write = tokens only,
+    // assets = tokens + rules), which caused `cesium theme apply` to clobber
+    // the full CSS the publish flow had written. They must stay aligned.
+    await writeThemeCss(stateDir, defaultTheme());
+    const fromCli = readFileSync(join(stateDir, "theme.css"), "utf8");
+    // ensureThemeCss writes only on hash mismatch; remove first to force write.
+    rmSync(join(stateDir, "theme.css"));
+    await ensureThemeCss(stateDir, defaultTheme());
+    const fromServer = readFileSync(join(stateDir, "theme.css"), "utf8");
+    expect(fromServer).toBe(fromCli);
   });
 });

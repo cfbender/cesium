@@ -9,9 +9,8 @@ import {
   type ThemeTokens,
   type ThemePalette,
 } from "../../render/theme.ts";
-import { writeThemeCss, themeCssPath } from "../../storage/theme-write.ts";
+import { writeThemeCss, themeCssPath, buildThemeCss } from "../../storage/theme-write.ts";
 import { writeFaviconSvg } from "../../storage/favicon-write.ts";
-import { themeTokensCss } from "../../render/theme.ts";
 import { atomicWrite } from "../../storage/write.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -75,7 +74,7 @@ function printTokenTable(
 }
 
 async function isWriteNeeded(cssPath: string, theme: ThemeTokens): Promise<boolean> {
-  const expected = themeTokensCss(theme) + "\n";
+  const expected = buildThemeCss(theme);
   try {
     const existing = await readFile(cssPath, "utf8");
     return existing !== expected;

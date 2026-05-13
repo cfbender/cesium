@@ -1,14 +1,9 @@
 // Materializes /theme.css in the state directory, atomically and idempotently.
 
 import { createHash } from "node:crypto";
-import { join } from "node:path";
-import {
-  frameworkRulesCss,
-  themeTokensCss,
-  defaultTheme,
-  type ThemeTokens,
-} from "../render/theme.ts";
+import { defaultTheme, type ThemeTokens } from "../render/theme.ts";
 import { atomicWrite } from "./write.ts";
+import { buildThemeCss, themeCssPath } from "./theme-write.ts";
 import { readFile } from "node:fs/promises";
 
 /** Per-theme CSS cache: built CSS string keyed by theme content hash. */
@@ -19,19 +14,22 @@ function themeKey(theme: ThemeTokens): string {
   return createHash("sha256").update(JSON.stringify(theme)).digest("hex");
 }
 
-/** Build the full theme.css string for a given theme (tokens + framework rules). */
+/** Build the full theme.css string for a given theme (tokens + framework rules).
+ *  Delegates to buildThemeCss so cesium-theme-apply and ensureThemeCss agree on
+ *  byte-exact output. Caches by theme identity to avoid re-string-concat on the
+ *  hot publish path. */
 function buildCss(theme: ThemeTokens): string {
   const key = themeKey(theme);
   const cached = cssCache.get(key);
   if (cached !== undefined) return cached;
-  const css = themeTokensCss(theme) + "\n" + frameworkRulesCss();
+  const css = buildThemeCss(theme);
   cssCache.set(key, css);
   return css;
 }
 
 /** Returns the absolute path to theme.css in stateDir. */
 export function themeCssAssetPath(stateDir: string): string {
-  return join(stateDir, "theme.css");
+  return themeCssPath(stateDir);
 }
 
 /**
