@@ -14,6 +14,7 @@ cesium/
 │   ├── tools/
 │   │   ├── publish.ts    # cesium_publish tool handler (html or blocks)
 │   │   ├── ask.ts        # cesium_ask tool handler
+│   │   ├── annotate.ts   # cesium_annotate tool handler (interactive review)
 │   │   ├── styleguide.ts # cesium_styleguide tool handler (catalog-driven)
 │   │   └── critique.ts   # cesium_critique tool handler (mode-aware)
 │   ├── render/
@@ -23,6 +24,7 @@ cesium/
 │   │   ├── scrub.ts      # external-resource stripper; only used on escape-hatch payloads
 │   │   ├── validate.ts   # validates publish input (html branch + blocks branch)
 │   │   ├── critique.ts   # mode-aware findings
+│   │   ├── annotate-frozen.ts # server-side frozen state rendering post-verdict
 │   │   └── blocks/       # structured-block renderers (the closed union)
 │   │       ├── index.ts  # dispatcher
 │   │       ├── types.ts  # Block discriminated union
@@ -45,6 +47,8 @@ cesium/
 │       └── system-fragment.md  # injected into agent sessions with cesium tools
 ├── assets/               # static assets shipped with the plugin (theme.css source, etc.)
 ├── examples/             # hand-written reference HTML artifacts
+│   ├── annotate-pr-review.html        # open annotate session (fixture)
+│   └── annotate-pr-review-closed.html # frozen post-verdict session (fixture)
 ├── test/                 # bun test files
 ├── .specs/               # GITIGNORED scratch — design synthesis lives here per refactor
 ├── package.json
@@ -102,6 +106,8 @@ before working on any non-trivial feature.
 - `.specs/2026-05-12-cesium-block-mode.md` — current refactor: structured `blocks` input
   alongside legacy `html`, server-served `theme.css` with inline fallback, mode-aware
   critique, catalog-driven styleguide.
+- `.specs/2026-05-13-cesium-annotate.md` — `cesium_annotate` feature: anchor model, comment/verdict
+  data types, HTTP routes, frozen state rendering, and round-trip workflow.
 
 Each phase of the build corresponds to one commit/PR; check the git log for the phased
 history.
@@ -124,6 +130,17 @@ entry + tests.
 
 `cesium_ask` is unchanged — it is already tool-call-driven (questions array → server-
 templated controls). The freeform body field stays as-is.
+
+### Two interactive modes
+
+Both `cesium_ask` and `cesium_annotate` embed an `interactive` object inside the artifact's
+`<script type="application/json" id="cesium-meta">` block. The `kind` field (`"ask"` or
+`"annotate"`) acts as the discriminator. Both tools share the same file-polling pattern in
+`cesium_wait` — the tool reads the artifact, coerces the metadata via `coerceInteractiveData`,
+and returns when `status` transitions away from `"open"`. The HTTP routes split by kind:
+`/api/sessions/:slug/:file/answers/:questionId` serves ask sessions; `/api/sessions/:slug/:file/comments`,
+`DELETE /comments/:id`, and `POST /verdict` serve annotate sessions. A single `GET /state`
+endpoint serves both, returning the full `interactive` object.
 
 ### Catalog as source of truth
 
@@ -163,3 +180,11 @@ served stylesheet.
   Old artifacts written under earlier designs (with full inline CSS) remain self-contained
   forever; never rewrite them.
 - **Server binds to 127.0.0.1 only** by default. Do not change this without a config flag.
+- **Anchors are render-time.** Every annotatable block carries a stable `data-cesium-anchor="block-N"`
+  attribute computed by `src/render/blocks/render.ts`; `diff` and `code` renderers extend this
+  with `block-N.line-M` per line. Anchor IDs match `/^block-\d+(\.line-\d+)?$/`. The client
+  and server both validate against this format.
+- **Annotate artifacts retain their client script post-verdict.** Unlike `cesium_ask` (which
+  strips `<script data-cesium-client>` on completion), `cesium_annotate` keeps it because the
+  comment-bubble positioning is JS-computed from anchor offsets. The script detects
+  `interactive.status !== "open"` and runs a reduced wiring path (positioning + hover-linking only).

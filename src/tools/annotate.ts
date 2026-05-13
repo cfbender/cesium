@@ -39,8 +39,7 @@ per-line and per-block comments, plus a final verdict (Approve / Request changes
 
 Use this when reviewing diffs, plans, PRDs, code proposals, RFCs, audits, or design docs —
 any content where chat-based feedback would be lossy. The artifact is a self-contained .html
-file with a comment rail and a sticky verdict footer. Controls are visually present but inert
-until the user interacts.
+file with a comment rail and a sticky verdict footer.
 
 When NOT to use:
 - Short yes/no approvals → use cesium_ask with a react question instead.

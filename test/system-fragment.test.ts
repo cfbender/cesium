@@ -63,16 +63,16 @@ test("system-fragment.md references tldr block type", () => {
   expect(content).toContain("tldr");
 });
 
-test("system-fragment.md raw file character count is under 5000 (raw file budget)", () => {
+test("system-fragment.md raw file character count is under 12000 (raw file budget)", () => {
   // The raw file contains a placeholder {{BLOCK_FIELD_REFERENCE}} that gets replaced at runtime.
-  // The raw file itself is a template — check that it stays compact (< 5000 chars).
+  // The raw file itself is a template — check that it stays compact (< 12000 chars).
   const content = readFragment();
-  expect(content.length).toBeLessThan(5000);
+  expect(content.length).toBeLessThan(12000);
 });
 
-test("system-fragment.md lists six tools", () => {
+test("system-fragment.md lists seven tools", () => {
   const content = readFragment();
-  expect(content).toContain("six tools");
+  expect(content).toContain("seven tools");
 });
 
 test("system-fragment.md contains trigger guidance for cesium_ask + cesium_wait", () => {
@@ -224,4 +224,34 @@ test("rendered fragment contains hero with meta k/v in example JSON", () => {
   expect(content).toContain('"timeline"');
   expect(content).toContain('"label"');
   expect(content).toContain('"text"');
+});
+
+// ─── cesium_annotate tool documentation tests ─────────────────────────────────
+
+test("system-fragment.md references cesium_annotate", () => {
+  const content = readFragment();
+  expect(content).toContain("cesium_annotate");
+});
+
+test("system-fragment.md contains '## Choosing between' section header", () => {
+  const content = readFragment();
+  expect(content).toContain("## Choosing between cesium_publish, cesium_ask, and cesium_annotate");
+});
+
+test("system-fragment.md contains '## Reviewing content with cesium_annotate' section header", () => {
+  const content = readFragment();
+  expect(content).toContain("## Reviewing content with cesium_annotate + cesium_wait");
+});
+
+test("system-fragment.md contains diff routing-rule line", () => {
+  const content = readFragment();
+  expect(content).toContain("Here's a diff — does it look right?");
+  expect(content).toContain("cesium_annotate");
+});
+
+test("system-fragment.md contains all three verdict values", () => {
+  const content = readFragment();
+  expect(content).toContain("approve");
+  expect(content).toContain("request_changes");
+  expect(content).toContain("comment");
 });
