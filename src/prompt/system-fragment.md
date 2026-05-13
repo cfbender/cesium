@@ -78,10 +78,15 @@ Call `cesium_styleguide` for full schemas and rendered examples.
 - `prose` — free-form markdown; `list` — bullet/numbered/checklist
 - `callout` — aside with variant: note/warn/risk; `divider` — rule
 - `code` — fenced code with lang; `timeline` — milestone list
+- `diff` — side-by-side before/after code with bezier connectors
 - `compare_table` — comparison grid; `risk_table` — risk grid
 - `kv` — key-value pairs; `pill_row` — pill/tag chips
 - `diagram` — SVG/HTML visual (scrubbed)
 - `raw_html` — custom HTML escape hatch (scrubbed; add `purpose`)
+
+## When showing code changes
+
+Showing what changed — release walkthroughs, version diffs, refactor proposals, before/after — use the `diff` block, not a `code` block with hand-rolled `+`/`-` lines. Pass either `patch` (unified diff) or both `before` and `after`. One `diff` block per file or hunk.
 
 {{BLOCK_FIELD_REFERENCE}}
 

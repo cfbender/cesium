@@ -109,7 +109,7 @@ test("system-fragment.md mentions when to use raw_html and diagram", () => {
   expect(content).toContain("diagram");
 });
 
-test("system-fragment.md mentions all 15 block types in the quick reference", () => {
+test("system-fragment.md mentions all 16 block types in the quick reference", () => {
   const content = readFragment();
   const blockTypes = [
     "hero",
@@ -119,6 +119,7 @@ test("system-fragment.md mentions all 15 block types in the quick reference", ()
     "list",
     "callout",
     "code",
+    "diff",
     "timeline",
     "compare_table",
     "risk_table",
@@ -157,7 +158,7 @@ test("rendered fragment lists low/medium/high for risk_table likelihood and impa
   expect(content).toMatch(/risk_table[\s\S]*low[\s\S]*medium[\s\S]*high/);
 });
 
-test("rendered fragment contains all 15 block types in field reference", () => {
+test("rendered fragment contains all 16 block types in field reference", () => {
   const content = readRenderedFragment();
   const blockTypes = [
     "hero",
@@ -167,6 +168,7 @@ test("rendered fragment contains all 15 block types in field reference", () => {
     "list",
     "callout",
     "code",
+    "diff",
     "timeline",
     "compare_table",
     "risk_table",
@@ -197,6 +199,7 @@ test("field reference generator covers all catalog entries", () => {
     "list",
     "callout",
     "code",
+    "diff",
     "timeline",
     "compare_table",
     "risk_table",
