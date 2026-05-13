@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.6.0 — 2026-05-13
+
+Internal cleanup release. Two hand-rolled server and CLI layers swapped
+for small, well-fit libraries (Hono and Citty) that delete the regex and
+dispatcher boilerplate without changing user-visible behavior. No new
+features and no protocol changes — artifacts written by older versions
+continue rendering unchanged.
+
+- **refactor:** Migrate the cesium HTTP server from a hand-rolled
+  `Bun.serve` fetch handler with a custom `preHandlers` middleware chain
+  to a Hono app fronted by Bun.serve. Routes for `/api/sessions/*` and
+  `/favicon.ico` now use Hono's typed `:param` syntax instead of regex
+  match + manual narrowing. The static file handler is preserved verbatim
+  and mounted as `app.notFound` so all 11 existing static-serve tests
+  pass unchanged. `ServerHandle.app: Hono` replaces `addHandler` for
+  callers that need to register additional routes.
+- **refactor:** Migrate the `cesium` CLI from `node:util parseArgs` +
+  a hand-rolled subcommand dispatcher to Citty. Each command file now
+  exports a typed `runX(args, ctx)` inner function (kept directly
+  testable with injected `{stdout, stderr, loadConfig}`) plus an outer
+  `xxxCmd = defineCommand(...)` that Citty consumes. Subcommands load
+  lazily via dynamic `import()` so cold-start cost is paid only for the
+  command the user actually invoked. `cesium theme show|apply` is now
+  expressed as native Citty sub-subcommands rather than the previous
+  manual routing.
+- **fix:** `cesium restart` no longer fails on serve-only flags. The
+  previous implementation passed argv through to both `stopCommand` and
+  `serveCommand` under `strict: true`, so `cesium restart --port 4000`
+  would have errored. Restart now defines its own arg schema covering
+  both stop and serve options.
+- **chore:** Clean up all 25 oxlint warnings:
+  - Restructure `src/server/api.ts` regex matching to remove four
+    `!` non-null assertions.
+  - Replace `match![1]!` patterns in tests with a local `unwrap(value,
+    name)` helper for proper type narrowing.
+  - Replace `handle!.url` in tests with an explicit null check.
+  - Add targeted `eslint-disable-next-line no-await-in-loop` comments
+    (with `--` reason annotations matching the existing repo convention)
+    in places where sequential execution is required: middleware chain,
+    poll-with-backoff retry, short-circuit search.
+- **chore:** Add `hono@4.12.18` and `citty@0.2.2` to dependencies.
+  Removes a meaningful amount of hand-rolled routing / arg-parsing code
+  for ~50KB total install footprint.
+- **chore:** `cesium --version` output format changes from
+  `cesium 0.6.0` to plain `0.6.0` (Citty's default). The `cesium version`
+  subcommand is removed — use `cesium --version` or `cesium -v`. Auto-
+  generated help text for each command also follows Citty's formatting
+  (uppercase USAGE/OPTIONS, color codes, default annotations) rather
+  than the previous hand-aligned `Usage: cesium ls` strings.
+
 ## v0.5.2 — 2026-05-12
 
 A 16th block type — `diff` — that renders a beautiful side-by-side
