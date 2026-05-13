@@ -1,10 +1,11 @@
-import { test, expect, beforeEach, afterEach } from "bun:test";
+import { test, describe, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAskTool, type AskToolOverrides } from "../src/tools/ask.ts";
 import { createWaitTool } from "../src/tools/wait.ts";
-import { submitAnswer } from "../src/storage/mutate.ts";
+import { submitAnswer, addComment, setVerdict } from "../src/storage/mutate.ts";
+import type { Comment } from "../src/render/validate.ts";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -438,4 +439,386 @@ test("legacy ask artifact WITHOUT kind field: wait tool reads it correctly", asy
   const answers = result["answers"] as Record<string, unknown>;
   expect(answers["q1"]).toEqual({ type: "pick_one", selected: "a" });
   expect(result["remaining"] as string[]).toHaveLength(0);
+});
+
+// ─── Annotate mode wait tests ──────────────────────────────────────────────────
+
+// Helper: builds a minimal annotate artifact in stateDir and returns its id + filePath.
+function buildAnnotateArtifact(
+  sd: string,
+  opts: {
+    id?: string;
+    status?: "open" | "complete" | "expired" | "cancelled";
+    comments?: Comment[];
+    verdict?: { value: "approve" | "request_changes" | "comment"; decidedAt: string } | null;
+    expiresAt?: string;
+  } = {},
+): { id: string; filePath: string } {
+  const id = opts.id ?? "annotate1";
+  const projectSlug = `annotate-project-${id}`;
+  const projectDir = join(sd, "projects", projectSlug);
+  const artifactsDir = join(projectDir, "artifacts");
+  mkdirSync(artifactsDir, { recursive: true });
+
+  const filename = `2026-05-13T00-00-00Z__test-annotate__${id}.html`;
+  const filePath = join(artifactsDir, filename);
+
+  const interactive = {
+    kind: "annotate",
+    status: opts.status ?? "open",
+    expiresAt: opts.expiresAt ?? "2099-12-31T23:59:59Z",
+    verdictMode: "full",
+    requireVerdict: true,
+    perLineFor: ["diff", "code"],
+    comments: opts.comments ?? [],
+    verdict: opts.verdict !== undefined ? opts.verdict : null,
+    ...(opts.status === "complete" ? { completedAt: "2026-05-13T00:01:00Z" } : {}),
+  };
+
+  const metaPayload = {
+    id,
+    title: "Test Annotate Artifact",
+    kind: "annotate",
+    interactive,
+  };
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Test Annotate · cesium</title>
+  <script type="application/json" id="cesium-meta">${JSON.stringify(metaPayload, null, 2)}</script>
+</head>
+<body><p>annotate content</p></body>
+</html>`;
+
+  writeFileSync(filePath, html);
+
+  // Write index.json
+  const indexEntry = { id, filename, title: "Test Annotate Artifact", kind: "annotate" };
+  writeFileSync(join(projectDir, "index.json"), JSON.stringify([indexEntry], null, 2));
+
+  return { id, filePath };
+}
+
+const SAMPLE_COMMENTS: Comment[] = [
+  {
+    id: "cmnt01",
+    anchor: "block-1",
+    selectedText: "some text",
+    comment: "This needs clarification",
+    createdAt: "2026-05-13T00:00:30Z",
+  },
+  {
+    id: "cmnt02",
+    anchor: "block-2.line-3",
+    selectedText: "",
+    comment: "Looks good overall",
+    createdAt: "2026-05-13T00:00:45Z",
+  },
+];
+
+describe("annotate mode", () => {
+  // 1. Open annotate session, timeout expires
+  test("open session that times out returns incomplete with empty comments and null verdict", async () => {
+    const { id } = buildAnnotateArtifact(stateDir, { status: "open" });
+
+    const result = await runWait(workDir, stateDir, id, {
+      timeoutMs: 200,
+      pollIntervalMs: 50,
+    });
+
+    expect(result["status"]).toBe("incomplete");
+    expect(result["kind"]).toBe("annotate");
+    expect(result["comments"]).toEqual([]);
+    expect(result["verdict"]).toBeNull();
+    expect(result["answers"]).toEqual({});
+    expect(result["remaining"]).toEqual([]);
+  });
+
+  // 2. Open session that completes mid-poll
+  test("open session with 2 comments that completes via setVerdict mid-poll", async () => {
+    const { id, filePath } = buildAnnotateArtifact(stateDir, {
+      id: "ann-midpoll",
+      status: "open",
+      comments: SAMPLE_COMMENTS,
+    });
+
+    // After 100ms, call setVerdict to flip status to complete
+    const completePromise = (async () => {
+      await new Promise((r) => setTimeout(r, 100));
+      await setVerdict({ artifactPath: filePath, verdict: "approve" });
+    })();
+
+    const waitPromise = runWait(workDir, stateDir, id, {
+      timeoutMs: 3000,
+      pollIntervalMs: 50,
+    });
+
+    await completePromise;
+    const result = await waitPromise;
+
+    expect(result["status"]).toBe("complete");
+    expect(result["kind"]).toBe("annotate");
+    const comments = result["comments"] as Comment[];
+    expect(comments).toHaveLength(2);
+    expect(comments[0]?.id).toBe("cmnt01");
+    expect(comments[1]?.id).toBe("cmnt02");
+    const verdict = result["verdict"] as { value: string; decidedAt: string } | null;
+    expect(verdict).not.toBeNull();
+    expect(verdict?.value).toBe("approve");
+    expect(typeof verdict?.decidedAt).toBe("string");
+  });
+
+  // 3. Already-complete annotate session with approve verdict + 3 comments
+  test("already-complete session returns immediately with full payload", async () => {
+    const threeComments: Comment[] = [
+      ...SAMPLE_COMMENTS,
+      {
+        id: "cmnt03",
+        anchor: "block-3",
+        selectedText: "another line",
+        comment: "Minor nit",
+        createdAt: "2026-05-13T00:01:00Z",
+      },
+    ];
+
+    const { id } = buildAnnotateArtifact(stateDir, {
+      id: "ann-complete",
+      status: "complete",
+      comments: threeComments,
+      verdict: { value: "approve", decidedAt: "2026-05-13T00:01:05Z" },
+    });
+
+    const result = await runWait(workDir, stateDir, id, {
+      timeoutMs: 5000,
+      pollIntervalMs: 100,
+    });
+
+    expect(result["status"]).toBe("complete");
+    expect(result["kind"]).toBe("annotate");
+    expect(result["comments"] as Comment[]).toHaveLength(3);
+    const verdict = result["verdict"] as { value: string; decidedAt: string };
+    expect(verdict.value).toBe("approve");
+    expect(verdict.decidedAt).toBe("2026-05-13T00:01:05Z");
+    expect(result["answers"]).toEqual({});
+    expect(result["remaining"]).toEqual([]);
+  });
+
+  // 4. Annotate session with request_changes verdict
+  test("already-complete session with request_changes verdict returns correct payload", async () => {
+    const { id } = buildAnnotateArtifact(stateDir, {
+      id: "ann-reject",
+      status: "complete",
+      comments: SAMPLE_COMMENTS,
+      verdict: { value: "request_changes", decidedAt: "2026-05-13T00:02:00Z" },
+    });
+
+    const result = await runWait(workDir, stateDir, id, {
+      timeoutMs: 5000,
+      pollIntervalMs: 100,
+    });
+
+    expect(result["status"]).toBe("complete");
+    expect(result["kind"]).toBe("annotate");
+    const verdict = result["verdict"] as { value: string; decidedAt: string };
+    expect(verdict.value).toBe("request_changes");
+    expect((result["comments"] as Comment[]).length).toBe(2);
+  });
+
+  // 5. Expired annotate session
+  test("expired session returns status=expired with comments preserved", async () => {
+    const { id } = buildAnnotateArtifact(stateDir, {
+      id: "ann-expired",
+      status: "expired",
+      comments: SAMPLE_COMMENTS,
+      verdict: null,
+    });
+
+    const result = await runWait(workDir, stateDir, id, {
+      timeoutMs: 5000,
+      pollIntervalMs: 100,
+    });
+
+    expect(result["status"]).toBe("expired");
+    expect(result["kind"]).toBe("annotate");
+    expect(result["comments"] as Comment[]).toHaveLength(2);
+    expect(result["verdict"]).toBeNull();
+  });
+
+  // 6. Cancelled annotate session
+  test("cancelled session returns status=cancelled with comments preserved", async () => {
+    const { id } = buildAnnotateArtifact(stateDir, {
+      id: "ann-cancelled",
+      status: "cancelled",
+      comments: SAMPLE_COMMENTS.slice(0, 1),
+      verdict: null,
+    });
+
+    const result = await runWait(workDir, stateDir, id, {
+      timeoutMs: 5000,
+      pollIntervalMs: 100,
+    });
+
+    expect(result["status"]).toBe("cancelled");
+    expect(result["kind"]).toBe("annotate");
+    expect(result["comments"] as Comment[]).toHaveLength(1);
+    expect(result["verdict"]).toBeNull();
+  });
+
+  // 7. Ask session still returns the ask shape (regression)
+  test("ask session still returns ask-shaped result without comments/verdict keys", async () => {
+    const artifact = await publishAsk(workDir, stateDir, () => "ask-regress");
+    await submitAnswer({
+      artifactPath: artifact.filePath,
+      questionId: "q1",
+      value: { type: "pick_one", selected: "a" },
+    });
+
+    const result = await runWait(workDir, stateDir, artifact.id, {
+      timeoutMs: 5000,
+      pollIntervalMs: 100,
+    });
+
+    expect(result["status"]).toBe("complete");
+    const answers = result["answers"] as Record<string, unknown>;
+    expect(answers["q1"]).toEqual({ type: "pick_one", selected: "a" });
+    expect(result["remaining"] as string[]).toHaveLength(0);
+    // Annotate-specific keys must be absent
+    expect(result["comments"]).toBeUndefined();
+    expect(result["verdict"]).toBeUndefined();
+    expect(result["kind"]).toBeUndefined();
+  });
+
+  // 8. Legacy interactive shape (no `kind` field) is treated as ask end-to-end
+  test("legacy interactive (no kind field) treated as ask at wait level", async () => {
+    const legacyId = "legacy-annotate-check";
+    const legacyProjectDir = join(stateDir, "projects", "legacy-annotate-project");
+    const legacyArtifactsDir = join(legacyProjectDir, "artifacts");
+    mkdirSync(legacyArtifactsDir, { recursive: true });
+
+    const legacyFilename = `2026-01-01T00-00-00Z__legacy__${legacyId}.html`;
+    const legacyPath = join(legacyArtifactsDir, legacyFilename);
+
+    // Old format: no kind field, has ask-like fields, status complete
+    const legacyInteractive = {
+      status: "complete",
+      requireAll: true,
+      expiresAt: "2099-12-31T23:59:59Z",
+      questions: [
+        { type: "pick_one", id: "q1", question: "Which?", options: [{ id: "a", label: "A" }] },
+      ],
+      answers: {
+        q1: { value: { type: "pick_one", selected: "a" }, answeredAt: "2026-01-01T00:01:00Z" },
+      },
+      completedAt: "2026-01-01T00:01:00Z",
+    };
+
+    const metaPayload = {
+      id: legacyId,
+      title: "Legacy",
+      kind: "ask",
+      interactive: legacyInteractive,
+    };
+    const legacyHtml = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<script type="application/json" id="cesium-meta">${JSON.stringify(metaPayload)}</script>
+</head><body></body></html>`;
+
+    writeFileSync(legacyPath, legacyHtml);
+    writeFileSync(
+      join(legacyProjectDir, "index.json"),
+      JSON.stringify(
+        [{ id: legacyId, filename: legacyFilename, title: "Legacy", kind: "ask" }],
+        null,
+        2,
+      ),
+    );
+
+    const result = await runWait(workDir, stateDir, legacyId, {
+      timeoutMs: 2000,
+      pollIntervalMs: 100,
+    });
+
+    // Should be treated as ask (coerceInteractiveData injects kind: "ask")
+    expect(result["status"]).toBe("complete");
+    const answers = result["answers"] as Record<string, unknown>;
+    expect(answers["q1"]).toEqual({ type: "pick_one", selected: "a" });
+    // annotate keys absent
+    expect(result["comments"]).toBeUndefined();
+    expect(result["kind"]).toBeUndefined();
+  });
+
+  // 9. not-found for unknown id (annotate context — same behavior)
+  test("unknown id still returns not-found", async () => {
+    const result = await runWait(workDir, stateDir, "unknown-annotate-id", {
+      timeoutMs: 500,
+      pollIntervalMs: 100,
+    });
+    expect(result["status"]).toBe("not-found");
+    expect(result["answers"]).toEqual({});
+    expect(result["remaining"]).toEqual([]);
+  });
+
+  // 10. JSON wire format includes kind: "annotate" for complete session
+  test("JSON wire format includes kind: 'annotate' for complete annotate session", async () => {
+    const { id } = buildAnnotateArtifact(stateDir, {
+      id: "ann-wire",
+      status: "complete",
+      comments: SAMPLE_COMMENTS,
+      verdict: { value: "approve", decidedAt: "2026-05-13T00:05:00Z" },
+    });
+
+    const ctx = mockCtx(workDir);
+    const waitTool = createWaitTool(ctx, makeWaitOverrides(stateDir));
+    const raw = await waitTool.execute({ id, timeoutMs: 5000, pollIntervalMs: 100 }, {} as never);
+    if (typeof raw !== "string") throw new Error("expected string from wait tool");
+
+    // Verify the raw JSON string contains kind: "annotate"
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect(parsed["kind"]).toBe("annotate");
+
+    // Verify comments array shape matches the wire format
+    const comments = parsed["comments"] as Comment[];
+    expect(Array.isArray(comments)).toBe(true);
+    expect(comments[0]?.id).toBe("cmnt01");
+    expect(comments[0]?.anchor).toBe("block-1");
+    expect(typeof comments[0]?.createdAt).toBe("string");
+
+    // Verify verdict shape
+    const verdict = parsed["verdict"] as { value: string; decidedAt: string };
+    expect(verdict.value).toBe("approve");
+  });
+
+  // addComment integration: comments added via addComment surface in wait result
+  test("comments added via addComment are surfaced in wait result", async () => {
+    const { id, filePath } = buildAnnotateArtifact(stateDir, {
+      id: "ann-addcomment",
+      status: "open",
+    });
+
+    // Add a comment directly
+    const addResult = await addComment({
+      artifactPath: filePath,
+      anchor: "block-1",
+      selectedText: "relevant text",
+      comment: "This is my comment",
+    });
+    expect(addResult.ok).toBe(true);
+
+    // Set verdict to complete the session
+    await setVerdict({ artifactPath: filePath, verdict: "approve" });
+
+    const result = await runWait(workDir, stateDir, id, {
+      timeoutMs: 5000,
+      pollIntervalMs: 100,
+    });
+
+    expect(result["status"]).toBe("complete");
+    expect(result["kind"]).toBe("annotate");
+    const comments = result["comments"] as Comment[];
+    expect(comments).toHaveLength(1);
+    expect(comments[0]?.comment).toBe("This is my comment");
+    expect(comments[0]?.anchor).toBe("block-1");
+  });
 });

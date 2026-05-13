@@ -6,7 +6,13 @@ import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
 import { loadConfig, type CesiumConfig } from "../config.ts";
 import { loadIndex } from "../storage/index-cache.ts";
-import type { AnswerValue, InteractiveAskData } from "../render/validate.ts";
+import type {
+  AnswerValue,
+  Comment,
+  Verdict,
+  InteractiveAskData,
+  InteractiveAnnotateData,
+} from "../render/validate.ts";
 import { coerceInteractiveData } from "../render/validate.ts";
 import { readEmbeddedMetadata } from "../storage/write.ts";
 import { readFile } from "node:fs/promises";
@@ -17,17 +23,13 @@ export interface WaitToolOverrides {
 
 export type WaitStatus = "complete" | "incomplete" | "expired" | "cancelled" | "not-found";
 
-const TOOL_DESCRIPTION = `cesium_wait — Block until the user completes a cesium_ask interactive artifact, or
-until timeout. Returns the user's answers as a map keyed by question id.
+const TOOL_DESCRIPTION = `cesium_wait — Block until the user completes a cesium_ask or cesium_annotate interactive artifact, or until timeout.
 
-Pass the id returned from cesium_ask. Default timeout is 10 minutes. Polls the
-artifact file every 500ms (no server-side coordination needed — disk is the source
-of truth).
+Pass the id returned from cesium_ask or cesium_annotate. Default timeout is 10 minutes. Polls the artifact file every 500ms (no server-side coordination needed — disk is the source of truth).
 
-Use this immediately after cesium_ask when you need the user's input to continue.
-If the user doesn't finish within the timeout, you'll get status: "incomplete"
-with whatever they answered so far — handle that case (re-prompt, give up, or
-publish a partial artifact).`;
+For cesium_ask sessions, returns { status, answers, remaining } where answers is a map keyed by question id. For cesium_annotate sessions, additionally returns { status, comments, verdict, kind: "annotate" } where comments is an array of { id, anchor, selectedText, comment, createdAt } and verdict is { value: "approve" | "request_changes" | "comment", decidedAt } or null if the user hasn't decided yet.
+
+Use this immediately after cesium_ask or cesium_annotate when you need the user's input to continue. If the user doesn't finish within the timeout, you'll get status: "incomplete" with whatever they've done so far — handle that case (re-prompt, give up, or publish a partial artifact).`;
 
 export function createWaitTool(
   _ctx: PluginInput,
@@ -106,8 +108,13 @@ async function resolveArtifactPath(stateDir: string, id: string): Promise<string
 
 interface PollResult {
   status: WaitStatus;
+  // Ask-mode fields (empty for annotate)
   answers: Record<string, AnswerValue>;
   remaining: string[];
+  // Annotate-mode fields (omitted/empty for ask)
+  comments?: Comment[];
+  verdict?: { value: Verdict; decidedAt: string } | null;
+  kind?: "ask" | "annotate";
 }
 
 async function pollLoop(
@@ -134,19 +141,27 @@ async function pollLoop(
     return { status: "not-found", answers: {}, remaining: [] };
   }
 
-  // TODO(Phase 7): surface comments/verdict for annotate artifacts
-  if (interactive.kind !== "ask") {
-    return { status: "not-found", answers: {}, remaining: [] };
+  if (interactive.kind === "ask") {
+    return pollAsk(interactive, artifactPath, timeoutMs, pollIntervalMs, startTime);
   }
 
-  const askInteractive: InteractiveAskData = interactive;
+  // kind === "annotate"
+  return buildAnnotateResult(interactive, artifactPath, timeoutMs, pollIntervalMs, startTime);
+}
 
-  const answers = extractAnswers(askInteractive);
-  const remaining = askInteractive.questions
+async function pollAsk(
+  interactive: InteractiveAskData,
+  artifactPath: string,
+  timeoutMs: number,
+  pollIntervalMs: number,
+  startTime: number,
+): Promise<PollResult> {
+  const answers = extractAnswers(interactive);
+  const remaining = interactive.questions
     .map((q) => q.id)
-    .filter((qid) => askInteractive.answers[qid] === undefined);
+    .filter((qid) => interactive.answers[qid] === undefined);
 
-  switch (askInteractive.status) {
+  switch (interactive.status) {
     case "complete":
       return { status: "complete", answers, remaining };
     case "expired":
@@ -168,6 +183,49 @@ async function pollLoop(
   // Check timeout again after sleep (in case sleep took longer)
   if (Date.now() - startTime >= timeoutMs) {
     return { status: "incomplete", answers, remaining };
+  }
+
+  return pollLoop(artifactPath, timeoutMs, pollIntervalMs, startTime);
+}
+
+async function buildAnnotateResult(
+  interactive: InteractiveAnnotateData,
+  artifactPath: string,
+  timeoutMs: number,
+  pollIntervalMs: number,
+  startTime: number,
+): Promise<PollResult> {
+  const { comments, verdict } = interactive;
+  const base = {
+    answers: {} as Record<string, AnswerValue>,
+    remaining: [] as string[],
+    comments,
+    verdict,
+    kind: "annotate" as const,
+  };
+
+  switch (interactive.status) {
+    case "complete":
+      return { status: "complete", ...base };
+    case "expired":
+      return { status: "expired", ...base };
+    case "cancelled":
+      return { status: "cancelled", ...base };
+    case "open":
+      break;
+  }
+
+  // Check timeout
+  if (Date.now() - startTime >= timeoutMs) {
+    return { status: "incomplete", ...base };
+  }
+
+  // Sleep then recurse
+  await sleep(pollIntervalMs);
+
+  // Check timeout again after sleep (in case sleep took longer)
+  if (Date.now() - startTime >= timeoutMs) {
+    return { status: "incomplete", ...base };
   }
 
   return pollLoop(artifactPath, timeoutMs, pollIntervalMs, startTime);
