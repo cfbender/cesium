@@ -279,4 +279,34 @@ describe("getClientJs — annotate wiring", () => {
   test("positionBubbles is called on requestAnimationFrame after DOMContentLoaded", () => {
     expect(getClientJs()).toContain("requestAnimationFrame(positionBubbles)");
   });
+
+  test("contains wireAnnotateFrozen function", () => {
+    expect(getClientJs()).toContain("wireAnnotateFrozen");
+  });
+
+  test("contains status branching dispatch (status !== open)", () => {
+    const js = getClientJs();
+    expect(js).toContain('status !== "open"');
+  });
+
+  test("frozen path skips API wiring (comment: skip frozen)", () => {
+    const js = getClientJs();
+    // The comment "skip frozen" serves as an audit marker in the frozen path
+    expect(js).toContain("skip frozen");
+  });
+
+  test("frozen path uses wireAnnotateFrozen(interactiveData) call at top of wireAnnotate", () => {
+    const js = getClientJs();
+    expect(js).toContain("wireAnnotateFrozen(interactiveData)");
+  });
+
+  test("frozen path checks for pre-populated rail bubbles before mounting", () => {
+    const js = getClientJs();
+    expect(js).toContain(".cs-comment-bubble");
+  });
+
+  test("frozen path shows 'This review is closed.' banner", () => {
+    const js = getClientJs();
+    expect(js).toContain("This review is closed.");
+  });
 });

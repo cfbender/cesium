@@ -531,8 +531,8 @@ describe("setVerdict — storage layer", () => {
     expect(outcome.reason).toBe("session-ended");
   });
 
-  // Case 18: client script removed after setVerdict
-  test("client script removed after setVerdict", async () => {
+  // Case 18: client script RETAINED after setVerdict (Phase 6: positioning still needs it)
+  test("client script is retained after setVerdict", async () => {
     const path = await writeAnnotateArtifact("artifact.html", makeAnnotateInteractive());
 
     const before = await Bun.file(path).text();
@@ -541,7 +541,7 @@ describe("setVerdict — storage layer", () => {
     await setVerdict({ artifactPath: path, verdict: "approve" });
 
     const after = await Bun.file(path).text();
-    expect(after).not.toContain("data-cesium-client");
+    expect(after).toContain("data-cesium-client");
   });
 
   // Case 19: scaffold data-cesium-status="complete" after setVerdict
@@ -552,6 +552,104 @@ describe("setVerdict — storage layer", () => {
 
     const html = await Bun.file(path).text();
     expect(html).toContain('data-cesium-status="complete"');
+  });
+
+  // Case 20a: after setVerdict, rail contains one bubble per comment
+  test("after setVerdict, rail contains one bubble per comment", async () => {
+    const interactive = makeAnnotateInteractive({
+      comments: [
+        {
+          id: "cmt-001",
+          anchor: "block-0",
+          selectedText: "some text",
+          comment: "This looks good",
+          createdAt: "2026-05-13T12:00:00Z",
+        },
+        {
+          id: "cmt-002",
+          anchor: "block-0.line-3",
+          selectedText: "",
+          comment: "Minor nit",
+          createdAt: "2026-05-13T12:01:00Z",
+        },
+      ],
+    });
+    const path = await writeAnnotateArtifact("artifact.html", interactive);
+
+    await setVerdict({ artifactPath: path, verdict: "approve" });
+
+    const html = await Bun.file(path).text();
+    const bubbleMatches = html.match(/class="cs-comment-bubble"/g);
+    expect(bubbleMatches).not.toBeNull();
+    expect(bubbleMatches?.length).toBe(2);
+    // Rail should be present and non-empty
+    expect(html).toContain("data-cesium-comment-rail");
+    expect(html).toContain('data-comment-id="cmt-001"');
+    expect(html).toContain('data-comment-id="cmt-002"');
+  });
+
+  // Case 20b: after setVerdict, verdict pill is inserted after back-nav
+  test("after setVerdict, verdict pill inserted after cesium-back nav", async () => {
+    const path = await writeAnnotateArtifact("artifact.html", makeAnnotateInteractive());
+
+    await setVerdict({ artifactPath: path, verdict: "approve" });
+
+    const html = await Bun.file(path).text();
+    expect(html).toContain('class="cs-verdict-pill cs-verdict-pill-approve"');
+    expect(html).toContain('data-cesium-verdict="approve"');
+    // Pill should appear after the back-nav element
+    const navIdx = html.indexOf('class="cesium-back"');
+    const pillIdx = html.indexOf('class="cs-verdict-pill');
+    expect(navIdx).toBeGreaterThan(-1);
+    expect(pillIdx).toBeGreaterThan(navIdx);
+  });
+
+  // Case 20c: after setVerdict with zero comments, rail is empty but pill is present
+  test("after setVerdict with zero comments, rail empty but pill present", async () => {
+    const path = await writeAnnotateArtifact("artifact.html", makeAnnotateInteractive());
+
+    await setVerdict({ artifactPath: path, verdict: "request_changes" });
+
+    const html = await Bun.file(path).text();
+    // Rail present but no bubbles
+    expect(html).toContain("data-cesium-comment-rail");
+    expect(html).not.toContain('class="cs-comment-bubble"');
+    // Pill present with request_changes variant
+    expect(html).toContain("cs-verdict-pill-request_changes");
+  });
+
+  // Case 20d: after setVerdict, HTML-unsafe comment text is escaped in the rail
+  test("after setVerdict, comments with unsafe HTML are escaped in the rail", async () => {
+    const interactive = makeAnnotateInteractive({
+      comments: [
+        {
+          id: "cmt-xss",
+          anchor: "block-0",
+          selectedText: "<script>alert('xss')</script>",
+          comment: "Looks like <b>bold</b> & more",
+          createdAt: "2026-05-13T12:00:00Z",
+        },
+      ],
+    });
+    const path = await writeAnnotateArtifact("artifact.html", interactive);
+
+    await setVerdict({ artifactPath: path, verdict: "approve" });
+
+    const html = await Bun.file(path).text();
+
+    // Extract only the rail portion to check escaping (meta JSON has raw strings)
+    const railStart = html.indexOf("data-cesium-comment-rail");
+    const railEnd = html.indexOf("</aside>", railStart);
+    expect(railStart).toBeGreaterThan(-1);
+    const railHtml = html.slice(railStart, railEnd + "</aside>".length);
+
+    // Unsafe sequences must not appear literally in the rendered rail
+    expect(railHtml).not.toContain("<script>");
+    expect(railHtml).not.toContain("<b>bold</b>");
+    // Escaped forms should appear in the rail
+    expect(railHtml).toContain("&lt;script&gt;");
+    expect(railHtml).toContain("&lt;b&gt;bold&lt;/b&gt;");
+    expect(railHtml).toContain("&amp;");
   });
 
   // Case 20: submitAnswer on annotate artifact → not-interactive

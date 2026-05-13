@@ -1297,6 +1297,54 @@ body.cs-annotate-active {
   border-color: var(--muted);
 }
 
+/* ─── frozen verdict pill ──────────────────────────────────────────────────── */
+.cs-verdict-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.55rem 0.9rem;
+  margin: 16px 0 24px;
+  border: 1.5px solid var(--rule);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  background: var(--surface);
+}
+.cs-verdict-pill .eyebrow {
+  /* matches existing .eyebrow tokens */
+}
+.cs-verdict-pill time {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-family: var(--mono);
+}
+
+/* per-verdict variant colors — borrow from existing .cs-verdict-approve etc. */
+.cs-verdict-pill-approve {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--rule));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.cs-verdict-pill-request_changes {
+  border-color: color-mix(in srgb, #c93b3b 60%, var(--rule));
+  background: color-mix(in srgb, #c93b3b 8%, var(--surface));
+}
+.cs-verdict-pill-comment {
+  border-color: var(--rule);
+  background: var(--surface);
+}
+
+/* ─── frozen-state suppression ─────────────────────────────────────────────── */
+/* hide all interactive affordances once the scaffold is closed */
+[data-cesium-status="complete"] .cs-anchor-affordance,
+[data-cesium-status="complete"] .cs-verdict-footer,
+[data-cesium-status="complete"] .cs-comment-delete {
+  display: none !important;
+}
+
+/* remove the bottom padding reserved for the verdict footer once it's hidden */
+body:has([data-cesium-annotate-scaffold][data-cesium-status="complete"]) {
+  padding-bottom: 0;
+}
+
 /* ─── banner for annotate offline mode ────────────────────────────────────── */
 .cs-banner-offline {
   max-width: var(--content-width, 70ch);

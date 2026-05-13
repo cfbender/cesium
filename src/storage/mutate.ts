@@ -14,6 +14,7 @@ import type { DefaultTreeAdapterTypes } from "parse5";
 import { atomicWrite } from "./write.ts";
 import { withLock } from "./lock.ts";
 import { renderAnswered } from "../render/controls.ts";
+import { renderFrozenRail, renderVerdictPill } from "../render/annotate-frozen.ts";
 import {
   validateAnswerValue,
   validateCommentValue,
@@ -648,6 +649,100 @@ function setAnnotateScaffoldStatus(html: string, status: string): string {
   return serialize(doc);
 }
 
+// ─── Rail replacement ─────────────────────────────────────────────────────────
+//
+// Replaces <aside class="cs-comment-rail" data-cesium-comment-rail></aside>
+// with the fully-populated frozen rail via parse5.
+
+function replaceEmptyRailInHtml(html: string, comments: Comment[]): string {
+  const doc = parseFragment(html);
+  const nodes = ta.getChildNodes(doc) as ChildNode[];
+
+  function findEmptyRail(children: ChildNode[]): Element | null {
+    for (const node of children) {
+      if (!ta.isElementNode(node)) continue;
+      const el = node as Element;
+      const tag = ta.getTagName(el);
+      if (tag === "aside") {
+        const attrs = ta.getAttrList(el);
+        const hasRailAttr = attrs.some((a) => a.name === "data-cesium-comment-rail");
+        if (hasRailAttr) return el;
+      }
+      const found = findEmptyRail(ta.getChildNodes(el) as ChildNode[]);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+
+  const target = findEmptyRail(nodes);
+  if (target === null) return html;
+
+  const parent = ta.getParentNode(target) as Element | null;
+  if (parent === null) return html;
+
+  const replacement = parseFragment(renderFrozenRail(comments));
+  const replacementNodes = ta.getChildNodes(replacement) as ChildNode[];
+
+  for (const rn of replacementNodes) {
+    ta.insertBefore(parent, rn, target);
+  }
+  ta.detachNode(target);
+
+  return serialize(doc);
+}
+
+// ─── Verdict pill insertion ───────────────────────────────────────────────────
+//
+// Inserts the verdict pill immediately after <nav class="cesium-back"> via parse5.
+
+function insertVerdictPillAfterBackNav(
+  html: string,
+  verdict: { value: Verdict; decidedAt: string },
+): string {
+  const doc = parseFragment(html);
+  const nodes = ta.getChildNodes(doc) as ChildNode[];
+
+  function findBackNav(children: ChildNode[]): Element | null {
+    for (const node of children) {
+      if (!ta.isElementNode(node)) continue;
+      const el = node as Element;
+      const tag = ta.getTagName(el);
+      if (tag === "nav") {
+        const attrs = ta.getAttrList(el);
+        const cls = attrs.find((a) => a.name === "class");
+        if (cls?.value?.split(" ").includes("cesium-back")) return el;
+      }
+      const found = findBackNav(ta.getChildNodes(el) as ChildNode[]);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+
+  const backNav = findBackNav(nodes);
+  if (backNav === null) return html; // defensive: absent → no-op
+
+  const parent = ta.getParentNode(backNav) as Element | null;
+  if (parent === null) return html;
+
+  const pillFragment = parseFragment(renderVerdictPill(verdict));
+  const pillNodes = ta.getChildNodes(pillFragment) as ChildNode[];
+
+  // Find the next sibling after backNav to insert before it
+  const siblings = ta.getChildNodes(parent) as ChildNode[];
+  const backNavIdx = siblings.indexOf(backNav);
+  const nextSibling = backNavIdx !== -1 ? siblings[backNavIdx + 1] : undefined;
+
+  for (const pn of pillNodes) {
+    if (nextSibling !== undefined) {
+      ta.insertBefore(parent, pn, nextSibling);
+    } else {
+      ta.appendChild(parent, pn);
+    }
+  }
+
+  return serialize(doc);
+}
+
 export async function setVerdict(input: SetVerdictInput): Promise<SetVerdictOutcome> {
   const { artifactPath, verdict } = input;
   const lockPath = `${artifactPath}.lock`;
@@ -684,8 +779,14 @@ export async function setVerdict(input: SetVerdictInput): Promise<SetVerdictOutc
     // Patch meta JSON
     html = patchMetaInHtml(html, interactive);
 
-    // Strip the client script — session is over
-    html = removeClientScriptFromHtml(html);
+    // NOTE: the client script is intentionally kept — the frozen-mode dispatch
+    // in wireAnnotate still needs it for positionBubbles() and wireHoverLinking().
+
+    // Replace the empty rail with the populated frozen rail
+    html = replaceEmptyRailInHtml(html, interactive.comments);
+
+    // Insert the verdict pill immediately after <nav class="cesium-back">
+    html = insertVerdictPillAfterBackNav(html, { value: validated.value, decidedAt });
 
     // Mark scaffold as complete via parse5
     html = setAnnotateScaffoldStatus(html, "complete");

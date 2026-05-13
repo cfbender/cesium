@@ -328,6 +328,15 @@ export function getClientJs(): string {
   // ═══════════════════════════════════════════════════════════════════════════
 
   function wireAnnotate(interactiveData) {
+    // ─── Status branch: frozen path for post-verdict artifacts ───────────────
+    //
+    // wireAnnotateFrozen is defined below but hoisted (function declaration).
+    // It handles positioning and hover linking only — no API calls.
+    if (interactiveData && interactiveData.status !== "open") {
+      wireAnnotateFrozen(interactiveData);
+      return;
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────
     function escapeHtml(str) {
       return String(str)
@@ -905,19 +914,48 @@ export function getClientJs(): string {
       }
     }
 
+    // ─── wireAnnotateFrozen: read-only path for post-verdict artifacts ────────
+    //
+    // Runs when status !== "open". The client script is kept in the document
+    // so that positionBubbles() and wireHoverLinking() can still run.
+    // All interactive affordances are hidden by CSS (data-cesium-status="complete").
+    function wireAnnotateFrozen(frozenData) {
+      document.addEventListener("DOMContentLoaded", function () {
+        // skip frozen: API wiring is intentionally not registered here.
+        // affordances are hidden by CSS; verdict footer is hidden by CSS.
+        document.body.classList.add("cs-annotate-active");
+
+        showSessionEndedBanner("This review is closed.");
+
+        var rail = getRail();
+
+        // If the rail is already populated server-side, skip client-side mounting.
+        // Defensive: if the rail is empty but interactive.comments has entries
+        // (e.g. older artifact), fall back to mounting from state.
+        if (rail && rail.querySelector(".cs-comment-bubble")) {
+          // Rail pre-populated by setVerdict — positioning only
+          requestAnimationFrame(positionBubbles);
+        } else {
+          // Fallback: mount from state (older artifact without server-side render)
+          var comments = (frozenData && Array.isArray(frozenData.comments))
+            ? frozenData.comments
+            : [];
+          for (var i = 0; i < comments.length; i++) {
+            mountBubble(comments[i]);
+          }
+          requestAnimationFrame(positionBubbles);
+        }
+
+        window.addEventListener("resize", onResize);
+        wireHoverLinking();
+        // NOTE: no injectAffordances, no wireVerdictButtons, no API calls.
+      });
+    }
+
     // ─── DOMContentLoaded: main init ─────────────────────────────────────────
     document.addEventListener("DOMContentLoaded", function () {
       // Add body class for padding-bottom (fallback for browsers without :has)
       document.body.classList.add("cs-annotate-active");
-
-      if (state.status !== "open") {
-        showSessionEndedBanner("Review closed.");
-        mountAllSeededComments();
-        updateCount();
-        requestAnimationFrame(positionBubbles);
-        window.addEventListener("resize", onResize);
-        return;
-      }
 
       if (!apiBase) {
         // Offline: render seeded comments but hide affordances, disable verdict btns
