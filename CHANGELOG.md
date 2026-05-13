@@ -86,7 +86,7 @@ continue rendering unchanged.
   - Restructure `src/server/api.ts` regex matching to remove four
     `!` non-null assertions.
   - Replace `match![1]!` patterns in tests with a local `unwrap(value,
-    name)` helper for proper type narrowing.
+name)` helper for proper type narrowing.
   - Replace `handle!.url` in tests with an explicit null check.
   - Add targeted `eslint-disable-next-line no-await-in-loop` comments
     (with `--` reason annotations matching the existing repo convention)

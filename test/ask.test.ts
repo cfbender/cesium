@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAskTool, type AskToolOverrides } from "../src/tools/ask.ts";
 import { readEmbeddedMetadata } from "../src/storage/write.ts";
-import type { InteractiveData } from "../src/render/validate.ts";
+import type { InteractiveAskData } from "../src/render/validate.ts";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -167,7 +167,7 @@ test("happy path: file exists on disk with interactive meta", async () => {
   if (meta === null) throw new Error("expected embedded metadata");
   expect(meta["id"]).toBe("abc123");
   expect(meta["kind"]).toBe("ask");
-  const interactive = meta["interactive"] as InteractiveData;
+  const interactive = meta["interactive"] as InteractiveAskData;
   expect(interactive.status).toBe("open");
   expect(interactive.questions).toHaveLength(3);
   expect(Object.keys(interactive.answers)).toHaveLength(0);
@@ -289,7 +289,7 @@ test("expiresAt default: ~24h from now (within ±2s tolerance)", async () => {
   const html = readFileSync(filePath, "utf8");
   const meta = readEmbeddedMetadata(html);
   if (meta === null) throw new Error("expected meta");
-  const interactive = meta["interactive"] as InteractiveData;
+  const interactive = meta["interactive"] as InteractiveAskData;
 
   // createdAt is stubbed to 2026-05-11T14:22:09Z so expiresAt should be 24h later
   const createdAt = new Date("2026-05-11T14:22:09Z").getTime();
@@ -313,7 +313,7 @@ test("expiresAt explicit: used verbatim", async () => {
   const html = readFileSync(filePath, "utf8");
   const meta = readEmbeddedMetadata(html);
   if (meta === null) throw new Error("expected meta");
-  const interactive = meta["interactive"] as InteractiveData;
+  const interactive = meta["interactive"] as InteractiveAskData;
   expect(interactive.expiresAt).toBe(explicit);
 });
 
@@ -328,7 +328,7 @@ test("requireAll default: true", async () => {
   const html = readFileSync(filePath, "utf8");
   const meta = readEmbeddedMetadata(html);
   if (meta === null) throw new Error("expected meta");
-  const interactive = meta["interactive"] as InteractiveData;
+  const interactive = meta["interactive"] as InteractiveAskData;
   expect(interactive.requireAll).toBe(true);
 });
 
@@ -344,7 +344,7 @@ test("requireAll explicit false: stored as false", async () => {
   const html = readFileSync(filePath, "utf8");
   const meta = readEmbeddedMetadata(html);
   if (meta === null) throw new Error("expected meta");
-  const interactive = meta["interactive"] as InteractiveData;
+  const interactive = meta["interactive"] as InteractiveAskData;
   expect(interactive.requireAll).toBe(false);
 });
 

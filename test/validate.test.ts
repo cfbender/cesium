@@ -6,6 +6,10 @@ import {
   validateQuestion,
   validateAnswerValue,
   validateAskInput,
+  validateAnnotateInput,
+  validateCommentValue,
+  validateVerdictValue,
+  coerceInteractiveData,
   type PublishInput,
 } from "../src/render/validate.ts";
 
@@ -672,5 +676,455 @@ describe("validateAskInput — rejection cases", () => {
       questions: [{ type: "slider", id: "s1", question: "Rate", min: 10, max: 5 }],
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+// ─── validateAnnotateInput ────────────────────────────────────────────────────
+
+const VALID_PROSE_BLOCK = { type: "prose", markdown: "Hello world" };
+
+describe("validateAnnotateInput — happy path", () => {
+  test("accepts minimal valid input (title + one prose block)", () => {
+    const r = validateAnnotateInput({
+      title: "My Annotation",
+      blocks: [VALID_PROSE_BLOCK],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.value.title).toBe("My Annotation");
+      expect(r.value.blocks).toHaveLength(1);
+    }
+  });
+
+  test("accepts full valid input with all optional fields", () => {
+    const r = validateAnnotateInput({
+      title: "Full Annotate",
+      body: "<p>Please review.</p>",
+      blocks: [VALID_PROSE_BLOCK],
+      verdictMode: "full",
+      perLineFor: ["diff", "code"],
+      requireVerdict: true,
+      summary: "A summary",
+      tags: ["review"],
+      expiresAt: "2099-12-31T23:59:59Z",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.value.verdictMode).toBe("full");
+      expect(r.value.perLineFor).toEqual(["diff", "code"]);
+      expect(r.value.requireVerdict).toBe(true);
+      expect(r.value.summary).toBe("A summary");
+      expect(r.value.tags).toEqual(["review"]);
+      expect(r.value.expiresAt).toBe("2099-12-31T23:59:59Z");
+    }
+  });
+
+  test("accepts perLineFor with only 'diff'", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [VALID_PROSE_BLOCK],
+      perLineFor: ["diff"],
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  test("accepts perLineFor with only 'code'", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [VALID_PROSE_BLOCK],
+      perLineFor: ["code"],
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  test("accepts perLineFor with both 'diff' and 'code'", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [VALID_PROSE_BLOCK],
+      perLineFor: ["diff", "code"],
+    });
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe("validateAnnotateInput — rejection cases", () => {
+  test("rejects missing title", () => {
+    const r = validateAnnotateInput({ blocks: [VALID_PROSE_BLOCK] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("title");
+  });
+
+  test("rejects empty blocks array", () => {
+    const r = validateAnnotateInput({ title: "T", blocks: [] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("blocks");
+  });
+
+  test("rejects missing blocks", () => {
+    const r = validateAnnotateInput({ title: "T" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("blocks");
+  });
+
+  test("invalid block type bubbles up underlying error", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [{ type: "prose" }], // missing markdown field
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("blocks validation failed");
+  });
+
+  test("invalid verdictMode string", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [VALID_PROSE_BLOCK],
+      verdictMode: "invalid-mode",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("verdictMode");
+  });
+
+  test("perLineFor with invalid value 'prose'", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [VALID_PROSE_BLOCK],
+      perLineFor: ["prose"],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("perLineFor");
+  });
+
+  test("perLineFor with duplicate 'diff'", () => {
+    const r = validateAnnotateInput({
+      title: "T",
+      blocks: [VALID_PROSE_BLOCK],
+      perLineFor: ["diff", "diff"],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("duplicate");
+  });
+});
+
+// ─── validateCommentValue ─────────────────────────────────────────────────────
+
+describe("validateCommentValue — happy path", () => {
+  test("valid block anchor with empty selectedText", () => {
+    const r = validateCommentValue({
+      anchor: "block-3",
+      selectedText: "",
+      comment: "looks wrong",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.value.anchor).toBe("block-3");
+      expect(r.value.selectedText).toBe("");
+      expect(r.value.comment).toBe("looks wrong");
+    }
+  });
+
+  test("valid block+line anchor", () => {
+    const r = validateCommentValue({
+      anchor: "block-3.line-12",
+      selectedText: "some selected text",
+      comment: "fix this",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.value.anchor).toBe("block-3.line-12");
+    }
+  });
+
+  test("valid block-0 anchor", () => {
+    const r = validateCommentValue({
+      anchor: "block-0",
+      selectedText: "",
+      comment: "note",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  test("selectedText exactly 4096 chars is ok", () => {
+    const r = validateCommentValue({
+      anchor: "block-1",
+      selectedText: "x".repeat(4096),
+      comment: "ok",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  test("comment exactly 16384 chars is ok", () => {
+    const r = validateCommentValue({
+      anchor: "block-1",
+      selectedText: "",
+      comment: "x".repeat(16384),
+    });
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe("validateCommentValue — rejection cases", () => {
+  test("invalid anchor 'block-3.foo-1'", () => {
+    const r = validateCommentValue({
+      anchor: "block-3.foo-1",
+      selectedText: "",
+      comment: "test",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("anchor");
+  });
+
+  test("invalid anchor 'BLOCK-1' (uppercase)", () => {
+    const r = validateCommentValue({ anchor: "BLOCK-1", selectedText: "", comment: "test" });
+    expect(r.ok).toBe(false);
+  });
+
+  test("invalid anchor 'block-' (no digits)", () => {
+    const r = validateCommentValue({ anchor: "block-", selectedText: "", comment: "test" });
+    expect(r.ok).toBe(false);
+  });
+
+  test("empty comment after trim", () => {
+    const r = validateCommentValue({ anchor: "block-1", selectedText: "", comment: "   " });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("comment");
+  });
+
+  test("comment exceeding 16384 chars", () => {
+    const r = validateCommentValue({
+      anchor: "block-1",
+      selectedText: "",
+      comment: "x".repeat(16385),
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("16384");
+  });
+
+  test("selectedText exceeding 4096 chars", () => {
+    const r = validateCommentValue({
+      anchor: "block-1",
+      selectedText: "x".repeat(4097),
+      comment: "ok",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("4096");
+  });
+
+  test("comment is not a string", () => {
+    const r = validateCommentValue({ anchor: "block-1", selectedText: "", comment: 42 });
+    expect(r.ok).toBe(false);
+  });
+
+  test("non-object input", () => {
+    const r = validateCommentValue("not-an-object");
+    expect(r.ok).toBe(false);
+  });
+
+  test("null input", () => {
+    const r = validateCommentValue(null);
+    expect(r.ok).toBe(false);
+  });
+});
+
+// ─── validateVerdictValue ─────────────────────────────────────────────────────
+
+describe("validateVerdictValue — approve mode", () => {
+  test("'approve' is ok in 'approve' mode", () => {
+    const r = validateVerdictValue({ verdict: "approve" }, "approve");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value).toBe("approve");
+  });
+
+  test("'request_changes' fails in 'approve' mode", () => {
+    const r = validateVerdictValue({ verdict: "request_changes" }, "approve");
+    expect(r.ok).toBe(false);
+  });
+
+  test("'comment' fails in 'approve' mode", () => {
+    const r = validateVerdictValue({ verdict: "comment" }, "approve");
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("validateVerdictValue — approve-or-reject mode", () => {
+  test("'approve' is ok", () => {
+    const r = validateVerdictValue({ verdict: "approve" }, "approve-or-reject");
+    expect(r.ok).toBe(true);
+  });
+
+  test("'request_changes' is ok", () => {
+    const r = validateVerdictValue({ verdict: "request_changes" }, "approve-or-reject");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value).toBe("request_changes");
+  });
+
+  test("'comment' fails", () => {
+    const r = validateVerdictValue({ verdict: "comment" }, "approve-or-reject");
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("validateVerdictValue — full mode", () => {
+  test("'approve' is ok", () => {
+    const r = validateVerdictValue({ verdict: "approve" }, "full");
+    expect(r.ok).toBe(true);
+  });
+
+  test("'request_changes' is ok", () => {
+    const r = validateVerdictValue({ verdict: "request_changes" }, "full");
+    expect(r.ok).toBe(true);
+  });
+
+  test("'comment' is ok", () => {
+    const r = validateVerdictValue({ verdict: "comment" }, "full");
+    expect(r.ok).toBe(true);
+  });
+
+  test("invalid string 'reject' fails in 'full' mode", () => {
+    const r = validateVerdictValue({ verdict: "reject" }, "full");
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("validateVerdictValue — invalid string across all modes", () => {
+  for (const mode of ["approve", "approve-or-reject", "full"] as const) {
+    test(`'reject' fails in '${mode}' mode`, () => {
+      const r = validateVerdictValue({ verdict: "reject" }, mode);
+      expect(r.ok).toBe(false);
+    });
+  }
+});
+
+// ─── coerceInteractiveData ────────────────────────────────────────────────────
+
+describe("coerceInteractiveData — ask shapes", () => {
+  const legacyAskShape = {
+    // no kind field
+    status: "open",
+    requireAll: true,
+    expiresAt: "2099-12-31T23:59:59Z",
+    questions: [],
+    answers: {},
+  };
+
+  test("legacy ask shape WITHOUT kind field → injects kind: 'ask'", () => {
+    const result = coerceInteractiveData(legacyAskShape);
+    expect(result).not.toBeNull();
+    if (result !== null) {
+      expect(result.kind).toBe("ask");
+      expect(result.status).toBe("open");
+    }
+  });
+
+  test("modern ask shape WITH kind: 'ask' → returns as-is", () => {
+    const result = coerceInteractiveData({ ...legacyAskShape, kind: "ask" });
+    expect(result).not.toBeNull();
+    if (result !== null) {
+      expect(result.kind).toBe("ask");
+    }
+  });
+
+  test("ask shape missing required questions array → returns null", () => {
+    const result = coerceInteractiveData({
+      kind: "ask",
+      status: "open",
+      requireAll: true,
+      expiresAt: "2099-12-31T23:59:59Z",
+      answers: {},
+    });
+    expect(result).toBeNull();
+  });
+
+  test("ask shape missing answers → returns null", () => {
+    const result = coerceInteractiveData({
+      kind: "ask",
+      status: "open",
+      requireAll: true,
+      expiresAt: "2099-12-31T23:59:59Z",
+      questions: [],
+    });
+    expect(result).toBeNull();
+  });
+
+  test("ask shape with completedAt preserved", () => {
+    const result = coerceInteractiveData({
+      ...legacyAskShape,
+      status: "complete",
+      completedAt: "2099-01-01T00:00:00Z",
+    });
+    expect(result).not.toBeNull();
+    if (result !== null && result.kind === "ask") {
+      expect(result.completedAt).toBe("2099-01-01T00:00:00Z");
+    }
+  });
+});
+
+describe("coerceInteractiveData — annotate shapes", () => {
+  const validAnnotateShape = {
+    kind: "annotate",
+    status: "open",
+    expiresAt: "2099-12-31T23:59:59Z",
+    verdictMode: "full",
+    requireVerdict: false,
+    perLineFor: ["diff"],
+    comments: [],
+    verdict: null,
+  };
+
+  test("annotate shape WITH kind: 'annotate' → returns InteractiveAnnotateData", () => {
+    const result = coerceInteractiveData(validAnnotateShape);
+    expect(result).not.toBeNull();
+    if (result !== null) {
+      expect(result.kind).toBe("annotate");
+      if (result.kind === "annotate") {
+        expect(result.verdictMode).toBe("full");
+        expect(result.verdict).toBeNull();
+      }
+    }
+  });
+
+  test("annotate shape missing comments array → returns null", () => {
+    const result = coerceInteractiveData({ ...validAnnotateShape, comments: undefined });
+    expect(result).toBeNull();
+  });
+
+  test("annotate shape missing verdictMode → returns null", () => {
+    const result = coerceInteractiveData({ ...validAnnotateShape, verdictMode: undefined });
+    expect(result).toBeNull();
+  });
+
+  test("annotate shape with valid verdict object", () => {
+    const result = coerceInteractiveData({
+      ...validAnnotateShape,
+      verdict: { value: "approve", decidedAt: "2099-01-01T00:00:00Z" },
+    });
+    expect(result).not.toBeNull();
+    if (result !== null && result.kind === "annotate") {
+      expect(result.verdict).not.toBeNull();
+      if (result.verdict !== null) {
+        expect(result.verdict.value).toBe("approve");
+      }
+    }
+  });
+});
+
+describe("coerceInteractiveData — rejection cases", () => {
+  test("non-object input → returns null", () => {
+    expect(coerceInteractiveData("not-an-object")).toBeNull();
+    expect(coerceInteractiveData(42)).toBeNull();
+    expect(coerceInteractiveData(null)).toBeNull();
+    expect(coerceInteractiveData([])).toBeNull();
+  });
+
+  test("unknown kind 'xyz' → returns null", () => {
+    const result = coerceInteractiveData({
+      kind: "xyz",
+      status: "open",
+      requireAll: true,
+      expiresAt: "2099-12-31T23:59:59Z",
+      questions: [],
+      answers: {},
+    });
+    expect(result).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
-import type { InteractiveData } from "../src/render/validate.ts";
+import type { InteractiveData, InteractiveAskData } from "../src/render/validate.ts";
 
 function unwrap<T>(value: T | null | undefined, name: string): T {
   if (value === null || value === undefined) {
@@ -269,8 +269,9 @@ describe("wrapDocument", () => {
 
 // ─── Interactive rendering ─────────────────────────────────────────────────────
 
-function makeInteractive(overrides?: Partial<InteractiveData>): InteractiveData {
+function makeInteractive(overrides?: Partial<InteractiveAskData>): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: true,
     expiresAt: "2026-12-31T23:59:59Z",
@@ -565,6 +566,7 @@ describe("wrapDocument — interactive cesium-meta JSON", () => {
 describe("wrapDocument — interactive HTML escaping", () => {
   test("question text with HTML special chars is escaped in control section", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -589,6 +591,7 @@ describe("wrapDocument — interactive HTML escaping", () => {
 
   test("ask_text answer text is HTML-escaped in rendered section", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -616,6 +619,7 @@ describe("wrapDocument — interactive HTML escaping", () => {
 
   test("ask_text multiline answer uses <br> for newlines", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -640,6 +644,7 @@ describe("wrapDocument — interactive HTML escaping", () => {
 describe("wrapDocument — interactive answer value rendering", () => {
   test("pick_many shows comma-joined labels", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -675,6 +680,7 @@ describe("wrapDocument — interactive answer value rendering", () => {
 
   test("slider shows value", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -699,6 +705,7 @@ describe("wrapDocument — interactive answer value rendering", () => {
 
   test("react shows decision", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -722,6 +729,7 @@ describe("wrapDocument — interactive answer value rendering", () => {
 
   test("react with comment shows both decision and comment", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",
@@ -745,6 +753,7 @@ describe("wrapDocument — interactive answer value rendering", () => {
 
   test("confirm with default labels falls back to Yes/No", () => {
     const interactive: InteractiveData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2026-12-31T23:59:59Z",

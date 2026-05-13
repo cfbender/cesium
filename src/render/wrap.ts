@@ -5,7 +5,7 @@ import { buildThemeCss } from "../storage/theme-write.ts";
 import { renderControl, renderAnswered } from "./controls.ts";
 import { getClientJs } from "./client-js.ts";
 import { faviconLinkTag } from "./favicon.ts";
-import type { InteractiveData, Question } from "./validate.ts";
+import type { InteractiveData, InteractiveAskData, Question } from "./validate.ts";
 
 export interface ArtifactMeta {
   id: string;
@@ -80,7 +80,7 @@ const BACK_LINK_STYLE = "color: var(--muted); text-decoration: none;";
 
 // ─── Interactive rendering ─────────────────────────────────────────────────────
 
-function renderQuestionSection(q: Question, interactive: InteractiveData): string {
+function renderQuestionSection(q: Question, interactive: InteractiveAskData): string {
   const answered = interactive.answers[q.id];
 
   if (answered !== undefined) {
@@ -91,6 +91,10 @@ function renderQuestionSection(q: Question, interactive: InteractiveData): strin
 }
 
 function renderInteractive(interactive: InteractiveData): string {
+  // TODO(Phase 3): render annotate scaffold
+  if (interactive.kind !== "ask") {
+    return "<!-- annotate scaffold rendered in Phase 3 -->";
+  }
   const sections = interactive.questions
     .map((q) => renderQuestionSection(q, interactive))
     .join("\n");

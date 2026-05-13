@@ -209,6 +209,7 @@ export function createAskTool(
 
       // 12. Build interactive data
       const interactive: InteractiveData = {
+        kind: "ask",
         status: "open",
         requireAll,
         expiresAt,

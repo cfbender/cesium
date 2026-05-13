@@ -6,7 +6,7 @@ import { submitAnswer, getState } from "../src/storage/mutate.ts";
 import { atomicWrite } from "../src/storage/write.ts";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
-import type { InteractiveData } from "../src/render/validate.ts";
+import type { InteractiveData, InteractiveAskData } from "../src/render/validate.ts";
 
 function unwrap<T>(value: T | null | undefined, name: string): T {
   if (value === null || value === undefined) {
@@ -54,8 +54,9 @@ function makeMeta(overrides?: Partial<ArtifactMeta>): ArtifactMeta {
   };
 }
 
-function makeInteractive(overrides?: Partial<InteractiveData>): InteractiveData {
+function makeInteractive(overrides?: Partial<InteractiveAskData>): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: true,
     expiresAt: "2099-12-31T23:59:59Z",
@@ -163,8 +164,9 @@ describe("submitAnswer — single question complete", () => {
 
 // ─── Helper factories for describe blocks ────────────────────────────────────
 
-function makeThreeQuestions(): InteractiveData {
+function makeThreeQuestions(): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: true,
     expiresAt: "2099-12-31T23:59:59Z",
@@ -182,8 +184,9 @@ function makeThreeQuestions(): InteractiveData {
   };
 }
 
-function makePickMany(min?: number, max?: number): InteractiveData {
+function makePickMany(min?: number, max?: number): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: true,
     expiresAt: "2099-12-31T23:59:59Z",
@@ -205,8 +208,9 @@ function makePickMany(min?: number, max?: number): InteractiveData {
   };
 }
 
-function makeSlider(): InteractiveData {
+function makeSlider(): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: true,
     expiresAt: "2099-12-31T23:59:59Z",
@@ -215,8 +219,9 @@ function makeSlider(): InteractiveData {
   };
 }
 
-function makeAskTextOptional(optional: boolean): InteractiveData {
+function makeAskTextOptional(optional: boolean): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: false,
     expiresAt: "2099-12-31T23:59:59Z",
@@ -492,7 +497,8 @@ describe("submitAnswer — requireAll: false", () => {
 
 describe("submitAnswer — concurrency", () => {
   test("two parallel submitAnswers on different questions both succeed without data loss", async () => {
-    const interactive: InteractiveData = {
+    const interactive: InteractiveAskData = {
+      kind: "ask",
       status: "open",
       requireAll: true,
       expiresAt: "2099-12-31T23:59:59Z",

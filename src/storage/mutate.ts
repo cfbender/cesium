@@ -12,8 +12,13 @@ import type { DefaultTreeAdapterTypes } from "parse5";
 import { atomicWrite } from "./write.ts";
 import { withLock } from "./lock.ts";
 import { renderAnswered } from "../render/controls.ts";
-import { validateAnswerValue } from "../render/validate.ts";
-import type { Question, AnswerValue, InteractiveData } from "../render/validate.ts";
+import { validateAnswerValue, coerceInteractiveData } from "../render/validate.ts";
+import type {
+  Question,
+  AnswerValue,
+  InteractiveData,
+  InteractiveAskData,
+} from "../render/validate.ts";
 
 type ChildNode = DefaultTreeAdapterTypes.ChildNode;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -61,18 +66,6 @@ function parseEmbeddedMeta(html: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
-}
-
-function isInteractiveData(v: unknown): v is InteractiveData {
-  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
-  const raw = v as Record<string, unknown>;
-  return (
-    (raw["status"] === "open" ||
-      raw["status"] === "complete" ||
-      raw["status"] === "expired" ||
-      raw["status"] === "cancelled") &&
-    Array.isArray(raw["questions"])
-  );
 }
 
 // ─── Cross-validation beyond structural check ─────────────────────────────────
@@ -272,11 +265,17 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
 
     // 2. Parse cesium-meta
     const meta = parseEmbeddedMeta(html);
-    if (meta === null || !isInteractiveData(meta["interactive"])) {
+    const coerced = coerceInteractiveData(meta === null ? null : meta["interactive"]);
+    if (coerced === null) {
       return { ok: false, reason: "not-interactive" };
     }
 
-    const interactive = meta["interactive"] as InteractiveData;
+    // TODO(Phase 4): handle annotate artifact submission
+    if (coerced.kind !== "ask") {
+      return { ok: false, reason: "not-interactive" };
+    }
+
+    const interactive: InteractiveAskData = coerced;
 
     // 3. Check session status
     if (interactive.status === "complete" || interactive.status === "cancelled") {
@@ -376,11 +375,17 @@ export async function getState(artifactPath: string): Promise<StateOutcome> {
   }
 
   const meta = parseEmbeddedMeta(html);
-  if (meta === null || !isInteractiveData(meta["interactive"])) {
+  const coerced = coerceInteractiveData(meta === null ? null : meta["interactive"]);
+  if (coerced === null) {
     return { ok: false, reason: "not-interactive" };
   }
 
-  const interactive = meta["interactive"] as InteractiveData;
+  // TODO(Phase 4): handle annotate artifact state retrieval
+  if (coerced.kind !== "ask") {
+    return { ok: false, reason: "not-interactive" };
+  }
+
+  const interactive: InteractiveAskData = coerced;
 
   // Extract answer values (drop the answeredAt wrapper)
   const answers: Record<string, AnswerValue> = {};

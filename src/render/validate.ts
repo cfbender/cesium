@@ -46,6 +46,18 @@ export const PUBLISH_KINDS: readonly PublishKind[] = [
 
 // ─── Interactive artifact types ────────────────────────────────────────────────
 
+export type Comment = {
+  id: string; // server-assigned nanoid, opaque to client
+  anchor: string; // matches /^block-\d+(\.line-\d+)?$/
+  selectedText: string; // captured at submit time, ≤ 4096 chars
+  comment: string; // ≤ 16384 chars, non-empty after trim
+  createdAt: string; // ISO 8601
+};
+
+export type Verdict = "approve" | "request_changes" | "comment";
+
+export type VerdictMode = "approve" | "approve-or-reject" | "full";
+
 export type Option = {
   id: string;
   label: string;
@@ -114,7 +126,8 @@ export type AnswerValue =
   | { type: "slider"; value: number }
   | { type: "react"; decision: string; comment?: string };
 
-export type InteractiveData = {
+export type InteractiveAskData = {
+  kind: "ask";
   status: "open" | "complete" | "expired" | "cancelled";
   requireAll: boolean;
   expiresAt: string;
@@ -122,6 +135,20 @@ export type InteractiveData = {
   answers: Record<string, { value: AnswerValue; answeredAt: string }>;
   completedAt?: string;
 };
+
+export type InteractiveAnnotateData = {
+  kind: "annotate";
+  status: "open" | "complete" | "expired" | "cancelled";
+  expiresAt: string;
+  verdictMode: VerdictMode;
+  requireVerdict: boolean;
+  perLineFor: ("diff" | "code")[];
+  comments: Comment[];
+  verdict: { value: Verdict; decidedAt: string } | null;
+  completedAt?: string;
+};
+
+export type InteractiveData = InteractiveAskData | InteractiveAnnotateData;
 
 // ─── Question validation ───────────────────────────────────────────────────────
 
@@ -410,6 +437,303 @@ export function validateAskInput(input: unknown): AskValidationResult {
   return { ok: true, value: result };
 }
 
+// ─── AnnotateInput validation ──────────────────────────────────────────────────
+
+export interface AnnotateInput {
+  title: string;
+  body?: string;
+  blocks: Block[];
+  verdictMode?: VerdictMode;
+  perLineFor?: ("diff" | "code")[];
+  requireVerdict?: boolean;
+  summary?: string;
+  tags?: string[];
+  expiresAt?: string;
+}
+
+const VERDICT_MODES: readonly VerdictMode[] = ["approve", "approve-or-reject", "full"];
+
+function isVerdictMode(v: unknown): v is VerdictMode {
+  return typeof v === "string" && (VERDICT_MODES as readonly string[]).includes(v);
+}
+
+export function validateAnnotateInput(input: unknown): ValidationResult<AnnotateInput> {
+  if (input === null || typeof input !== "object") {
+    return { ok: false, error: "input must be an object" };
+  }
+  const raw = input as Record<string, unknown>;
+
+  // title — required, non-empty, ≤ 200 chars
+  if (!("title" in raw) || typeof raw["title"] !== "string" || raw["title"].trim() === "") {
+    return { ok: false, error: "title is required and must be a non-empty string" };
+  }
+  if (raw["title"].length > 200) {
+    return { ok: false, error: "title must be 200 characters or fewer" };
+  }
+  const title = raw["title"];
+
+  // body — optional string
+  if ("body" in raw && raw["body"] !== undefined && typeof raw["body"] !== "string") {
+    return { ok: false, error: "body must be a string" };
+  }
+
+  // blocks — required, non-empty array
+  if (!("blocks" in raw) || !Array.isArray(raw["blocks"]) || raw["blocks"].length === 0) {
+    return { ok: false, error: "blocks must be a non-empty array" };
+  }
+  const blocksResult = validateBlocksArray(raw["blocks"]);
+  if (!blocksResult.ok) {
+    const errorMessages = blocksResult.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
+    return { ok: false, error: `blocks validation failed — ${errorMessages}` };
+  }
+
+  // verdictMode — optional, must be valid enum value
+  if ("verdictMode" in raw && raw["verdictMode"] !== undefined) {
+    if (!isVerdictMode(raw["verdictMode"])) {
+      return {
+        ok: false,
+        error: `verdictMode must be one of: ${VERDICT_MODES.join(", ")}`,
+      };
+    }
+  }
+
+  // perLineFor — optional array, only "diff" and "code", no duplicates
+  if ("perLineFor" in raw && raw["perLineFor"] !== undefined) {
+    if (!Array.isArray(raw["perLineFor"])) {
+      return { ok: false, error: "perLineFor must be an array" };
+    }
+    const seen = new Set<string>();
+    for (const item of raw["perLineFor"] as unknown[]) {
+      if (item !== "diff" && item !== "code") {
+        return {
+          ok: false,
+          error: `perLineFor items must be "diff" or "code", got "${String(item)}"`,
+        };
+      }
+      if (seen.has(item)) {
+        return {
+          ok: false,
+          error: `perLineFor must not contain duplicates, got duplicate "${item}"`,
+        };
+      }
+      seen.add(item);
+    }
+  }
+
+  // requireVerdict — optional boolean
+  if ("requireVerdict" in raw && raw["requireVerdict"] !== undefined) {
+    if (typeof raw["requireVerdict"] !== "boolean") {
+      return { ok: false, error: "requireVerdict must be a boolean" };
+    }
+  }
+
+  // summary — optional string
+  if ("summary" in raw && raw["summary"] !== undefined) {
+    if (typeof raw["summary"] !== "string") {
+      return { ok: false, error: "summary must be a string" };
+    }
+  }
+
+  // tags — optional array of strings
+  if ("tags" in raw && raw["tags"] !== undefined) {
+    if (!Array.isArray(raw["tags"])) {
+      return { ok: false, error: "tags must be an array of strings" };
+    }
+    for (const tag of raw["tags"]) {
+      if (typeof tag !== "string") {
+        return { ok: false, error: "tags must be an array of strings" };
+      }
+    }
+  }
+
+  // expiresAt — optional, must be valid ISO date string
+  if ("expiresAt" in raw && raw["expiresAt"] !== undefined) {
+    if (typeof raw["expiresAt"] !== "string") {
+      return { ok: false, error: "expiresAt must be a string" };
+    }
+    const d = new Date(raw["expiresAt"]);
+    if (isNaN(d.getTime())) {
+      return { ok: false, error: "expiresAt must be a valid ISO date string" };
+    }
+  }
+
+  const result: AnnotateInput = { title, blocks: blocksResult.blocks };
+  if (typeof raw["body"] === "string") result.body = raw["body"];
+  if (isVerdictMode(raw["verdictMode"])) result.verdictMode = raw["verdictMode"];
+  if (Array.isArray(raw["perLineFor"]))
+    result.perLineFor = raw["perLineFor"] as ("diff" | "code")[];
+  if (typeof raw["requireVerdict"] === "boolean") result.requireVerdict = raw["requireVerdict"];
+  if (typeof raw["summary"] === "string") result.summary = raw["summary"];
+  if (Array.isArray(raw["tags"])) result.tags = raw["tags"] as string[];
+  if (typeof raw["expiresAt"] === "string") result.expiresAt = raw["expiresAt"];
+
+  return { ok: true, value: result };
+}
+
+// ─── Comment value validation ──────────────────────────────────────────────────
+
+const ANCHOR_RE = /^block-\d+(\.line-\d+)?$/;
+
+export function validateCommentValue(
+  input: unknown,
+): ValidationResult<{ anchor: string; selectedText: string; comment: string }> {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "input must be an object" };
+  }
+  const raw = input as Record<string, unknown>;
+
+  // anchor
+  if (typeof raw["anchor"] !== "string") {
+    return { ok: false, error: "anchor must be a string" };
+  }
+  if (!ANCHOR_RE.test(raw["anchor"])) {
+    return {
+      ok: false,
+      error: `anchor must match /^block-\\d+(\\.line-\\d+)?$/, got "${raw["anchor"]}"`,
+    };
+  }
+  const anchor = raw["anchor"];
+
+  // selectedText — required, can be empty, ≤ 4096 chars
+  if (typeof raw["selectedText"] !== "string") {
+    return { ok: false, error: "selectedText must be a string" };
+  }
+  if (raw["selectedText"].length > 4096) {
+    return { ok: false, error: "selectedText must be 4096 characters or fewer" };
+  }
+  const selectedText = raw["selectedText"];
+
+  // comment — required, non-empty after trim, ≤ 16384 chars
+  if (typeof raw["comment"] !== "string") {
+    return { ok: false, error: "comment must be a string" };
+  }
+  if (raw["comment"].trim() === "") {
+    return { ok: false, error: "comment must be non-empty" };
+  }
+  if (raw["comment"].length > 16384) {
+    return { ok: false, error: "comment must be 16384 characters or fewer" };
+  }
+  const comment = raw["comment"];
+
+  return { ok: true, value: { anchor, selectedText, comment } };
+}
+
+// ─── Verdict value validation ──────────────────────────────────────────────────
+
+const VERDICTS_BY_MODE: Record<VerdictMode, readonly Verdict[]> = {
+  approve: ["approve"],
+  "approve-or-reject": ["approve", "request_changes"],
+  full: ["approve", "request_changes", "comment"],
+};
+
+export function validateVerdictValue(input: unknown, mode: VerdictMode): ValidationResult<Verdict> {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "input must be an object" };
+  }
+  const raw = input as Record<string, unknown>;
+
+  if (typeof raw["verdict"] !== "string") {
+    return { ok: false, error: "verdict must be a string" };
+  }
+  const v = raw["verdict"];
+  const allowed = VERDICTS_BY_MODE[mode];
+  if (!(allowed as readonly string[]).includes(v)) {
+    return {
+      ok: false,
+      error: `verdict "${v}" is not allowed in "${mode}" mode; allowed: ${allowed.join(", ")}`,
+    };
+  }
+
+  return { ok: true, value: v as Verdict };
+}
+
+// ─── coerceInteractiveData ─────────────────────────────────────────────────────
+
+function isValidStatus(v: unknown): v is InteractiveData["status"] {
+  return v === "open" || v === "complete" || v === "expired" || v === "cancelled";
+}
+
+function coerceAsAskData(raw: Record<string, unknown>): InteractiveAskData | null {
+  if (!isValidStatus(raw["status"])) return null;
+  if (!Array.isArray(raw["questions"])) return null;
+  if (typeof raw["requireAll"] !== "boolean") return null;
+  if (typeof raw["expiresAt"] !== "string") return null;
+  const answers =
+    raw["answers"] !== null && typeof raw["answers"] === "object" && !Array.isArray(raw["answers"])
+      ? (raw["answers"] as Record<string, { value: AnswerValue; answeredAt: string }>)
+      : null;
+  if (answers === null) return null;
+
+  const result: InteractiveAskData = {
+    kind: "ask",
+    status: raw["status"],
+    requireAll: raw["requireAll"],
+    expiresAt: raw["expiresAt"],
+    questions: raw["questions"] as Question[],
+    answers,
+  };
+  if (typeof raw["completedAt"] === "string") result.completedAt = raw["completedAt"];
+  return result;
+}
+
+function coerceAsAnnotateData(raw: Record<string, unknown>): InteractiveAnnotateData | null {
+  if (!isValidStatus(raw["status"])) return null;
+  if (typeof raw["expiresAt"] !== "string") return null;
+  if (!isVerdictMode(raw["verdictMode"])) return null;
+  if (typeof raw["requireVerdict"] !== "boolean") return null;
+  if (!Array.isArray(raw["perLineFor"])) return null;
+  if (!Array.isArray(raw["comments"])) return null;
+  // verdict can be null or an object
+  const rawVerdict = raw["verdict"];
+  const verdict =
+    rawVerdict === null
+      ? null
+      : rawVerdict !== null &&
+          typeof rawVerdict === "object" &&
+          !Array.isArray(rawVerdict) &&
+          typeof (rawVerdict as Record<string, unknown>)["value"] === "string" &&
+          typeof (rawVerdict as Record<string, unknown>)["decidedAt"] === "string"
+        ? (rawVerdict as { value: Verdict; decidedAt: string })
+        : undefined;
+  if (verdict === undefined) return null;
+
+  const result: InteractiveAnnotateData = {
+    kind: "annotate",
+    status: raw["status"],
+    expiresAt: raw["expiresAt"],
+    verdictMode: raw["verdictMode"],
+    requireVerdict: raw["requireVerdict"],
+    perLineFor: raw["perLineFor"] as ("diff" | "code")[],
+    comments: raw["comments"] as Comment[],
+    verdict,
+  };
+  if (typeof raw["completedAt"] === "string") result.completedAt = raw["completedAt"];
+  return result;
+}
+
+/**
+ * Tolerant reader for embedded cesium-meta.interactive JSON.
+ *
+ * - Returns null for non-object input or unrecognized shapes.
+ * - Legacy ask artifacts (without a `kind` field) are coerced to InteractiveAskData
+ *   with `kind: "ask"` injected.
+ */
+export function coerceInteractiveData(raw: unknown): InteractiveData | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+
+  if (obj["kind"] === "annotate") {
+    return coerceAsAnnotateData(obj);
+  }
+
+  if (obj["kind"] === "ask" || obj["kind"] === undefined || !("kind" in obj)) {
+    return coerceAsAskData(obj);
+  }
+
+  // Unknown kind
+  return null;
+}
+
 // ─── PublishInput — supports html XOR blocks ──────────────────────────────────
 
 export type PublishInput =
@@ -645,7 +969,7 @@ function validateBlock(raw: unknown, path: string, depth: number): BlockValidati
   return errors;
 }
 
-function validateBlocksArray(raw: unknown): BlockValidationResult {
+export function validateBlocksArray(raw: unknown): BlockValidationResult {
   if (!Array.isArray(raw)) {
     return { ok: false, errors: [{ path: "blocks", message: "blocks must be an array" }] };
   }

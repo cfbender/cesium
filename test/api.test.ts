@@ -7,7 +7,7 @@ import { createApiApp } from "../src/server/api.ts";
 import { atomicWrite } from "../src/storage/write.ts";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
-import type { InteractiveData } from "../src/render/validate.ts";
+import type { InteractiveData, InteractiveAskData } from "../src/render/validate.ts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,8 +58,9 @@ function makeMeta(overrides?: Partial<ArtifactMeta>): ArtifactMeta {
   };
 }
 
-function makeInteractive(overrides?: Partial<InteractiveData>): InteractiveData {
+function makeInteractive(overrides?: Partial<InteractiveAskData>): InteractiveAskData {
   return {
+    kind: "ask",
     status: "open",
     requireAll: true,
     expiresAt: "2099-12-31T23:59:59Z",

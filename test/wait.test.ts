@@ -1,5 +1,5 @@
 import { test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAskTool, type AskToolOverrides } from "../src/tools/ask.ts";
@@ -366,4 +366,76 @@ test("stateDir with no projects dir: returns not-found", async () => {
   } finally {
     rmSync(emptyStateDir, { recursive: true, force: true });
   }
+});
+
+// ─── Regression: legacy artifact (no `kind` field) still parses ────────────────
+
+test("legacy ask artifact WITHOUT kind field: wait tool reads it correctly", async () => {
+  // Set up a project directory mirroring the real stateDir layout
+  const legacyProjectDir = join(stateDir, "projects", "legacy-project");
+  const legacyArtifactsDir = join(legacyProjectDir, "artifacts");
+  mkdirSync(legacyArtifactsDir, { recursive: true });
+
+  const legacyId = "legacy1";
+  const legacyFilename = "2026-01-01T00-00-00Z__legacy-test__legacy1.html";
+  const legacyPath = join(legacyArtifactsDir, legacyFilename);
+
+  // Old interactive shape: no `kind` field, status already "complete"
+  const legacyInteractive = {
+    // no kind field — this is the old format
+    status: "complete",
+    requireAll: true,
+    expiresAt: "2099-12-31T23:59:59Z",
+    questions: [
+      {
+        type: "pick_one",
+        id: "q1",
+        question: "Which?",
+        options: [{ id: "a", label: "A" }],
+      },
+    ],
+    answers: {
+      q1: { value: { type: "pick_one", selected: "a" }, answeredAt: "2026-01-01T00:01:00Z" },
+    },
+    completedAt: "2026-01-01T00:01:00Z",
+  };
+
+  // Build a minimal valid HTML artifact with the legacy cesium-meta
+  const metaPayload = {
+    id: legacyId,
+    title: "Legacy Artifact",
+    kind: "ask",
+    interactive: legacyInteractive,
+  };
+  const legacyHtml = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Legacy Artifact · cesium</title>
+  <script type="application/json" id="cesium-meta">${JSON.stringify(metaPayload, null, 2)}</script>
+</head>
+<body><p>legacy content</p></body>
+</html>`;
+
+  writeFileSync(legacyPath, legacyHtml);
+
+  // Write an index.json so the wait tool can resolve the id
+  const indexEntry = {
+    id: legacyId,
+    filename: legacyFilename,
+    title: "Legacy Artifact",
+    kind: "ask",
+  };
+  writeFileSync(join(legacyProjectDir, "index.json"), JSON.stringify([indexEntry], null, 2));
+
+  const result = await runWait(workDir, stateDir, legacyId, {
+    timeoutMs: 2000,
+    pollIntervalMs: 100,
+  });
+
+  // Legacy artifact was already complete → wait tool should return complete
+  expect(result["status"]).toBe("complete");
+  const answers = result["answers"] as Record<string, unknown>;
+  expect(answers["q1"]).toEqual({ type: "pick_one", selected: "a" });
+  expect(result["remaining"] as string[]).toHaveLength(0);
 });

@@ -6,7 +6,8 @@ import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
 import { loadConfig, type CesiumConfig } from "../config.ts";
 import { loadIndex } from "../storage/index-cache.ts";
-import type { AnswerValue, InteractiveData } from "../render/validate.ts";
+import type { AnswerValue, InteractiveAskData } from "../render/validate.ts";
+import { coerceInteractiveData } from "../render/validate.ts";
 import { readEmbeddedMetadata } from "../storage/write.ts";
 import { readFile } from "node:fs/promises";
 
@@ -128,18 +129,24 @@ async function pollLoop(
   }
 
   const meta = readEmbeddedMetadata(html);
-  if (meta === null || !isInteractiveData(meta["interactive"])) {
+  const interactive = coerceInteractiveData(meta === null ? null : meta["interactive"]);
+  if (interactive === null) {
     return { status: "not-found", answers: {}, remaining: [] };
   }
 
-  const interactive = meta["interactive"] as InteractiveData;
+  // TODO(Phase 7): surface comments/verdict for annotate artifacts
+  if (interactive.kind !== "ask") {
+    return { status: "not-found", answers: {}, remaining: [] };
+  }
 
-  const answers = extractAnswers(interactive);
-  const remaining = interactive.questions
+  const askInteractive: InteractiveAskData = interactive;
+
+  const answers = extractAnswers(askInteractive);
+  const remaining = askInteractive.questions
     .map((q) => q.id)
-    .filter((qid) => interactive.answers[qid] === undefined);
+    .filter((qid) => askInteractive.answers[qid] === undefined);
 
-  switch (interactive.status) {
+  switch (askInteractive.status) {
     case "complete":
       return { status: "complete", answers, remaining };
     case "expired":
@@ -168,19 +175,7 @@ async function pollLoop(
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function isInteractiveData(v: unknown): v is InteractiveData {
-  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
-  const raw = v as Record<string, unknown>;
-  return (
-    (raw["status"] === "open" ||
-      raw["status"] === "complete" ||
-      raw["status"] === "expired" ||
-      raw["status"] === "cancelled") &&
-    Array.isArray(raw["questions"])
-  );
-}
-
-function extractAnswers(interactive: InteractiveData): Record<string, AnswerValue> {
+function extractAnswers(interactive: InteractiveAskData): Record<string, AnswerValue> {
   const answers: Record<string, AnswerValue> = {};
   for (const [id, entry] of Object.entries(interactive.answers)) {
     answers[id] = entry.value;
