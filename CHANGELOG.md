@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.6.2 — 2026-05-13
+
+Prompt fix. The `diff` block was missing from the agent-facing quick reference
+in `system-fragment.md` — only fifteen of the sixteen catalog blocks were
+surfaced — so agents would reach for `code` blocks with hand-rolled `+`/`-`
+lines when asked to walk through a diff or release. The `diff` block is now
+listed alongside `code`/`timeline`, and a short trigger note pairs "release
+walkthrough / version diff / before-after / refactor proposal" with the `diff`
+block explicitly.
+
+- **fix:** Add `diff` to the prompt's quick block reference.
+- **fix:** Add "When showing code changes" trigger paragraph.
+- **chore:** Bump the block-type enumeration tests from 15 → 16 to keep the
+  catalog and the human-curated reference in lockstep.
+
+No runtime or rendering changes; the `diff` block itself was already wired
+end-to-end since v0.4.
+
 ## v0.6.1 — 2026-05-13
 
 Fixes a regression introduced by the v0.4 blocks refactor: the README's
