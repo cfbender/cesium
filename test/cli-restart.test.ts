@@ -2,8 +2,8 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { restartCommand } from "../src/cli/commands/restart.ts";
-import type { RestartContext } from "../src/cli/commands/restart.ts";
+import { runRestart } from "../src/cli/commands/restart.ts";
+import type { RestartArgs, RestartContext } from "../src/cli/commands/restart.ts";
 import type { CesiumConfig } from "../src/config.ts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,6 +79,8 @@ afterEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+const baseArgs: RestartArgs = { force: false, timeoutMs: 3000 };
+
 test("restart: stop returns 0 (live PID killed) → serve is called", async () => {
   writePid(stateDir, 12345, 3030);
 
@@ -97,7 +99,7 @@ test("restart: stop returns 0 (live PID killed) → serve is called", async () =
     },
   });
 
-  const code = await restartCommand([], ctx);
+  const code = await runRestart(baseArgs, ctx);
 
   expect(code).toBe(0);
   expect(serveCalled).toBe(true);
@@ -123,7 +125,7 @@ test("restart: stop returns 2 (EPERM) → serve is NOT called, restart returns 2
     },
   });
 
-  const code = await restartCommand(["--force"], ctx);
+  const code = await runRestart({ ...baseArgs, force: true }, ctx);
 
   expect(code).toBe(2);
   expect(serveCalled).toBe(false);
@@ -142,7 +144,7 @@ test("restart: no running server (stop returns 0 with 'no server running') → s
     },
   });
 
-  const code = await restartCommand([], ctx);
+  const code = await runRestart(baseArgs, ctx);
 
   expect(code).toBe(0);
   expect(serveCalled).toBe(true);
@@ -164,7 +166,7 @@ test("restart: passes --force through to stop", async () => {
     serveImpl: () => Promise.resolve(0),
   });
 
-  await restartCommand(["--force"], ctx);
+  await runRestart({ ...baseArgs, force: true }, ctx);
 
   // With --force, SIGTERM should NOT be in the kill calls
   expect(killCalls.map((c) => c.signal)).not.toContain("SIGTERM");
@@ -185,7 +187,7 @@ test("restart: stale PID file → cleans up and starts new server", async () => 
     },
   });
 
-  const code = await restartCommand([], ctx);
+  const code = await runRestart(baseArgs, ctx);
 
   expect(code).toBe(0);
   expect(serveCalled).toBe(true);

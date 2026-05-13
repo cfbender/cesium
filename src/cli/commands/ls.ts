@@ -1,11 +1,17 @@
 // cesium ls — list artifacts for current project (or all).
 
-import { parseArgs } from "node:util";
+import { defineCommand } from "citty";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { loadConfig, type CesiumConfig } from "../../config.ts";
 import { loadIndex, type IndexEntry } from "../../storage/index-cache.ts";
 import { deriveProjectIdentity } from "../../storage/paths.ts";
+
+export interface LsArgs {
+  all: boolean;
+  json: boolean;
+  limit: number;
+}
 
 export interface LsContext {
   stdout: { write: (s: string) => void };
@@ -58,69 +64,27 @@ function getGitRemote(cwd: string): string | null {
   }
 }
 
-export async function lsCommand(argv: string[], ctx?: Partial<LsContext>): Promise<number> {
-  const resolved: LsContext = { ...defaultCtx(), ...ctx };
+/**
+ * Inner command logic. Tests call this directly with typed args + injected
+ * context for fast feedback; the Citty wrapper handles argv parsing.
+ */
+export async function runLs(args: LsArgs, ctxOverride?: Partial<LsContext>): Promise<number> {
+  const ctx: LsContext = { ...defaultCtx(), ...ctxOverride };
 
-  let values: {
-    all: boolean;
-    json: boolean;
-    limit: string | undefined;
-    help: boolean;
-  };
-
-  try {
-    const parsed = parseArgs({
-      args: argv,
-      options: {
-        all: { type: "boolean", short: "a", default: false },
-        json: { type: "boolean", default: false },
-        limit: { type: "string", short: "n" },
-        help: { type: "boolean", short: "h", default: false },
-      },
-      allowPositionals: false,
-      strict: true,
-    });
-    values = parsed.values as typeof values;
-  } catch (err) {
-    const e = err as Error;
-    resolved.stderr.write(`cesium ls: ${e.message}\n`);
-    resolved.stderr.write(`Usage: cesium ls [--all] [--json] [--limit N]\n`);
+  if (args.limit < 1) {
+    ctx.stderr.write(`cesium ls: --limit must be a positive integer\n`);
     return 1;
   }
 
-  if (values.help) {
-    resolved.stdout.write(
-      [
-        "Usage: cesium ls [options]",
-        "",
-        "Options:",
-        "  --all, -a      Show artifacts for all projects (default: current project only)",
-        "  --json         Output as JSON array",
-        "  --limit, -n N  Show at most N most recent artifacts (default: 50)",
-        "  --help, -h     Show this help message",
-        "",
-      ].join("\n"),
-    );
-    return 0;
-  }
-
-  const limitRaw = values.limit !== undefined ? parseInt(values.limit, 10) : 50;
-  if (isNaN(limitRaw) || limitRaw < 1) {
-    resolved.stderr.write(`cesium ls: --limit must be a positive integer\n`);
-    return 1;
-  }
-  const limit = limitRaw;
-
-  // Load config
-  const cfg = (resolved.loadConfig ?? loadConfig)();
+  const cfg = (ctx.loadConfig ?? loadConfig)();
 
   // Determine which index.json to read
   let jsonPath: string;
-  if (values.all) {
+  if (args.all) {
     jsonPath = join(cfg.stateDir, "index.json");
   } else {
-    const gitRemote = getGitRemote(resolved.cwd);
-    const identity = deriveProjectIdentity({ cwd: resolved.cwd, gitRemote });
+    const gitRemote = getGitRemote(ctx.cwd);
+    const identity = deriveProjectIdentity({ cwd: ctx.cwd, gitRemote });
     jsonPath = join(cfg.stateDir, "projects", identity.slug, "index.json");
   }
 
@@ -129,21 +93,19 @@ export async function lsCommand(argv: string[], ctx?: Partial<LsContext>): Promi
     entries = await loadIndex(jsonPath);
   } catch (err) {
     const e = err as Error;
-    resolved.stderr.write(`cesium ls: failed to read index: ${e.message}\n`);
+    ctx.stderr.write(`cesium ls: failed to read index: ${e.message}\n`);
     return 1;
   }
 
-  // Already sorted newest-first by loadIndex / appendEntry; apply limit
-  const limited = entries.slice(0, limit);
+  const limited = entries.slice(0, args.limit);
 
-  if (values.json) {
-    resolved.stdout.write(JSON.stringify(limited, null, 2) + "\n");
+  if (args.json) {
+    ctx.stdout.write(JSON.stringify(limited, null, 2) + "\n");
     return 0;
   }
 
-  // Table output
   if (limited.length === 0) {
-    resolved.stdout.write("No artifacts found.\n");
+    ctx.stdout.write("No artifacts found.\n");
     return 0;
   }
 
@@ -165,8 +127,8 @@ export async function lsCommand(argv: string[], ctx?: Partial<LsContext>): Promi
 
   const sep = "─".repeat(header.length);
 
-  resolved.stdout.write(header + "\n");
-  resolved.stdout.write(sep + "\n");
+  ctx.stdout.write(header + "\n");
+  ctx.stdout.write(sep + "\n");
 
   for (const e of limited) {
     const row =
@@ -179,8 +141,43 @@ export async function lsCommand(argv: string[], ctx?: Partial<LsContext>): Promi
       fmtDate(e.createdAt).padEnd(COL_DATE) +
       "  " +
       superCol(e);
-    resolved.stdout.write(row + "\n");
+    ctx.stdout.write(row + "\n");
   }
 
   return 0;
 }
+
+export const lsCmd = defineCommand({
+  meta: {
+    name: "ls",
+    description: "List artifacts in the current project (or all with --all).",
+  },
+  args: {
+    all: {
+      type: "boolean",
+      alias: "a",
+      default: false,
+      description: "Show artifacts for all projects (default: current project only)",
+    },
+    json: {
+      type: "boolean",
+      default: false,
+      description: "Output as JSON array",
+    },
+    limit: {
+      type: "string",
+      alias: "n",
+      default: "50",
+      description: "Show at most N most recent artifacts",
+    },
+  },
+  async run({ args }) {
+    const limit = parseInt(args.limit, 10);
+    if (isNaN(limit) || limit < 1) {
+      process.stderr.write(`cesium ls: --limit must be a positive integer\n`);
+      process.exit(1);
+    }
+    const code = await runLs({ all: args.all, json: args.json, limit });
+    if (code !== 0) process.exit(code);
+  },
+});

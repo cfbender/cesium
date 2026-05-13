@@ -1,6 +1,6 @@
 // cesium theme — show or apply the configured theme.
 
-import { parseArgs } from "node:util";
+import { defineCommand } from "citty";
 import { readFile } from "node:fs/promises";
 import { loadConfig, type CesiumConfig } from "../../config.ts";
 import {
@@ -204,61 +204,12 @@ async function retrofitAll(
 
 // ─── Command ──────────────────────────────────────────────────────────────────
 
-export async function themeCommand(argv: string[], ctx?: Partial<ThemeContext>): Promise<number> {
-  const resolved: ThemeContext = { ...defaultCtx(), ...ctx };
-
-  const subcommand = argv[0];
-  const rest = argv.slice(1);
-
-  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
-    resolved.stdout.write(
-      [
-        "Usage: cesium theme <subcommand> [options]",
-        "",
-        "Subcommands:",
-        "  show                        Print resolved theme tokens",
-        "  apply [--rewrite-artifacts] Write theme.css from current config",
-        "",
-        "Options:",
-        "  --help, -h  Show this help message",
-        "",
-      ].join("\n"),
-    );
-    return subcommand ? 0 : 1;
-  }
-
-  if (subcommand === "show") {
-    return themeShowCommand(rest, resolved);
-  }
-
-  if (subcommand === "apply") {
-    return themeApplyCommand(rest, resolved);
-  }
-
-  resolved.stderr.write(`cesium theme: unknown subcommand: ${subcommand}\n`);
-  return 1;
+export interface ThemeApplyArgs {
+  rewriteArtifacts: boolean;
 }
 
-async function themeShowCommand(argv: string[], ctx: ThemeContext): Promise<number> {
-  let values: { help: boolean };
-  try {
-    const parsed = parseArgs({
-      args: argv,
-      options: { help: { type: "boolean", short: "h", default: false } },
-      allowPositionals: false,
-      strict: true,
-    });
-    values = parsed.values as typeof values;
-  } catch (err) {
-    const e = err as Error;
-    ctx.stderr.write(`cesium theme show: ${e.message}\n`);
-    return 1;
-  }
-
-  if (values.help) {
-    ctx.stdout.write("Usage: cesium theme show\n\nPrint resolved theme tokens.\n\n");
-    return 0;
-  }
+export async function runThemeShow(ctxOverride?: Partial<ThemeContext>): Promise<number> {
+  const ctx: ThemeContext = { ...defaultCtx(), ...ctxOverride };
 
   const cfg = (ctx.loadConfig ?? loadConfig)();
   const { theme, presetLabel } = resolveTheme(cfg);
@@ -269,47 +220,18 @@ async function themeShowCommand(argv: string[], ctx: ThemeContext): Promise<numb
   return 0;
 }
 
-async function themeApplyCommand(argv: string[], ctx: ThemeContext): Promise<number> {
-  let values: { "rewrite-artifacts": boolean; help: boolean };
-  try {
-    const parsed = parseArgs({
-      args: argv,
-      options: {
-        "rewrite-artifacts": { type: "boolean", default: false },
-        help: { type: "boolean", short: "h", default: false },
-      },
-      allowPositionals: false,
-      strict: true,
-    });
-    values = parsed.values as typeof values;
-  } catch (err) {
-    const e = err as Error;
-    ctx.stderr.write(`cesium theme apply: ${e.message}\n`);
-    return 1;
-  }
-
-  if (values.help) {
-    ctx.stdout.write(
-      [
-        "Usage: cesium theme apply [--rewrite-artifacts]",
-        "",
-        "Write theme.css from the current config.",
-        "",
-        "Options:",
-        "  --rewrite-artifacts  Retrofit existing artifacts and index pages with the theme link",
-        "  --help, -h           Show this help message",
-        "",
-      ].join("\n"),
-    );
-    return 0;
-  }
+export async function runThemeApply(
+  args: ThemeApplyArgs,
+  ctxOverride?: Partial<ThemeContext>,
+): Promise<number> {
+  const ctx: ThemeContext = { ...defaultCtx(), ...ctxOverride };
 
   const cfg = (ctx.loadConfig ?? loadConfig)();
   const { theme, presetLabel } = resolveTheme(cfg);
   const cssPath = await writeThemeCss(cfg.stateDir, theme);
   await writeFaviconSvg(cfg.stateDir);
 
-  if (values["rewrite-artifacts"]) {
+  if (args.rewriteArtifacts) {
     const { artifacts, indexes } = await retrofitAll(cfg.stateDir, ctx.stdout);
     ctx.stdout.write(
       [
@@ -332,3 +254,44 @@ async function themeApplyCommand(argv: string[], ctx: ThemeContext): Promise<num
 
   return 0;
 }
+
+const themeShowCmd = defineCommand({
+  meta: {
+    name: "show",
+    description: "Print resolved theme tokens.",
+  },
+  args: {},
+  async run() {
+    const code = await runThemeShow();
+    if (code !== 0) process.exit(code);
+  },
+});
+
+const themeApplyCmd = defineCommand({
+  meta: {
+    name: "apply",
+    description: "Write theme.css from the current config.",
+  },
+  args: {
+    "rewrite-artifacts": {
+      type: "boolean",
+      default: false,
+      description: "Retrofit existing artifacts and index pages with the theme link",
+    },
+  },
+  async run({ args }) {
+    const code = await runThemeApply({ rewriteArtifacts: args["rewrite-artifacts"] });
+    if (code !== 0) process.exit(code);
+  },
+});
+
+export const themeCmd = defineCommand({
+  meta: {
+    name: "theme",
+    description: "Show or apply the configured theme.",
+  },
+  subCommands: {
+    show: themeShowCmd,
+    apply: themeApplyCmd,
+  },
+});

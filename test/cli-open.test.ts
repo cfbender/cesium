@@ -2,8 +2,8 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openCommand } from "../src/cli/commands/open.ts";
-import type { OpenContext } from "../src/cli/commands/open.ts";
+import { runOpen } from "../src/cli/commands/open.ts";
+import type { OpenArgs, OpenContext } from "../src/cli/commands/open.ts";
 import type { CesiumConfig } from "../src/config.ts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -104,18 +104,12 @@ afterEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-test("open --help prints usage and returns 0", async () => {
-  const ctx = captureCtx(stateDir);
-  const code = await openCommand(["--help"], ctx);
-  expect(code).toBe(0);
-  expect(ctx.out).toContain("Usage: cesium open");
-  expect(ctx.out).toContain("--print");
-});
+const baseArgs: OpenArgs = { idPrefix: "", print: false };
 
-test("open with no arguments returns 1 with error message", async () => {
+test("open with empty id-prefix returns 1 with error message", async () => {
   writeGlobalIndex(stateDir, []);
   const ctx = captureCtx(stateDir);
-  const code = await openCommand([], ctx);
+  const code = await runOpen({ ...baseArgs }, ctx);
   expect(code).toBe(1);
   expect(ctx.err).toContain("missing required argument");
 });
@@ -123,7 +117,7 @@ test("open with no arguments returns 1 with error message", async () => {
 test("open with non-matching prefix returns 1", async () => {
   writeGlobalIndex(stateDir, [makeIndexEntry({ id: "abc123" })]);
   const ctx = captureCtx(stateDir);
-  const code = await openCommand(["xyz"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "xyz" }, ctx);
   expect(code).toBe(1);
   expect(ctx.err).toContain("no artifact found");
 });
@@ -134,7 +128,7 @@ test("open with ambiguous prefix returns 2 and lists matches", async () => {
     makeIndexEntry({ id: "abc456", title: "Plan B" }),
   ]);
   const ctx = captureCtx(stateDir);
-  const code = await openCommand(["abc"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "abc" }, ctx);
   expect(code).toBe(2);
   expect(ctx.err).toContain("ambiguous prefix");
   expect(ctx.err).toContain("abc123");
@@ -144,7 +138,7 @@ test("open with ambiguous prefix returns 2 and lists matches", async () => {
 test("open --print with exact match prints file:// URL and returns 0", async () => {
   writeGlobalIndex(stateDir, [makeIndexEntry({ id: "abc123" })]);
   const ctx = captureCtx(stateDir);
-  const code = await openCommand(["abc123", "--print"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "abc123", print: true }, ctx);
   expect(code).toBe(0);
   // Without server running (ensureRunning returns null), should use file://
   expect(ctx.out).toContain("file://");
@@ -155,7 +149,7 @@ test("open --print with exact match prints file:// URL and returns 0", async () 
 test("open with exact match calls opener and returns 0", async () => {
   writeGlobalIndex(stateDir, [makeIndexEntry({ id: "abc123" })]);
   const ctx = captureCtx(stateDir);
-  const code = await openCommand(["abc123"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "abc123" }, ctx);
   expect(code).toBe(0);
   expect(ctx.opened).toHaveLength(1);
   // file:// URL since ensureRunning returns null
@@ -165,7 +159,7 @@ test("open with exact match calls opener and returns 0", async () => {
 test("open with case-insensitive prefix match succeeds", async () => {
   writeGlobalIndex(stateDir, [makeIndexEntry({ id: "AbCdEf" })]);
   const ctx = captureCtx(stateDir);
-  const code = await openCommand(["abcdef", "--print"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "abcdef", print: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("AbCdEf");
 });
@@ -176,7 +170,7 @@ test("open --print with server running uses http:// URL", async () => {
   const ctx = captureCtx(stateDir, {
     ensureRunning: async () => ({ port: 3030, url: "http://localhost:3030" }),
   });
-  const code = await openCommand(["abc123", "--print"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "abc123", print: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("http://");
   expect(ctx.out).toContain("3030");
@@ -189,7 +183,7 @@ test("open opener failure falls back gracefully and returns 1", async () => {
       throw new Error("opener failed");
     },
   });
-  const code = await openCommand(["abc123"], ctx);
+  const code = await runOpen({ ...baseArgs, idPrefix: "abc123" }, ctx);
   expect(code).toBe(1);
   expect(ctx.err).toContain("opener failed");
   // URL should still be printed to stdout

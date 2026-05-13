@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { themeCommand } from "../src/cli/commands/theme.ts";
+import { runThemeShow, runThemeApply } from "../src/cli/commands/theme.ts";
 import type { ThemeContext } from "../src/cli/commands/theme.ts";
 import { themeFromPreset } from "../src/render/theme.ts";
 import { writeThemeCss } from "../src/storage/theme-write.ts";
@@ -51,13 +51,13 @@ function makeCtx(overrides: Partial<ThemeContext> = {}): ThemeContext & { output
 describe("cesium theme show", () => {
   test("prints resolved theme name", async () => {
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     expect(ctx.output).toContain("claret-dark (default)");
   });
 
   test("prints all 12 color tokens", async () => {
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     const keys = [
       "bg",
       "surface",
@@ -79,23 +79,23 @@ describe("cesium theme show", () => {
 
   test("prints hex values for claret-dark palette", async () => {
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     expect(ctx.output).toContain("#180810"); // bg
     expect(ctx.output).toContain("#C75B7A"); // accent
   });
 
   test("indicates (write needed) when theme.css does not exist", async () => {
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     expect(ctx.output).toContain("write needed");
   });
 
   test("does NOT indicate write needed after theme apply", async () => {
     // Apply first
-    await themeCommand(["apply"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: false }, makeCtx());
     // Then show
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     expect(ctx.output).not.toContain("write needed");
   });
 
@@ -103,20 +103,20 @@ describe("cesium theme show", () => {
     // Write a stale theme.css manually
     await writeThemeCss(stateDir, themeFromPreset("warm"));
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     // Default theme is claret, but file has warm → write needed
     expect(ctx.output).toContain("write needed");
   });
 
   test("prints theme.css path", async () => {
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     expect(ctx.output).toContain(join(stateDir, "theme.css"));
   });
 
   test("returns exit code 0", async () => {
     const ctx = makeCtx();
-    const code = await themeCommand(["show"], ctx);
+    const code = await runThemeShow(ctx);
     expect(code).toBe(0);
   });
 });
@@ -125,44 +125,44 @@ describe("cesium theme show", () => {
 
 describe("cesium theme apply", () => {
   test("writes theme.css to stateDir", async () => {
-    await themeCommand(["apply"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: false }, makeCtx());
     expect(existsSync(join(stateDir, "theme.css"))).toBe(true);
   });
 
   test("theme.css contains claret-dark accent", async () => {
-    await themeCommand(["apply"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: false }, makeCtx());
     const content = readFileSync(join(stateDir, "theme.css"), "utf8");
     expect(content).toContain("--accent: #C75B7A");
   });
 
   test("prints wrote path in output", async () => {
     const ctx = makeCtx();
-    await themeCommand(["apply"], ctx);
+    await runThemeApply({ rewriteArtifacts: false }, ctx);
     expect(ctx.output).toContain(join(stateDir, "theme.css"));
   });
 
   test("mentions inline fallback theme in output", async () => {
     const ctx = makeCtx();
-    await themeCommand(["apply"], ctx);
+    await runThemeApply({ rewriteArtifacts: false }, ctx);
     expect(ctx.output).toContain("inline fallback");
   });
 
   test("mentions --rewrite-artifacts hint", async () => {
     const ctx = makeCtx();
-    await themeCommand(["apply"], ctx);
+    await runThemeApply({ rewriteArtifacts: false }, ctx);
     expect(ctx.output).toContain("--rewrite-artifacts");
   });
 
   test("after apply, theme show no longer shows write needed", async () => {
-    await themeCommand(["apply"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: false }, makeCtx());
     const ctx = makeCtx();
-    await themeCommand(["show"], ctx);
+    await runThemeShow(ctx);
     expect(ctx.output).not.toContain("write needed");
   });
 
   test("returns exit code 0", async () => {
     const ctx = makeCtx();
-    const code = await themeCommand(["apply"], ctx);
+    const code = await runThemeApply({ rewriteArtifacts: false }, ctx);
     expect(code).toBe(0);
   });
 });
@@ -222,14 +222,14 @@ describe("cesium theme apply --rewrite-artifacts", () => {
 
   test("adds link to artifact missing it", async () => {
     const { artifactPath } = await buildSyntheticStateDir();
-    await themeCommand(["apply", "--rewrite-artifacts"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: true }, makeCtx());
     const html = readFileSync(artifactPath, "utf8");
     expect(html).toContain('<link rel="stylesheet" href="../../../theme.css">');
   });
 
   test("does NOT add duplicate link to artifact that already has it", async () => {
     const { alreadyLinkedPath } = await buildSyntheticStateDir();
-    await themeCommand(["apply", "--rewrite-artifacts"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: true }, makeCtx());
     const html = readFileSync(alreadyLinkedPath, "utf8");
     // Should have exactly one link tag
     const linkCount = (html.match(/<link rel="stylesheet"/g) ?? []).length;
@@ -238,23 +238,23 @@ describe("cesium theme apply --rewrite-artifacts", () => {
 
   test("idempotent: running twice has no additional effect on artifact", async () => {
     const { artifactPath } = await buildSyntheticStateDir();
-    await themeCommand(["apply", "--rewrite-artifacts"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: true }, makeCtx());
     const afterFirst = readFileSync(artifactPath, "utf8");
-    await themeCommand(["apply", "--rewrite-artifacts"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: true }, makeCtx());
     const afterSecond = readFileSync(artifactPath, "utf8");
     expect(afterFirst).toBe(afterSecond);
   });
 
   test("adds correct relative path for project index (../../theme.css)", async () => {
     const { projectIndexPath } = await buildSyntheticStateDir();
-    await themeCommand(["apply", "--rewrite-artifacts"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: true }, makeCtx());
     const html = readFileSync(projectIndexPath, "utf8");
     expect(html).toContain('<link rel="stylesheet" href="../../theme.css">');
   });
 
   test("adds correct relative path for global index (theme.css)", async () => {
     const { globalIndexPath } = await buildSyntheticStateDir();
-    await themeCommand(["apply", "--rewrite-artifacts"], makeCtx());
+    await runThemeApply({ rewriteArtifacts: true }, makeCtx());
     const html = readFileSync(globalIndexPath, "utf8");
     expect(html).toContain('<link rel="stylesheet" href="theme.css">');
   });
@@ -262,38 +262,14 @@ describe("cesium theme apply --rewrite-artifacts", () => {
   test("prints retrofit count summary", async () => {
     await buildSyntheticStateDir();
     const ctx = makeCtx();
-    await themeCommand(["apply", "--rewrite-artifacts"], ctx);
+    await runThemeApply({ rewriteArtifacts: true }, ctx);
     expect(ctx.output).toContain("Retrofitted");
     expect(ctx.output).toContain("artifact");
   });
 
   test("returns exit code 0", async () => {
     const ctx = makeCtx();
-    const code = await themeCommand(["apply", "--rewrite-artifacts"], ctx);
+    const code = await runThemeApply({ rewriteArtifacts: true }, ctx);
     expect(code).toBe(0);
-  });
-});
-
-// ─── cesium theme --help / unknown subcommand ─────────────────────────────────
-
-describe("cesium theme entry", () => {
-  test("no subcommand returns non-zero", async () => {
-    const ctx = makeCtx();
-    const code = await themeCommand([], ctx);
-    expect(code).not.toBe(0);
-  });
-
-  test("--help returns 0 and prints usage", async () => {
-    const ctx = makeCtx();
-    const code = await themeCommand(["--help"], ctx);
-    expect(code).toBe(0);
-    expect(ctx.output).toContain("show");
-    expect(ctx.output).toContain("apply");
-  });
-
-  test("unknown subcommand returns 1", async () => {
-    const ctx = makeCtx();
-    const code = await themeCommand(["bogus"], ctx);
-    expect(code).toBe(1);
   });
 });

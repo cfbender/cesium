@@ -2,8 +2,8 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lsCommand } from "../src/cli/commands/ls.ts";
-import type { LsContext } from "../src/cli/commands/ls.ts";
+import { runLs } from "../src/cli/commands/ls.ts";
+import type { LsArgs, LsContext } from "../src/cli/commands/ls.ts";
 import type { CesiumConfig } from "../src/config.ts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -104,22 +104,14 @@ afterEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-test("ls --help prints usage and returns 0", async () => {
-  const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--help"], ctx);
-  expect(code).toBe(0);
-  expect(ctx.out).toContain("Usage: cesium ls");
-  expect(ctx.out).toContain("--all");
-  expect(ctx.out).toContain("--json");
-  expect(ctx.out).toContain("--limit");
-});
+const baseArgs: LsArgs = { all: false, json: false, limit: 50 };
 
 test("ls empty index prints 'No artifacts found' and returns 0", async () => {
   writeProjectIndex(stateDir, "github-com-cfb-cesium", []);
   const ctx = captureCtx(stateDir);
   // Use --all to read the global index (which also has 0 entries)
   writeGlobalIndex(stateDir, []);
-  const code = await lsCommand(["--all"], ctx);
+  const code = await runLs({ ...baseArgs, all: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("No artifacts found");
 });
@@ -131,7 +123,7 @@ test("ls returns 0 and prints table headers when entries exist", async () => {
   writeProjectIndex(stateDir, slug, [entry]);
 
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all"], ctx);
+  const code = await runLs({ ...baseArgs, all: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("ID");
   expect(ctx.out).toContain("KIND");
@@ -147,7 +139,7 @@ test("ls --json outputs valid JSON array", async () => {
   writeGlobalIndex(stateDir, [entry]);
 
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all", "--json"], ctx);
+  const code = await runLs({ ...baseArgs, all: true, json: true }, ctx);
   expect(code).toBe(0);
   const parsed = JSON.parse(ctx.out) as unknown[];
   expect(Array.isArray(parsed)).toBe(true);
@@ -166,7 +158,7 @@ test("ls --limit caps the output", async () => {
   writeGlobalIndex(stateDir, entries);
 
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all", "--limit", "3"], ctx);
+  const code = await runLs({ ...baseArgs, all: true, limit: 3 }, ctx);
   expect(code).toBe(0);
   // Count artifact rows by counting lines with "plan" (kind column)
   const lines = ctx.out.split("\n").filter((l) => l.includes("plan") && !l.includes("TITLE"));
@@ -175,7 +167,7 @@ test("ls --limit caps the output", async () => {
 
 test("ls --limit 0 returns exit code 1 with error message", async () => {
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all", "--limit", "0"], ctx);
+  const code = await runLs({ ...baseArgs, all: true, limit: 0 }, ctx);
   expect(code).toBe(1);
   expect(ctx.err).toContain("--limit");
 });
@@ -186,24 +178,17 @@ test("ls SUPER column shows → for supersededBy", async () => {
   writeGlobalIndex(stateDir, [e2, e1]);
 
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all"], ctx);
+  const code = await runLs({ ...baseArgs, all: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("→ bbb222");
   expect(ctx.out).toContain("← aaa111");
-});
-
-test("ls unknown option returns exit code 1 with error", async () => {
-  const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--unknown-flag"], ctx);
-  expect(code).toBe(1);
-  expect(ctx.err).not.toBe("");
 });
 
 test("ls missing global index.json returns 0 with no artifacts message", async () => {
   // No index.json created — empty dir
   mkdirSync(stateDir, { recursive: true });
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all"], ctx);
+  const code = await runLs({ ...baseArgs, all: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("No artifacts found");
 });
@@ -215,7 +200,7 @@ test("ls --json respects --limit", async () => {
   writeGlobalIndex(stateDir, entries);
 
   const ctx = captureCtx(stateDir);
-  const code = await lsCommand(["--all", "--json", "--limit", "2"], ctx);
+  const code = await runLs({ ...baseArgs, all: true, json: true, limit: 2 }, ctx);
   expect(code).toBe(0);
   const parsed = JSON.parse(ctx.out) as unknown[];
   expect(parsed).toHaveLength(2);

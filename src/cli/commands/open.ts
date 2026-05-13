@@ -1,6 +1,6 @@
 // cesium open — find an artifact by id prefix and open it in the browser.
 
-import { parseArgs } from "node:util";
+import { defineCommand } from "citty";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
@@ -14,6 +14,11 @@ import {
   type LifecycleConfig,
 } from "../../server/lifecycle.ts";
 import { resolveDisplayHost } from "../../tools/publish.ts";
+
+export interface OpenArgs {
+  idPrefix: string;
+  print: boolean;
+}
 
 export interface OpenContext {
   stdout: { write: (s: string) => void };
@@ -90,59 +95,16 @@ async function tryGetHttpUrl(
   return null;
 }
 
-export async function openCommand(argv: string[], ctx?: Partial<OpenContext>): Promise<number> {
-  const resolved: OpenContext = { ...defaultCtx(), ...ctx };
+export async function runOpen(args: OpenArgs, ctxOverride?: Partial<OpenContext>): Promise<number> {
+  const ctx: OpenContext = { ...defaultCtx(), ...ctxOverride };
 
-  let values: { print: boolean; help: boolean };
-  let positionals: string[];
-
-  try {
-    const parsed = parseArgs({
-      args: argv,
-      options: {
-        print: { type: "boolean", default: false },
-        help: { type: "boolean", short: "h", default: false },
-      },
-      allowPositionals: true,
-      strict: true,
-    });
-    values = parsed.values as typeof values;
-    positionals = parsed.positionals;
-  } catch (err) {
-    const e = err as Error;
-    resolved.stderr.write(`cesium open: ${e.message}\n`);
-    resolved.stderr.write(`Usage: cesium open <id-prefix> [--print]\n`);
+  if (args.idPrefix.length === 0) {
+    ctx.stderr.write(`cesium open: missing required argument <id-prefix>\n`);
     return 1;
   }
 
-  if (values.help) {
-    resolved.stdout.write(
-      [
-        "Usage: cesium open <id-prefix> [options]",
-        "",
-        "Options:",
-        "  --print     Print the URL instead of opening in the browser",
-        "  --help, -h  Show this help message",
-        "",
-        "Notes:",
-        "  Browser launch is supported on macOS (open) and Linux (xdg-open).",
-        "  On Windows, use --print to get the URL.",
-        "",
-      ].join("\n"),
-    );
-    return 0;
-  }
-
-  const idPrefix = positionals[0];
-  if (idPrefix === undefined || idPrefix.length === 0) {
-    resolved.stderr.write(`cesium open: missing required argument <id-prefix>\n`);
-    resolved.stderr.write(`Usage: cesium open <id-prefix> [--print]\n`);
-    return 1;
-  }
-
-  const prefixLower = idPrefix.toLowerCase();
-
-  const cfg = (resolved.loadConfig ?? loadConfig)();
+  const prefixLower = args.idPrefix.toLowerCase();
+  const cfg = (ctx.loadConfig ?? loadConfig)();
 
   // Search global index for matches
   const globalJsonPath = join(cfg.stateDir, "index.json");
@@ -151,23 +113,23 @@ export async function openCommand(argv: string[], ctx?: Partial<OpenContext>): P
     allEntries = await loadIndex(globalJsonPath);
   } catch (err) {
     const e = err as Error;
-    resolved.stderr.write(`cesium open: failed to read index: ${e.message}\n`);
+    ctx.stderr.write(`cesium open: failed to read index: ${e.message}\n`);
     return 1;
   }
 
   const matches = allEntries.filter((e) => e.id.toLowerCase().startsWith(prefixLower));
 
   if (matches.length === 0) {
-    resolved.stderr.write(`cesium open: no artifact found with id prefix "${idPrefix}"\n`);
+    ctx.stderr.write(`cesium open: no artifact found with id prefix "${args.idPrefix}"\n`);
     return 1;
   }
 
   if (matches.length > 1) {
-    resolved.stderr.write(
-      `cesium open: ambiguous prefix "${idPrefix}" — ${matches.length} matches:\n`,
+    ctx.stderr.write(
+      `cesium open: ambiguous prefix "${args.idPrefix}" — ${matches.length} matches:\n`,
     );
     for (const m of matches) {
-      resolved.stderr.write(`  ${m.id}  ${m.title}  (${m.kind})\n`);
+      ctx.stderr.write(`  ${m.id}  ${m.title}  (${m.kind})\n`);
     }
     return 2;
   }
@@ -175,7 +137,7 @@ export async function openCommand(argv: string[], ctx?: Partial<OpenContext>): P
   const entry = matches[0];
   if (entry === undefined) {
     // Unreachable: guarded by matches.length === 1, but satisfies the type checker
-    resolved.stderr.write(`cesium open: internal error — no match\n`);
+    ctx.stderr.write(`cesium open: internal error — no match\n`);
     return 1;
   }
   const paths = pathsFor({
@@ -185,24 +147,47 @@ export async function openCommand(argv: string[], ctx?: Partial<OpenContext>): P
   });
 
   // Resolve URL
-  const runEnsureRunning = resolved.ensureRunning ?? ensureRunning;
+  const runEnsureRunning = ctx.ensureRunning ?? ensureRunning;
   const httpUrl = await tryGetHttpUrl(cfg, paths.serverPath, runEnsureRunning);
   const url = httpUrl ?? paths.fileUrl;
 
-  if (values.print) {
-    resolved.stdout.write(url + "\n");
+  if (args.print) {
+    ctx.stdout.write(url + "\n");
     return 0;
   }
 
-  const open = resolved.opener ?? defaultOpener;
+  const open = ctx.opener ?? defaultOpener;
   try {
     await open(url);
   } catch (err) {
     const e = err as Error;
-    resolved.stderr.write(`cesium open: ${e.message}\n`);
-    resolved.stdout.write(`URL: ${url}\n`);
+    ctx.stderr.write(`cesium open: ${e.message}\n`);
+    ctx.stdout.write(`URL: ${url}\n`);
     return 1;
   }
 
   return 0;
 }
+
+export const openCmd = defineCommand({
+  meta: {
+    name: "open",
+    description: "Open an artifact by id prefix in the browser.",
+  },
+  args: {
+    idPrefix: {
+      type: "positional",
+      description: "Artifact id prefix (any unique substring of the id)",
+      required: true,
+    },
+    print: {
+      type: "boolean",
+      default: false,
+      description: "Print the URL instead of opening in the browser",
+    },
+  },
+  async run({ args }) {
+    const code = await runOpen({ idPrefix: args.idPrefix, print: args.print });
+    if (code !== 0) process.exit(code);
+  },
+});

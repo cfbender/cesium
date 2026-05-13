@@ -1,6 +1,6 @@
 // cesium prune — delete artifacts older than a given duration.
 
-import { parseArgs } from "node:util";
+import { defineCommand } from "citty";
 import { join } from "node:path";
 import { readdir, unlink as fsUnlink, stat } from "node:fs/promises";
 import { loadConfig, type CesiumConfig } from "../../config.ts";
@@ -14,6 +14,11 @@ import {
 import { themeFromPreset, mergeTheme } from "../../render/theme.ts";
 import { readEmbeddedMetadata } from "../../storage/write.ts";
 import { readFile } from "node:fs/promises";
+
+export interface PruneArgs {
+  olderThan: string;
+  yes: boolean;
+}
 
 export interface PruneContext {
   stdout: { write: (s: string) => void };
@@ -164,75 +169,28 @@ function formatTable(candidates: ArtifactCandidate[]): string {
   return [header, sep, ...rows].join("\n");
 }
 
-export async function pruneCommand(argv: string[], ctx?: Partial<PruneContext>): Promise<number> {
-  const resolved: PruneContext = { ...defaultCtx(), ...ctx };
+export async function runPrune(
+  args: PruneArgs,
+  ctxOverride?: Partial<PruneContext>,
+): Promise<number> {
+  const ctx: PruneContext = { ...defaultCtx(), ...ctxOverride };
 
-  let values: {
-    "older-than": string | undefined;
-    "dry-run": boolean;
-    yes: boolean;
-    help: boolean;
-  };
-
-  try {
-    const parsed = parseArgs({
-      args: argv,
-      options: {
-        "older-than": { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        yes: { type: "boolean", short: "y", default: false },
-        help: { type: "boolean", short: "h", default: false },
-      },
-      allowPositionals: false,
-      strict: true,
-    });
-    values = parsed.values as typeof values;
-  } catch (err) {
-    const e = err as Error;
-    resolved.stderr.write(`cesium prune: ${e.message}\n`);
-    resolved.stderr.write(`Usage: cesium prune --older-than <duration> [--yes]\n`);
+  if (args.olderThan.length === 0) {
+    ctx.stderr.write(`cesium prune: --older-than is required\n`);
     return 1;
   }
 
-  if (values.help) {
-    resolved.stdout.write(
-      [
-        "Usage: cesium prune --older-than <duration> [options]",
-        "",
-        "Options:",
-        "  --older-than <dur>  Delete artifacts older than this duration (e.g. 90d, 2w, 12h, 30m)",
-        "  --yes, -y           Actually delete (default is dry-run)",
-        "  --dry-run           Explicit dry-run (same as omitting --yes)",
-        "  --help, -h          Show this help message",
-        "",
-        "Duration format: <N><unit> where unit is d (days), w (weeks), h (hours), m (minutes).",
-        "",
-        "Note: prune deletes by age only. It does not check revision chains.",
-        "      Deleting an early version in a supersedes chain does not affect the newer version.",
-        "",
-      ].join("\n"),
-    );
-    return 0;
-  }
-
-  const durationStr = values["older-than"];
-  if (durationStr === undefined || durationStr.length === 0) {
-    resolved.stderr.write(`cesium prune: --older-than is required\n`);
-    resolved.stderr.write(`Usage: cesium prune --older-than <duration> [--yes]\n`);
-    return 1;
-  }
-
-  const durationMs = parseDuration(durationStr);
+  const durationMs = parseDuration(args.olderThan);
   if (durationMs === null) {
-    resolved.stderr.write(
-      `cesium prune: invalid duration "${durationStr}". Use format like 90d, 2w, 12h, 30m\n`,
+    ctx.stderr.write(
+      `cesium prune: invalid duration "${args.olderThan}". Use format like 90d, 2w, 12h, 30m\n`,
     );
     return 1;
   }
 
-  const isDryRun = !values.yes;
-  const cfg = (resolved.loadConfig ?? loadConfig)();
-  const now = (resolved.now ?? (() => new Date()))();
+  const isDryRun = !args.yes;
+  const cfg = (ctx.loadConfig ?? loadConfig)();
+  const now = (ctx.now ?? (() => new Date()))();
   const cutoff = now.getTime() - durationMs;
 
   // Collect all artifacts
@@ -241,7 +199,7 @@ export async function pruneCommand(argv: string[], ctx?: Partial<PruneContext>):
     allArtifacts = await collectAllArtifacts(cfg.stateDir);
   } catch (err) {
     const e = err as Error;
-    resolved.stderr.write(`cesium prune: failed to scan artifacts: ${e.message}\n`);
+    ctx.stderr.write(`cesium prune: failed to scan artifacts: ${e.message}\n`);
     return 1;
   }
 
@@ -252,16 +210,16 @@ export async function pruneCommand(argv: string[], ctx?: Partial<PruneContext>):
   });
 
   if (toDelete.length === 0) {
-    resolved.stdout.write(`No artifacts older than ${durationStr} found.\n`);
+    ctx.stdout.write(`No artifacts older than ${args.olderThan} found.\n`);
     return 0;
   }
 
   if (isDryRun) {
-    resolved.stdout.write(
-      `Would delete ${toDelete.length} artifact${toDelete.length !== 1 ? "s" : ""} older than ${durationStr}:\n`,
+    ctx.stdout.write(
+      `Would delete ${toDelete.length} artifact${toDelete.length !== 1 ? "s" : ""} older than ${args.olderThan}:\n`,
     );
-    resolved.stdout.write(formatTable(toDelete) + "\n\n");
-    resolved.stdout.write(`Re-run with --yes to delete.\n`);
+    ctx.stdout.write(formatTable(toDelete) + "\n\n");
+    ctx.stdout.write(`Re-run with --yes to delete.\n`);
     return 0;
   }
 
@@ -274,9 +232,7 @@ export async function pruneCommand(argv: string[], ctx?: Partial<PruneContext>):
       } catch (err) {
         const e = err as NodeJS.ErrnoException;
         if (e.code !== "ENOENT") {
-          resolved.stderr.write(
-            `cesium prune: failed to delete ${candidate.filePath}: ${e.message}\n`,
-          );
+          ctx.stderr.write(`cesium prune: failed to delete ${candidate.filePath}: ${e.message}\n`);
         }
         return false;
       }
@@ -341,8 +297,40 @@ export async function pruneCommand(argv: string[], ctx?: Partial<PruneContext>):
     // best-effort
   }
 
-  resolved.stdout.write(
+  ctx.stdout.write(
     `Deleted ${deletedCount} artifact${deletedCount !== 1 ? "s" : ""}. Indexes regenerated.\n`,
   );
   return 0;
 }
+
+export const pruneCmd = defineCommand({
+  meta: {
+    name: "prune",
+    description: "Delete artifacts older than a given duration.",
+  },
+  args: {
+    "older-than": {
+      type: "string",
+      required: true,
+      description: "Delete artifacts older than this duration (e.g. 90d, 2w, 12h, 30m)",
+    },
+    yes: {
+      type: "boolean",
+      alias: "y",
+      default: false,
+      description: "Actually delete (default is dry-run)",
+    },
+    "dry-run": {
+      type: "boolean",
+      default: false,
+      description: "Explicit dry-run (same as omitting --yes)",
+    },
+  },
+  async run({ args }) {
+    const code = await runPrune({
+      olderThan: args["older-than"],
+      yes: args.yes,
+    });
+    if (code !== 0) process.exit(code);
+  },
+});

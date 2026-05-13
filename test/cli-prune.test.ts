@@ -2,7 +2,8 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pruneCommand, parseDuration } from "../src/cli/commands/prune.ts";
+import { runPrune, parseDuration } from "../src/cli/commands/prune.ts";
+import type { PruneArgs } from "../src/cli/commands/prune.ts";
 import type { PruneContext } from "../src/cli/commands/prune.ts";
 import type { CesiumConfig } from "../src/config.ts";
 
@@ -119,24 +120,18 @@ test("parseDuration returns null for invalid input", () => {
 
 // ─── prune command tests ──────────────────────────────────────────────────────
 
-test("prune --help returns 0 and prints usage", async () => {
-  const ctx = captureCtx(stateDir);
-  const code = await pruneCommand(["--help"], ctx);
-  expect(code).toBe(0);
-  expect(ctx.out).toContain("Usage: cesium prune");
-  expect(ctx.out).toContain("--older-than");
-});
+const baseArgs: PruneArgs = { olderThan: "", yes: false };
 
 test("prune without --older-than returns 1", async () => {
   const ctx = captureCtx(stateDir);
-  const code = await pruneCommand([], ctx);
+  const code = await runPrune(baseArgs, ctx);
   expect(code).toBe(1);
   expect(ctx.err).toContain("--older-than");
 });
 
 test("prune with invalid duration returns 1", async () => {
   const ctx = captureCtx(stateDir);
-  const code = await pruneCommand(["--older-than", "badformat"], ctx);
+  const code = await runPrune({ ...baseArgs, olderThan: "badformat" }, ctx);
   expect(code).toBe(1);
   expect(ctx.err).toContain("invalid duration");
 });
@@ -153,7 +148,7 @@ test("prune dry-run lists artifacts to be deleted", async () => {
   );
 
   const ctx = captureCtx(stateDir, now);
-  const code = await pruneCommand(["--older-than", "90d"], ctx);
+  const code = await runPrune({ ...baseArgs, olderThan: "90d" }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("Would delete 1 artifact");
   expect(ctx.out).toContain("oldid1");
@@ -171,7 +166,7 @@ test("prune dry-run does not delete files", async () => {
   );
 
   const ctx = captureCtx(stateDir, now);
-  await pruneCommand(["--older-than", "90d"], ctx);
+  await runPrune({ ...baseArgs, olderThan: "90d" }, ctx);
   expect(existsSync(filePath)).toBe(true);
 });
 
@@ -225,7 +220,7 @@ test("prune --yes deletes old artifacts", async () => {
   ]);
 
   const ctx = captureCtx(stateDir, now);
-  const code = await pruneCommand(["--older-than", "90d", "--yes"], ctx);
+  const code = await runPrune({ ...baseArgs, olderThan: "90d", yes: true }, ctx);
   expect(code).toBe(0);
   expect(existsSync(filePath)).toBe(false);
   expect(ctx.out).toContain("Deleted 1 artifact");
@@ -244,7 +239,7 @@ test("prune --yes does not delete recent artifacts", async () => {
   );
 
   const ctx = captureCtx(stateDir, now);
-  const code = await pruneCommand(["--older-than", "90d", "--yes"], ctx);
+  const code = await runPrune({ ...baseArgs, olderThan: "90d", yes: true }, ctx);
   expect(code).toBe(0);
   expect(existsSync(filePath)).toBe(true);
   expect(ctx.out).toContain("No artifacts older than 90d found");
@@ -252,7 +247,7 @@ test("prune --yes does not delete recent artifacts", async () => {
 
 test("prune reports 0 when no projects directory", async () => {
   const ctx = captureCtx(stateDir);
-  const code = await pruneCommand(["--older-than", "90d"], ctx);
+  const code = await runPrune({ ...baseArgs, olderThan: "90d" }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("No artifacts older than 90d found");
 });

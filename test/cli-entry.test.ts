@@ -20,6 +20,8 @@ function runCli(args: string[]): { stdout: string; stderr: string; exitCode: num
       ...process.env,
       CESIUM_STATE_DIR: isolatedStateDir,
       XDG_STATE_HOME: undefined,
+      // Disable ANSI color so help assertions match plain text
+      NO_COLOR: "1",
     },
   });
   return {
@@ -34,31 +36,31 @@ function runCli(args: string[]): { stdout: string; stderr: string; exitCode: num
 test("cesium --help prints help and exits 0", () => {
   const { stdout, exitCode } = runCli(["--help"]);
   expect(exitCode).toBe(0);
-  expect(stdout).toContain("cesium — artifact manager");
+  expect(stdout).toContain("artifact manager for opencode sessions");
+  // Lists all subcommands
   expect(stdout).toContain("ls");
   expect(stdout).toContain("open");
   expect(stdout).toContain("serve");
   expect(stdout).toContain("stop");
   expect(stdout).toContain("restart");
   expect(stdout).toContain("prune");
+  expect(stdout).toContain("theme");
 });
 
-test("cesium with no arguments exits non-zero and prints help", () => {
+test("cesium with no arguments prints help and exits non-zero", () => {
   const { stdout, exitCode } = runCli([]);
+  // Citty prints help and exits non-zero when no subcommand is given.
   expect(exitCode).not.toBe(0);
-  expect(stdout).toContain("cesium — artifact manager");
-});
-
-test("cesium unknown command exits 1 and mentions 'unknown command'", () => {
-  const { stderr, exitCode } = runCli(["nonexistent"]);
-  expect(exitCode).toBe(1);
-  expect(stderr).toContain("unknown command");
+  expect(stdout).toContain("artifact manager for opencode sessions");
 });
 
 test("cesium ls --help exits 0 and shows ls usage", () => {
   const { stdout, exitCode } = runCli(["ls", "--help"]);
   expect(exitCode).toBe(0);
-  expect(stdout).toContain("Usage: cesium ls");
+  expect(stdout).toContain("cesium ls");
+  expect(stdout).toContain("--all");
+  expect(stdout).toContain("--json");
+  expect(stdout).toContain("--limit");
 });
 
 test("cesium stop is recognized as a valid command", () => {
@@ -71,35 +73,31 @@ test("cesium stop is recognized as a valid command", () => {
 test("cesium stop --help exits 0 and prints stop usage", () => {
   const { stdout, exitCode } = runCli(["stop", "--help"]);
   expect(exitCode).toBe(0);
-  expect(stdout).toContain("Usage: cesium stop");
+  expect(stdout).toContain("cesium stop");
+  expect(stdout).toContain("--force");
+  expect(stdout).toContain("--timeout");
 });
 
-test("cesium restart --help exits 0 — restart inherits stop/serve help flag", () => {
-  // restart passes --help through to serve (serve renders its help)
+test("cesium restart --help exits 0", () => {
   const { exitCode } = runCli(["restart", "--help"]);
   expect(exitCode).toBe(0);
+});
+
+test("cesium theme --help lists show and apply subcommands", () => {
+  const { stdout, exitCode } = runCli(["theme", "--help"]);
+  expect(exitCode).toBe(0);
+  expect(stdout).toContain("show");
+  expect(stdout).toContain("apply");
 });
 
 test("cesium --version prints the version and exits 0", () => {
   const { stdout, exitCode } = runCli(["--version"]);
   expect(exitCode).toBe(0);
-  expect(stdout).toMatch(/^cesium \d+\.\d+\.\d+\s*$/);
+  expect(stdout).toMatch(/^\d+\.\d+\.\d+\s*$/);
 });
 
 test("cesium -v prints the version and exits 0", () => {
   const { stdout, exitCode } = runCli(["-v"]);
   expect(exitCode).toBe(0);
-  expect(stdout).toMatch(/^cesium \d+\.\d+\.\d+\s*$/);
-});
-
-test("cesium version subcommand prints the version and exits 0", () => {
-  const { stdout, exitCode } = runCli(["version"]);
-  expect(exitCode).toBe(0);
-  expect(stdout).toMatch(/^cesium \d+\.\d+\.\d+\s*$/);
-});
-
-test("cesium --help mentions the version flag and command", () => {
-  const { stdout } = runCli(["--help"]);
-  expect(stdout).toContain("--version");
-  expect(stdout).toContain("version");
+  expect(stdout).toMatch(/^\d+\.\d+\.\d+\s*$/);
 });

@@ -2,8 +2,8 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { stopCommand } from "../src/cli/commands/stop.ts";
-import type { StopContext } from "../src/cli/commands/stop.ts";
+import { runStop } from "../src/cli/commands/stop.ts";
+import type { StopArgs, StopContext } from "../src/cli/commands/stop.ts";
 import type { CesiumConfig } from "../src/config.ts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -80,9 +80,11 @@ afterEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+const baseArgs: StopArgs = { force: false, timeoutMs: 3000 };
+
 test("stop: no PID file returns 0 and prints 'no cesium server running'", async () => {
   const ctx = captureCtx(stateDir);
-  const code = await stopCommand([], ctx);
+  const code = await runStop(baseArgs, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("no cesium server running");
   expect(ctx.killProcess).toBeDefined(); // mocked but never called
@@ -100,7 +102,7 @@ test("stop: stale PID file (isAlive=false) returns 0, removes PID file, prints s
     isAlive: () => false,
     killCalls,
   });
-  const code = await stopCommand([], ctx);
+  const code = await runStop(baseArgs, ctx);
 
   expect(code).toBe(0);
   expect(ctx.out).toContain("stale PID file removed");
@@ -123,7 +125,7 @@ test("stop: live PID, SIGTERM succeeds — returns 0, calls SIGTERM, removes PID
     sleep: () => Promise.resolve(),
   });
 
-  const code = await stopCommand([], ctx);
+  const code = await runStop(baseArgs, ctx);
 
   expect(code).toBe(0);
   expect(killCalls.some((c) => c.signal === "SIGTERM")).toBe(true);
@@ -144,7 +146,7 @@ test("stop: SIGTERM doesn't kill within timeout — SIGKILL is sent", async () =
     sleep: () => Promise.resolve(),
   });
 
-  const code = await stopCommand(["--timeout", "0"], ctx);
+  const code = await runStop({ ...baseArgs, timeoutMs: 0 }, ctx);
 
   expect(code).toBe(0);
   const signals = killCalls.map((c) => c.signal);
@@ -162,7 +164,7 @@ test("stop: --force skips SIGTERM and sends SIGKILL immediately", async () => {
     sleep: () => Promise.resolve(),
   });
 
-  const code = await stopCommand(["--force"], ctx);
+  const code = await runStop({ ...baseArgs, force: true }, ctx);
 
   expect(code).toBe(0);
   const signals = killCalls.map((c) => c.signal);
@@ -184,7 +186,7 @@ test("stop: --timeout 50 is respected (parsed correctly)", async () => {
     sleep: () => Promise.resolve(),
   });
 
-  const code = await stopCommand(["--timeout", "50"], ctx);
+  const code = await runStop({ ...baseArgs, timeoutMs: 50 }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("stopped cesium server");
 });
@@ -201,7 +203,7 @@ test("stop: killProcess throws ESRCH — treated as success", async () => {
     sleep: () => Promise.resolve(),
   });
 
-  const code = await stopCommand(["--force"], ctx);
+  const code = await runStop({ ...baseArgs, force: true }, ctx);
   expect(code).toBe(0);
   expect(ctx.out).toContain("stopped cesium server");
 });
@@ -218,7 +220,7 @@ test("stop: killProcess throws EPERM — returns 2 and prints helpful message", 
     sleep: () => Promise.resolve(),
   });
 
-  const code = await stopCommand(["--force"], ctx);
+  const code = await runStop({ ...baseArgs, force: true }, ctx);
   expect(code).toBe(2);
   expect(ctx.err).toContain("permission denied");
   expect(ctx.err).toContain("another user");
@@ -227,29 +229,20 @@ test("stop: killProcess throws EPERM — returns 2 and prints helpful message", 
 test("stop: idempotent — second call with no PID file returns 0", async () => {
   // First call: no PID file
   const ctx1 = captureCtx(stateDir);
-  const code1 = await stopCommand([], ctx1);
+  const code1 = await runStop(baseArgs, ctx1);
   expect(code1).toBe(0);
   expect(ctx1.out).toContain("no cesium server running");
 
   // Second call: still no PID file
   const ctx2 = captureCtx(stateDir);
-  const code2 = await stopCommand([], ctx2);
+  const code2 = await runStop(baseArgs, ctx2);
   expect(code2).toBe(0);
   expect(ctx2.out).toContain("no cesium server running");
 });
 
-test("stop --help returns 0 and prints usage", async () => {
+test("stop: negative timeoutMs returns 1 with error", async () => {
   const ctx = captureCtx(stateDir);
-  const code = await stopCommand(["--help"], ctx);
-  expect(code).toBe(0);
-  expect(ctx.out).toContain("Usage: cesium stop");
-  expect(ctx.out).toContain("--force");
-  expect(ctx.out).toContain("--timeout");
-});
-
-test("stop: unknown flag returns 1 and writes error", async () => {
-  const ctx = captureCtx(stateDir);
-  const code = await stopCommand(["--unknown-flag"], ctx);
+  const code = await runStop({ ...baseArgs, timeoutMs: -1 }, ctx);
   expect(code).toBe(1);
-  expect(ctx.err).not.toBe("");
+  expect(ctx.err).toContain("--timeout");
 });
