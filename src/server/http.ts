@@ -79,6 +79,7 @@ export async function startServer(args: StartServerArgs): Promise<ServerHandle> 
 
       // Run pre-static handlers (e.g. API routes) before serving static files
       for (const handler of preHandlers) {
+        // eslint-disable-next-line no-await-in-loop -- middleware chain: first non-undefined wins, must run sequentially
         const result = await handler(req);
         if (result !== undefined) {
           return result;

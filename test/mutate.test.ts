@@ -8,6 +8,13 @@ import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
 import type { InteractiveData } from "../src/render/validate.ts";
 
+function unwrap<T>(value: T | null | undefined, name: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`expected ${name} to be defined`);
+  }
+  return value;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 let tmpDir: string;
@@ -128,7 +135,10 @@ describe("submitAnswer — single question complete", () => {
         diskHtml,
       );
     expect(metaMatch).not.toBeNull();
-    const meta = JSON.parse(metaMatch![1]!) as Record<string, unknown>;
+    const meta = JSON.parse(unwrap(unwrap(metaMatch, "meta match")[1], "meta json")) as Record<
+      string,
+      unknown
+    >;
     const interactive = meta["interactive"] as Record<string, unknown>;
     expect(interactive["status"]).toBe("complete");
     expect(interactive["completedAt"]).toBeDefined();
@@ -363,7 +373,10 @@ describe("submitAnswer — error outcomes", () => {
       /<script\s[^>]*type="application\/json"[^>]*id="cesium-meta"[^>]*>([\s\S]*?)<\/script>/i.exec(
         diskHtml,
       );
-    const meta = JSON.parse(metaMatch![1]!) as Record<string, unknown>;
+    const meta = JSON.parse(unwrap(unwrap(metaMatch, "meta match")[1], "meta json")) as Record<
+      string,
+      unknown
+    >;
     const embeddedInteractive = meta["interactive"] as Record<string, unknown>;
     expect(embeddedInteractive["status"]).toBe("expired");
   });
@@ -519,7 +532,10 @@ describe("submitAnswer — concurrency", () => {
       /<script\s[^>]*type="application\/json"[^>]*id="cesium-meta"[^>]*>([\s\S]*?)<\/script>/i.exec(
         diskHtml,
       );
-    const meta = JSON.parse(metaMatch![1]!) as Record<string, unknown>;
+    const meta = JSON.parse(unwrap(unwrap(metaMatch, "meta match")[1], "meta json")) as Record<
+      string,
+      unknown
+    >;
     const embeddedInteractive = meta["interactive"] as Record<string, unknown>;
     const answers = embeddedInteractive["answers"] as Record<string, unknown>;
     expect(Object.keys(answers)).toHaveLength(2);

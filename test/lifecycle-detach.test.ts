@@ -29,6 +29,7 @@ afterEach(async () => {
       try {
         process.kill(pid, "SIGTERM");
         // Brief wait for process to exit
+        // eslint-disable-next-line no-await-in-loop -- sequential cleanup per spawned pid
         await new Promise<void>((resolve) => setTimeout(resolve, 200));
         if (isAlive(pid)) {
           process.kill(pid, "SIGKILL");

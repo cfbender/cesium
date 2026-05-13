@@ -3,6 +3,13 @@ import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
 import type { InteractiveData } from "../src/render/validate.ts";
 
+function unwrap<T>(value: T | null | undefined, name: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`expected ${name} to be defined`);
+  }
+  return value;
+}
+
 function makeMeta(overrides?: Partial<ArtifactMeta>): ArtifactMeta {
   return {
     id: "a7K9pQ",
@@ -327,7 +334,10 @@ describe("wrapDocument — interactive absent", () => {
       doc,
     );
     expect(match).not.toBeNull();
-    const parsed = JSON.parse(match![1]!) as Record<string, unknown>;
+    const parsed = JSON.parse(unwrap(unwrap(match, "meta match")[1], "meta json")) as Record<
+      string,
+      unknown
+    >;
     expect("interactive" in parsed).toBe(false);
   });
 });
@@ -352,7 +362,7 @@ describe("wrapDocument — interactive with 2 unanswered questions", () => {
     });
     const controlMatches = doc.match(/class="cs-control-/g);
     expect(controlMatches).not.toBeNull();
-    expect(controlMatches!.length).toBe(2);
+    expect(unwrap(controlMatches, "control matches").length).toBe(2);
   });
 
   test("each control section has correct data-question-id", () => {
@@ -515,7 +525,10 @@ describe("wrapDocument — interactive cesium-meta JSON", () => {
       doc,
     );
     expect(match).not.toBeNull();
-    const parsed = JSON.parse(match![1]!) as Record<string, unknown>;
+    const parsed = JSON.parse(unwrap(unwrap(match, "meta match")[1], "meta json")) as Record<
+      string,
+      unknown
+    >;
     expect(parsed["interactive"]).toBeDefined();
     const embeddedInteractive = parsed["interactive"] as Record<string, unknown>;
     expect(embeddedInteractive["status"]).toBe("open");
@@ -534,7 +547,10 @@ describe("wrapDocument — interactive cesium-meta JSON", () => {
     const match = /<script type="application\/json" id="cesium-meta">([\s\S]*?)<\/script>/i.exec(
       doc,
     );
-    const parsed = JSON.parse(match![1]!) as Record<string, unknown>;
+    const parsed = JSON.parse(unwrap(unwrap(match, "meta match")[1], "meta json")) as Record<
+      string,
+      unknown
+    >;
     const questions = (parsed["interactive"] as Record<string, unknown>)["questions"] as Record<
       string,
       unknown
@@ -591,7 +607,7 @@ describe("wrapDocument — interactive HTML escaping", () => {
     // The cs-answered section must use escaped HTML
     const answeredMatch = /<section class="cs-answered"[^>]*>([\s\S]*?)<\/section>/.exec(doc);
     expect(answeredMatch).not.toBeNull();
-    const sectionHtml = answeredMatch![1]!;
+    const sectionHtml = unwrap(unwrap(answeredMatch, "answered match")[1], "answered section html");
     expect(sectionHtml).not.toContain("<b>bold</b>");
     expect(sectionHtml).toContain("&lt;b&gt;bold&lt;/b&gt;");
   });

@@ -94,7 +94,8 @@ async function writeArtifact(filename: string, interactive?: InteractiveData): P
 }
 
 function baseUrl(): string {
-  return handle!.url;
+  if (handle === null) throw new Error("server handle not initialized");
+  return handle.url;
 }
 
 function answerUrl(qid = "q1", filename = FILENAME): string {

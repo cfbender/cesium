@@ -452,11 +452,13 @@ export async function ensureServerRunning(cfg: LifecycleConfig): Promise<Running
   while (Date.now() < deadline) {
     const waitMs = POLL_SCHEDULE[scheduleIdx] ?? 1000;
     scheduleIdx = Math.min(scheduleIdx + 1, POLL_SCHEDULE.length - 1);
+    // eslint-disable-next-line no-await-in-loop -- poll-with-backoff requires sequential sleeps
     await sleep(waitMs);
 
     const pidContent = readPidFile(pidFilePath);
     if (pidContent !== null && isAlive(pidContent.pid)) {
       const probeUrl = `http://${pidContent.hostname}:${pidContent.port}/`;
+      // eslint-disable-next-line no-await-in-loop -- probe runs per-iteration after sleep; cannot parallelize
       const alive = await httpProbe(probeUrl);
       if (alive) {
         return {

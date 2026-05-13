@@ -87,6 +87,7 @@ async function resolveArtifactPath(stateDir: string, id: string): Promise<string
     const indexPath = join(projectsDir, projectSlug, "index.json");
     let entries;
     try {
+      // eslint-disable-next-line no-await-in-loop -- short-circuit on first project containing the id
       entries = await loadIndex(indexPath);
     } catch {
       continue;

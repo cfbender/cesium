@@ -49,14 +49,16 @@ export function createApiHandler(
     // GET  /api/sessions/:projectSlug/:filename/state
     const stateMatch = /^\/api\/sessions\/([^/]+)\/([^/]+)\/state$/.exec(pathname);
 
-    if (answerMatch === null && stateMatch === null) {
+    const match = answerMatch ?? stateMatch;
+    if (match === null) {
       // Unrecognized /api/ path
       return jsonResponse({ ok: false, error: "not found" }, 404);
     }
 
-    const match = (answerMatch ?? stateMatch)!;
-    const projectSlug = match[1]!;
-    const filename = match[2]!;
+    // The regexes both have ([^/]+) for groups 1 and 2, so a successful match
+    // always populates these capture groups.
+    const projectSlug = match[1] ?? "";
+    const filename = match[2] ?? "";
 
     // ─── Input validation ──────────────────────────────────────────────────
     if (DANGEROUS_RE.test(projectSlug) || DANGEROUS_RE.test(filename)) {
@@ -86,7 +88,7 @@ export function createApiHandler(
         return jsonResponse({ ok: false, error: "method not allowed" }, 404);
       }
 
-      const questionId = answerMatch[3]!;
+      const questionId = answerMatch[3] ?? "";
 
       // Parse body
       let body: unknown;
