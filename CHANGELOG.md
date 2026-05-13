@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.6.1 — 2026-05-13
+
+Fixes a regression introduced by the v0.4 blocks refactor: the README's
+"self-contained HTML file" claim had quietly become false. Block-based
+artifacts (cards, callouts, compare-tables, timelines, code) rendered as
+broken-looking plain HTML when opened via `file://` because the inline
+fallback CSS only covered basic typography — all the block styling lived
+in the server-side `theme.css`. Sharing an artifact required either the
+running cesium server or a recipient who happened to have it.
+
+- **feat:** Artifacts now embed the full `theme.css` (~21KB) in an inline
+  `<style>` block at generation time. Opening any artifact via `file://`
+  or on any other machine now renders correctly with zero external
+  dependencies — typography, blocks, tables, controls, diff renderer, all
+  of it. The `<link rel="stylesheet" href=".../theme.css">` is preserved
+  so served artifacts still pick up live theme changes (the link rules
+  override the earlier inline `<style>` in cascade order).
+- **feat:** New `cesium export <id-prefix>` command emits an artifact's
+  self-contained HTML to stdout, or to `--out file.html`. Resolves the id
+  prefix against the global index the same way `cesium open` does. With
+  the baked-in CSS, export is now a near-trivial file copy — pipe it
+  anywhere, attach it to email, drop it in a chat, commit it to a repo.
+- **refactor:** Removed `src/render/fallback.ts` and the matching test
+  file. The 8-line fallback CSS it produced is no longer needed; the
+  inline `<style>` carries the full framework directly.
+- **chore:** README "Share an artifact" section now leads with
+  `cesium export` and explains the bake-and-override model.
+
+Old artifacts on disk are not retroactively re-baked — they keep their
+generation-time fallback + link, which means they continue to render
+fine when served by cesium but look plain when opened standalone.
+Historical fidelity is preserved. New artifacts written from v0.6.1
+onward are genuinely portable.
+
 ## v0.6.0 — 2026-05-13
 
 Internal cleanup release. Two hand-rolled server and CLI layers swapped
