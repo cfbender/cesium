@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
-import type { InteractiveData, InteractiveAskData } from "../src/render/validate.ts";
+import type {
+  InteractiveData,
+  InteractiveAskData,
+  InteractiveAnnotateData,
+} from "../src/render/validate.ts";
 
 function unwrap<T>(value: T | null | undefined, name: string): T {
   if (value === null || value === undefined) {
@@ -924,5 +928,218 @@ describe("wrapDocument — Phase B control HTML", () => {
       themeCssHref: null,
     });
     expect(doc).not.toContain("(control rendering — Phase B)");
+  });
+});
+
+// ─── Phase 5: annotate scaffold ───────────────────────────────────────────────
+
+function makeAnnotateInteractive(
+  overrides?: Partial<InteractiveAnnotateData>,
+): InteractiveAnnotateData {
+  return {
+    kind: "annotate",
+    status: "open",
+    expiresAt: "2027-12-31T23:59:59Z",
+    verdictMode: "full",
+    requireVerdict: false,
+    perLineFor: ["diff"],
+    comments: [],
+    verdict: null,
+    ...overrides,
+  };
+}
+
+describe("wrapDocument — annotate scaffold (Phase 5)", () => {
+  test("renders cs-annotate-scaffold section", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain("cs-annotate-scaffold");
+    expect(doc).toContain("data-cesium-annotate-scaffold");
+  });
+
+  test("renders comment rail with data-cesium-comment-rail", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain("data-cesium-comment-rail");
+  });
+
+  test("renders verdict footer with comment count", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain("data-cesium-comment-count");
+    expect(doc).toContain("cs-verdict-footer");
+  });
+
+  test("renders comment popup template", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive(),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('id="cs-annotate-comment-popup"');
+    expect(doc).toContain("cs-comment-popup");
+  });
+
+  test("open status: verdict buttons rendered WITHOUT disabled attribute", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ status: "open" }),
+      themeCssHref: null,
+    });
+    // Extract just the scaffold section (not the script)
+    const scaffoldMatch = /<section class="cs-annotate-scaffold"[^>]*>([\s\S]*?)<\/section>/.exec(
+      doc,
+    );
+    expect(scaffoldMatch).not.toBeNull();
+    const scaffoldContent = scaffoldMatch?.[1] ?? "";
+    // Verdict footer buttons should exist without disabled
+    expect(scaffoldContent).toContain('data-verdict="approve"');
+    // The verdict buttons in the FOOTER should not have disabled attr
+    const footerMatch = /<footer class="cs-verdict-footer">([\s\S]*?)<\/footer>/.exec(
+      scaffoldContent,
+    );
+    expect(footerMatch).not.toBeNull();
+    const footerContent = footerMatch?.[1] ?? "";
+    // Verdict buttons should exist
+    expect(footerContent).toContain('class="cs-verdict cs-verdict-approve"');
+    // No disabled on verdict buttons when status is open
+    expect(footerContent).not.toContain("disabled");
+  });
+
+  test("non-open status: verdict buttons rendered WITH disabled attribute", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ status: "complete" }),
+      themeCssHref: null,
+    });
+    const bodyMatch = /<body>([\s\S]*?)<\/body>/.exec(doc);
+    const bodyContent = bodyMatch?.[1] ?? "";
+    expect(bodyContent).toContain("disabled");
+  });
+
+  test("verdictMode approve: only Approve button rendered", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ verdictMode: "approve" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('data-verdict="approve"');
+    expect(doc).not.toContain('data-verdict="request_changes"');
+    expect(doc).not.toContain('data-verdict="comment"');
+  });
+
+  test("verdictMode approve-or-reject: Approve + Request changes buttons", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ verdictMode: "approve-or-reject" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('data-verdict="approve"');
+    expect(doc).toContain('data-verdict="request_changes"');
+    expect(doc).not.toContain('data-verdict="comment"');
+  });
+
+  test("verdictMode full: all 3 verdict buttons rendered", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ verdictMode: "full" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('data-verdict="approve"');
+    expect(doc).toContain('data-verdict="request_changes"');
+    expect(doc).toContain('data-verdict="comment"');
+  });
+
+  test("data-cesium-verdict-mode attribute matches verdictMode", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ verdictMode: "approve-or-reject" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('data-cesium-verdict-mode="approve-or-reject"');
+  });
+
+  test("data-cesium-status attribute matches status", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ status: "open" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain('data-cesium-status="open"');
+  });
+
+  test("client JS injected when annotate status is open", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ status: "open" }),
+      themeCssHref: null,
+    });
+    expect(doc).toContain("<script data-cesium-client>");
+    expect(doc).toContain("wireAnnotate");
+  });
+
+  test("NO client JS when annotate status is complete", () => {
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive: makeAnnotateInteractive({ status: "complete" }),
+      themeCssHref: null,
+    });
+    expect(doc).not.toContain("wireAnnotate");
+    expect(doc).not.toContain("data-cesium-client");
+  });
+
+  test("cesium-meta JSON includes annotate interactive data", () => {
+    const interactive = makeAnnotateInteractive();
+    const doc = wrapDocument({
+      body: "<p>body</p>",
+      meta: makeMeta({ kind: "annotate" }),
+      theme: defaultTheme(),
+      interactive,
+      themeCssHref: null,
+    });
+    const match = /<script type="application\/json" id="cesium-meta">([\s\S]*?)<\/script>/i.exec(
+      doc,
+    );
+    expect(match).not.toBeNull();
+    const parsed = JSON.parse(match?.[1] ?? "") as Record<string, unknown>;
+    const embedded = parsed["interactive"] as Record<string, unknown>;
+    expect(embedded["kind"]).toBe("annotate");
+    expect(embedded["verdictMode"]).toBe("full");
+    expect(embedded["status"]).toBe("open");
   });
 });

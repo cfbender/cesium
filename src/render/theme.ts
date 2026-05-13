@@ -982,6 +982,311 @@ textarea.cs-text { font-family: var(--mono); }
   z-index: 10;
 }
 
+/* ─── annotate affordances (.cs-anchor-*) ─────────────────────────────────── */
+
+/* affordance base — hidden by default, shown on anchor hover/focus */
+.cs-anchor-affordance {
+  display: none;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  line-height: 1;
+  color: var(--muted);
+  transition: color 120ms, background 120ms, opacity 120ms;
+  min-width: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.cs-anchor-affordance:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+/* show affordance on anchor hover / focus-within */
+[data-cesium-anchor]:hover > .cs-anchor-affordance,
+[data-cesium-anchor]:focus-within > .cs-anchor-affordance {
+  display: inline-flex;
+}
+
+/* line affordance — tight gutter "+" icon */
+.cs-anchor-affordance-line {
+  font-size: 14px;
+  min-width: 24px;
+  min-height: 24px;
+  margin-right: 4px;
+}
+
+/* block affordance — pencil icon to the left of block-level elements */
+.cs-anchor-affordance-block {
+  font-size: 15px;
+  margin-right: 8px;
+}
+
+/* ─── annotate comment popup (.cs-comment-popup) ───────────────────────────── */
+
+.cs-comment-popup {
+  position: absolute;
+  z-index: 100;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface);
+  border: 1.5px solid var(--rule);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cs-comment-popup-quote {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  border-left: 3px solid var(--rule);
+  padding: 4px 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+.cs-comment-input {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface-2);
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 120ms;
+}
+.cs-comment-input:focus { border-color: var(--accent); outline: none; }
+.cs-comment-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.cs-comment-save {
+  padding: 0.45rem 1.1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms;
+}
+.cs-comment-save:hover:not(:disabled) { opacity: 0.85; }
+.cs-comment-save:disabled { opacity: 0.4; cursor: not-allowed; }
+.cs-comment-cancel {
+  padding: 0.45rem 1rem;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 120ms, border-color 120ms;
+}
+.cs-comment-cancel:hover:not(:disabled) { opacity: 0.85; border-color: var(--muted); }
+.cs-comment-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── comment rail (.cs-comment-rail) ─────────────────────────────────────── */
+
+.cs-comment-rail {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  width: 280px;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+  /* custom scrollbar for aesthetics */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+@media (max-width: 900px) {
+  .cs-comment-rail {
+    position: static;
+    width: 100%;
+    max-height: none;
+    margin-top: 24px;
+  }
+}
+.cs-comment-bubble {
+  background: var(--surface);
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 120ms;
+}
+.cs-comment-bubble:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--rule)); }
+.cs-comment-bubble-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.cs-comment-anchor-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cs-comment-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 120ms, background 120ms, border-color 120ms;
+  padding: 0;
+  line-height: 1;
+}
+.cs-comment-delete:hover {
+  color: #c93b3b;
+  background: color-mix(in srgb, #c93b3b 10%, transparent);
+  border-color: #c93b3b;
+}
+.cs-comment-text {
+  font-size: 0.9rem;
+  color: var(--ink);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cs-comment-bubble-quote {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+  border-left: 2px solid var(--rule);
+  padding: 2px 8px;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* ─── verdict footer (.cs-verdict-footer) ─────────────────────────────────── */
+
+/* extra body padding when annotate scaffold is present, so footer doesn't
+   cover content. Fallback class .cs-annotate-active added by client JS. */
+body:has(.cs-annotate-scaffold),
+body.cs-annotate-active {
+  padding-bottom: 80px;
+}
+.cs-verdict-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--bg);
+  border-top: 1.5px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(16px, 4vw, 48px);
+  z-index: 60;
+  gap: 12px;
+}
+.cs-comment-count {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cs-verdict-btn {
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms, border-color 120ms, background 120ms, color 120ms;
+  min-width: 36px;
+  min-height: 36px;
+}
+.cs-verdict-btn:hover:not(:disabled) { opacity: 0.85; }
+.cs-verdict-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.cs-verdict-approve {
+  background: color-mix(in srgb, var(--olive) 16%, var(--surface));
+  border-color: var(--olive);
+  color: var(--olive);
+}
+.cs-verdict-approve:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--olive) 28%, var(--surface));
+}
+.cs-verdict-request_changes {
+  background: color-mix(in srgb, #c93b3b 10%, var(--surface));
+  border-color: #c93b3b;
+  color: #c93b3b;
+}
+.cs-verdict-request_changes:hover:not(:disabled) {
+  background: color-mix(in srgb, #c93b3b 20%, var(--surface));
+}
+.cs-verdict-comment {
+  background: var(--surface-2);
+  border-color: var(--rule);
+  color: var(--ink-soft);
+}
+.cs-verdict-comment:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+/* ─── banner for annotate offline mode ────────────────────────────────────── */
+.cs-banner-offline {
+  position: sticky;
+  top: 0;
+  padding: 0.75rem 1.25rem;
+  background: color-mix(in srgb, var(--muted) 15%, var(--bg));
+  border-bottom: 1.5px solid var(--rule);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  z-index: 10;
+}
+
 /* diff block */
 .diff-block {
   margin: var(--space-6, 1.5rem) 0;

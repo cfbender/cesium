@@ -97,6 +97,8 @@ function renderQuestionSection(q: Question, interactive: InteractiveAskData): st
 }
 
 function renderVerdictButtons(verdictMode: VerdictMode, isOpen: boolean): string {
+  // When open, render buttons WITHOUT disabled — client JS gates them based on
+  // comment count and session status. When not open, mark all disabled.
   const disabled = isOpen ? "" : ' disabled aria-disabled="true"';
   const buttons: string[] = [];
 

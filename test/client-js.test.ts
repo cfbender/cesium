@@ -159,3 +159,99 @@ describe("getClientJs", () => {
     expect(js).toContain('text: ""');
   });
 });
+
+describe("getClientJs — annotate wiring", () => {
+  test("dispatches on kind === 'annotate'", () => {
+    expect(getClientJs()).toContain('kind === "annotate"');
+  });
+
+  test("contains wireAnnotate function", () => {
+    expect(getClientJs()).toContain("wireAnnotate");
+  });
+
+  test("contains apiBase + /comments path", () => {
+    expect(getClientJs()).toContain('apiBase + "/comments"');
+  });
+
+  test("contains apiBase + /verdict path", () => {
+    expect(getClientJs()).toContain('apiBase + "/verdict"');
+  });
+
+  test("contains DELETE method for comment removal", () => {
+    expect(getClientJs()).toContain('"DELETE"');
+  });
+
+  test("contains popup template clone logic", () => {
+    expect(getClientJs()).toContain("cloneNode");
+    expect(getClientJs()).toContain("cs-annotate-comment-popup");
+  });
+
+  test("contains anchor affordance injection", () => {
+    expect(getClientJs()).toContain("data-cesium-anchor");
+    expect(getClientJs()).toContain("cs-anchor-affordance");
+  });
+
+  test("contains humanizeAnchor helper", () => {
+    expect(getClientJs()).toContain("humanizeAnchor");
+  });
+
+  test("contains escapeHtml helper", () => {
+    expect(getClientJs()).toContain("escapeHtml");
+  });
+
+  test("contains cs-comment-bubble class in bubble builder", () => {
+    expect(getClientJs()).toContain("cs-comment-bubble");
+  });
+
+  test("contains cs-comment-delete class", () => {
+    expect(getClientJs()).toContain("cs-comment-delete");
+  });
+
+  test("contains verdict button enablement logic", () => {
+    expect(getClientJs()).toContain("updateVerdictButtons");
+  });
+
+  test("contains comment count update", () => {
+    expect(getClientJs()).toContain("updateCount");
+    expect(getClientJs()).toContain("data-cesium-comment-count");
+  });
+
+  test("reloads page after successful verdict submission", () => {
+    expect(getClientJs()).toContain("window.location.reload");
+  });
+
+  test("seeds comments from interactive.comments array", () => {
+    expect(getClientJs()).toContain("interactiveData.comments");
+  });
+
+  test("handles offline mode in annotate (hides affordances, disables verdict)", () => {
+    const js = getClientJs();
+    expect(js).toContain("freezeUi");
+  });
+
+  test("approve verdict always enabled (no comment requirement)", () => {
+    const js = getClientJs();
+    // Approve button: disabled = false regardless of comments
+    expect(js).toContain('"approve"');
+    expect(js).toContain("btn.disabled = false");
+  });
+
+  test("contains cs-comment-anchor-label for humanized anchor in bubble", () => {
+    expect(getClientJs()).toContain("cs-comment-anchor-label");
+  });
+
+  test("ask wiring still present (wireAsk function)", () => {
+    expect(getClientJs()).toContain("wireAsk");
+  });
+
+  test("ask and annotate share same IIFE / apiBase derivation", () => {
+    const js = getClientJs();
+    // apiBase is computed once at the top level
+    const apiBaseCount = (js.match(/var apiBase/g) || []).length;
+    expect(apiBaseCount).toBe(1);
+  });
+
+  test("does NOT contain any external http:// URLs", () => {
+    expect(getClientJs()).not.toMatch(/https?:\/\//);
+  });
+});

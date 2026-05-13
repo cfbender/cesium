@@ -350,3 +350,79 @@ describe("frameworkRulesCss — cs-* interactive control selectors", () => {
     expect(css).toContain(".cs-submit");
   });
 });
+
+// ─── Phase 5: annotate CSS classes ────────────────────────────────────────────
+
+describe("frameworkRulesCss — annotate cs-* classes (Phase 5)", () => {
+  const annotateClasses = [
+    ".cs-anchor-affordance",
+    ".cs-anchor-affordance-line",
+    ".cs-anchor-affordance-block",
+    ".cs-comment-popup",
+    ".cs-comment-popup-quote",
+    ".cs-comment-input",
+    ".cs-comment-actions",
+    ".cs-comment-save",
+    ".cs-comment-cancel",
+    ".cs-comment-rail",
+    ".cs-comment-bubble",
+    ".cs-comment-bubble-head",
+    ".cs-comment-anchor-label",
+    ".cs-comment-delete",
+    ".cs-comment-text",
+    ".cs-comment-bubble-quote",
+    ".cs-verdict-footer",
+    ".cs-verdict-btn",
+    ".cs-verdict-approve",
+    ".cs-verdict-request_changes",
+    ".cs-verdict-comment",
+  ];
+
+  for (const cls of annotateClasses) {
+    test(`contains ${cls}`, () => {
+      expect(frameworkRulesCss()).toContain(cls);
+    });
+  }
+
+  test("contains anchor affordance hover show rule", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("[data-cesium-anchor]:hover > .cs-anchor-affordance");
+  });
+
+  test("contains focus-within show rule for accessibility", () => {
+    expect(frameworkRulesCss()).toContain("focus-within");
+  });
+
+  test("contains verdict-btn disabled state", () => {
+    expect(frameworkRulesCss()).toContain(".cs-verdict-btn:disabled");
+  });
+
+  test("contains body padding-bottom rule for annotate scaffold", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("cs-annotate-scaffold");
+    expect(css).toContain("padding-bottom");
+  });
+
+  test("annotate classes use CSS variables not hardcoded colors", () => {
+    const css = frameworkRulesCss();
+    // Specific annotate sections should reference theme vars
+    expect(css).toContain("var(--accent)");
+    expect(css).toContain("var(--surface)");
+    expect(css).toContain("var(--rule)");
+  });
+
+  test("comment rail is fixed-positioned on wide viewports", () => {
+    expect(frameworkRulesCss()).toContain("position: fixed");
+  });
+
+  test("comment rail collapses on narrow viewports (max-width: 900px)", () => {
+    expect(frameworkRulesCss()).toContain("max-width: 900px");
+  });
+
+  test("verdict footer is fixed-positioned at bottom", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain(".cs-verdict-footer");
+    expect(css).toContain("position: fixed");
+    expect(css).toContain("bottom: 0");
+  });
+});

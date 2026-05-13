@@ -1,0 +1,2569 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Refactor: extract UserSession service layer · cesium</title>
+    <style>
+      :root {
+        --bg: #180810;
+        --surface: #211618;
+        --surface-2: #2b1f22;
+        --oat: #3a2e25;
+        --rule: #3a2e25;
+        --ink: #ddd3c7;
+        --ink-soft: #bdb3a7;
+        --muted: #9e9288;
+        --accent: #c75b7a;
+        --olive: #8fa86e;
+        --code-bg: #2b1f22;
+        --code-fg: #ddd3c7;
+        --diff-add: #6d9e60;
+        --diff-remove: #c75b5b;
+        --diff-change: #d4a85a;
+        --serif: ui-serif, Georgia, "Times New Roman", serif;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+      }
+
+      /* reset */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 1rem;
+        line-height: 1.6;
+        padding: clamp(20px, 4vw, 56px);
+      }
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+      a:hover {
+        opacity: 0.8;
+      }
+      img,
+      svg {
+        max-width: 100%;
+        height: auto;
+      }
+      p {
+        margin-bottom: 1em;
+      }
+      ul,
+      ol {
+        padding-left: 1.5em;
+        margin-bottom: 1em;
+      }
+
+      /* layout */
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      section {
+        margin-bottom: 64px;
+      }
+
+      /* typography */
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-family: var(--serif);
+        color: var(--ink);
+        line-height: 1.2;
+        margin-bottom: 0.5em;
+      }
+
+      /* eyebrow */
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.5em;
+      }
+
+      /* headings */
+      .h-display {
+        font-family: var(--serif);
+        font-size: clamp(2rem, 5vw, 3.25rem);
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--ink);
+        margin-bottom: 0.75em;
+      }
+      .h-section {
+        font-family: var(--serif);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.5em;
+      }
+      .section-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--oat);
+        color: var(--ink-soft);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 6px;
+        padding: 2px 7px;
+        margin-right: 0.5em;
+        vertical-align: middle;
+      }
+
+      /* card */
+      .card {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 1.5em;
+        /* contain wide children (tables, long URLs, code) inside the card.
+   * min-width:0 lets the card shrink in grid/flex contexts (.cards-grid)
+   * so it actually obeys its track instead of growing to its widest child.
+   * overflow-x:auto then scrolls any content that's STILL too wide
+   * (e.g. a many-column table) rather than bursting the card border. */
+        min-width: 0;
+        overflow-x: auto;
+      }
+
+      /* tldr */
+      .tldr {
+        background: var(--surface);
+        border-left: 4px solid var(--accent);
+        border-radius: 0 12px 12px 0;
+        padding: 16px 20px;
+        margin-bottom: 1.5em;
+        font-size: 1.05rem;
+        color: var(--ink-soft);
+        min-width: 0;
+        overflow-x: auto;
+      }
+
+      /* callout */
+      .callout {
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 1.25em;
+        border: 1.5px solid var(--rule);
+        background: var(--surface-2);
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        min-width: 0;
+        overflow-x: auto;
+      }
+      .callout.note {
+        border-color: var(--olive);
+        background: color-mix(in srgb, var(--olive) 10%, var(--surface));
+      }
+      .callout.warn {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+      }
+      .callout.risk {
+        border-color: #b45309;
+        background: color-mix(in srgb, #b45309 10%, var(--surface));
+      }
+
+      /* code */
+      .code {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        font-family: var(--mono);
+        font-size: 0.875rem;
+        line-height: 1.6;
+        border-radius: 8px;
+        padding: 16px 20px;
+        overflow-x: auto;
+        margin-bottom: 1.25em;
+        white-space: pre;
+      }
+      .code .kw {
+        color: var(--accent);
+      }
+      .code .str {
+        color: var(--olive);
+      }
+      .code .cm {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .code .fn {
+        color: #d4a85a;
+      }
+
+      /* figure.code — block-renderer code blocks (figure > figcaption + pre>code) */
+      figure.code {
+        margin: 0 0 1.25em 0;
+      }
+      figure.code pre {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        font-family: var(--mono);
+        font-size: 0.875rem;
+        line-height: 1.6;
+        border-radius: 8px;
+        padding: 16px 20px;
+        overflow-x: auto;
+        margin: 0;
+        white-space: pre;
+      }
+      figure.code pre code {
+        font-family: inherit;
+        font-size: inherit;
+        background: none;
+        padding: 0;
+        color: inherit;
+      }
+      figure.code pre .kw {
+        color: var(--accent);
+      }
+      figure.code pre .str {
+        color: var(--olive);
+      }
+      figure.code pre .cm {
+        color: var(--muted);
+        font-style: italic;
+      }
+      figure.code pre .fn {
+        color: #d4a85a;
+      }
+
+      /* timeline */
+      .timeline {
+        list-style: none;
+        padding: 0;
+        position: relative;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: var(--rule);
+      }
+      .timeline li {
+        position: relative;
+        padding-left: 32px;
+        margin-bottom: 1.25em;
+      }
+      .timeline li::before {
+        content: "";
+        position: absolute;
+        left: 2px;
+        top: 6px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--oat);
+        border: 2px solid var(--accent);
+      }
+      /* timeline item inner spans */
+      .timeline-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15em;
+      }
+      .timeline-label {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .timeline-date {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-left: 0.5em;
+        font-weight: 400;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .timeline-text {
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+      }
+
+      /* diagram */
+      .diagram {
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 1.5em;
+        background: var(--surface);
+      }
+      .diagram figcaption {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-top: 10px;
+        font-family: var(--sans);
+      }
+      /* svg text/stroke/fill overrides — defense-in-depth for dark themes */
+      .diagram svg text,
+      figure.diagram svg text {
+        fill: currentColor;
+      }
+      .diagram svg [stroke="#888"],
+      .diagram svg [stroke="#999"],
+      .diagram svg [stroke="#666"] {
+        stroke: currentColor;
+        opacity: 0.55;
+      }
+      .diagram svg [fill="#222"],
+      .diagram svg [fill="#000"],
+      .diagram svg [fill="black"] {
+        fill: currentColor;
+      }
+
+      /* kv — key-value definition list (hero meta, standalone kv block) */
+      dl.kv {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 0.4rem 1.5rem;
+        margin: 1.25rem 0;
+        align-items: baseline;
+      }
+      dl.kv dt {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      dl.kv dd {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      /* lede — hero subtitle paragraph */
+      .lede {
+        font-size: 1.15rem;
+        color: var(--ink-soft);
+        margin-bottom: 1em;
+        line-height: 1.5;
+      }
+
+      /* divider — plain hr + labeled variant */
+      hr {
+        border: none;
+        border-top: 1.5px solid var(--rule);
+        margin: 2em 0;
+      }
+      hr[data-label] {
+        display: flex;
+        align-items: center;
+        gap: 0.75em;
+        border: none;
+        margin: 2em 0;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      hr[data-label]::before {
+        content: "";
+        flex: 1;
+        border-top: 1.5px solid var(--rule);
+        display: block;
+      }
+      hr[data-label]::after {
+        content: attr(data-label);
+        flex-shrink: 0;
+      }
+
+      /* figure.code — caption above the code block */
+      figure.code figcaption {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-bottom: 8px;
+        letter-spacing: 0.04em;
+      }
+
+      /* pill-row — horizontal chip container */
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
+        margin-bottom: 1.25em;
+      }
+
+      /* check-list — checklist style (ul style="check") */
+      .check-list {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 1em;
+      }
+      .check-list .check {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5em;
+        margin-bottom: 0.4em;
+        padding-left: 0.25em;
+      }
+      .check-list .check::before {
+        content: "✓";
+        font-family: var(--mono);
+        font-size: 0.8em;
+        font-weight: 700;
+        color: var(--olive);
+        flex-shrink: 0;
+      }
+
+      /* card stack — sibling cards within a section */
+      .card + .card {
+        margin-top: 1em;
+      }
+
+      /* compare-table */
+      .compare-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 0.95rem;
+      }
+      .compare-table th,
+      .compare-table td {
+        border: 1.5px solid var(--rule);
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+        /* let long URLs / identifiers / paths wrap inside the cell instead of
+   * pushing the table beyond its container. Many-column tables that are
+   * still wider than the card fall through to the card's overflow-x. */
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .compare-table th {
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .compare-table tr:nth-child(even) td {
+        background: var(--surface-2);
+      }
+
+      /* risk-table */
+      .risk-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 0.95rem;
+      }
+      .risk-table th,
+      .risk-table td {
+        border: 1.5px solid var(--rule);
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .risk-table th {
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-weight: 600;
+      }
+      .risk-table td:first-child {
+        font-weight: 600;
+        color: var(--ink-soft);
+      }
+
+      /* inline chips */
+      .kbd {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.8em;
+        background: var(--surface-2);
+        border: 1.5px solid var(--rule);
+        border-radius: 4px;
+        padding: 1px 6px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .pill {
+        display: inline-block;
+        font-family: var(--sans);
+        font-size: 0.8em;
+        font-weight: 500;
+        background: var(--oat);
+        border-radius: 20px;
+        padding: 2px 10px;
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.75em;
+        font-weight: 600;
+        background: var(--surface-2);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 2px 8px;
+        color: var(--muted);
+        text-transform: lowercase;
+      }
+      .pill.accent {
+        background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* ranked list — numbered cards for ordered recommendations / findings */
+      .ranked-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+        margin: 0 0 1.5em;
+        padding: 0;
+        list-style: none;
+      }
+      .ranked-item {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 22px 26px;
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 6px 24px;
+        align-items: start;
+      }
+      .ranked-item .rank-num {
+        font-family: var(--serif);
+        font-size: 2.4rem;
+        font-weight: 500;
+        color: var(--oat);
+        line-height: 1;
+        letter-spacing: -0.02em;
+        padding-top: 2px;
+      }
+      .ranked-item .rank-title {
+        font-family: var(--serif);
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin: 0 0 6px;
+        line-height: 1.3;
+      }
+      .ranked-item .rank-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .ranked-item .rank-body > p {
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        line-height: 1.65;
+        margin: 0 0 0.85em;
+      }
+      .ranked-item .rank-body > p:last-child {
+        margin-bottom: 0;
+      }
+      .ranked-item .rank-body > ul,
+      .ranked-item .rank-body > ol {
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        line-height: 1.65;
+        margin: 0 0 0.85em;
+        padding-left: 1.2em;
+      }
+      .ranked-item .rank-aside {
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        padding-left: 14px;
+        border-left: 2px solid var(--rule);
+        margin: 0;
+      }
+      .ranked-item .rank-aside-label {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-right: 6px;
+      }
+
+      /* byline */
+      .byline {
+        border-top: 1.5px solid var(--rule);
+        margin-top: 64px;
+        padding-top: 18px;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1em;
+        align-items: center;
+      }
+      .byline a {
+        color: var(--muted);
+      }
+
+      /* ─── interactive controls (.cs-*) ─────────────────────────────────────────── */
+
+      /* questions container */
+      .cs-questions {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin: 2rem 0;
+      }
+
+      /* individual question sections */
+      .cs-control-pick_one,
+      .cs-control-pick_many,
+      .cs-control-confirm,
+      .cs-control-ask_text,
+      .cs-control-slider,
+      .cs-control-react {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      /* answered section — subtle left accent, slightly muted */
+      .cs-answered {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-left: 3px solid var(--olive);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        opacity: 0.85;
+      }
+
+      /* pick buttons / labels */
+      .cs-pick {
+        display: block;
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+        transition:
+          border-color 120ms,
+          transform 120ms;
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1.4;
+      }
+      .cs-pick:hover,
+      .cs-pick:focus-visible {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+        outline: none;
+      }
+      .cs-pick-desc {
+        color: var(--muted);
+        font-size: 0.9em;
+        margin-top: 0.25rem;
+      }
+      .cs-recommended {
+        border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+
+      /* final/locked pick — no hover, accent border */
+      .cs-pick-final {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+        cursor: default;
+        transform: none !important;
+      }
+      .cs-pick-final:hover {
+        transform: none;
+        border-color: var(--accent);
+      }
+
+      /* confirm buttons */
+      .cs-confirm-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .cs-confirm {
+        min-width: 120px;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        border: 1.5px solid var(--rule);
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          transform 120ms;
+      }
+      .cs-confirm:hover:not(:disabled) {
+        opacity: 0.85;
+        transform: translateY(-1px);
+      }
+      .cs-yes {
+        background: var(--accent);
+        color: var(--bg);
+        border-color: var(--accent);
+      }
+      .cs-no {
+        background: var(--surface);
+        color: var(--ink);
+        border-color: var(--rule);
+      }
+      .cs-confirm-final {
+        cursor: default;
+        transform: none !important;
+      }
+      .cs-confirm-final:hover {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* text input / textarea */
+      .cs-text {
+        display: block;
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        background: var(--surface-2);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 1rem;
+        line-height: 1.5;
+        transition: border-color 120ms;
+        resize: vertical;
+      }
+      .cs-text:focus {
+        border-color: var(--accent);
+        outline: none;
+      }
+      textarea.cs-text {
+        font-family: var(--mono);
+      }
+
+      /* answered text */
+      .cs-answered-text {
+        border-left: 3px solid var(--accent);
+        margin: 0;
+        padding: 0.5rem 1rem;
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+        border-radius: 0 8px 8px 0;
+      }
+
+      /* slider */
+      .cs-slider {
+        width: 100%;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .cs-slider-out {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: var(--surface-2);
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-weight: 600;
+        font-size: 0.9em;
+      }
+      .cs-slider-final {
+        font-size: 1rem;
+        color: var(--ink-soft);
+      }
+      .cs-slider-final strong {
+        color: var(--ink);
+        font-family: var(--mono);
+      }
+
+      /* react buttons */
+      .cs-react-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .cs-react {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 1.5px solid var(--rule);
+        background: var(--surface);
+        color: var(--ink);
+        font-family: inherit;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          border-color 120ms,
+          opacity 120ms;
+      }
+      .cs-react:hover:not(:disabled) {
+        border-color: var(--accent);
+        opacity: 0.9;
+      }
+      .cs-react-comment {
+        /* same as cs-text textarea */
+      }
+
+      /* optional comment display */
+      .cs-comment {
+        color: var(--ink-soft);
+        font-size: 0.9rem;
+        font-style: italic;
+        margin-top: 0.25rem;
+      }
+
+      /* context prose */
+      .cs-context {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-bottom: 0;
+      }
+
+      /* submit button */
+      .cs-submit {
+        align-self: flex-start;
+        padding: 0.6rem 1.5rem;
+        background: var(--accent);
+        color: var(--bg);
+        border: 1.5px solid var(--accent);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 120ms;
+      }
+      .cs-submit:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+      .cs-submit:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* skip button — secondary, less prominent than submit */
+      .cs-skip {
+        align-self: flex-start;
+        padding: 0.6rem 1.5rem;
+        background: var(--surface-2);
+        color: var(--muted);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          border-color 120ms;
+      }
+      .cs-skip:hover:not(:disabled) {
+        opacity: 0.85;
+        border-color: var(--muted);
+      }
+      .cs-skip:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* button row — submit + skip side by side */
+      .cs-button-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+
+      /* answered-skipped placeholder */
+      .cs-answered-skipped {
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+
+      /* pending / saving state */
+      .cs-saving {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      /* inline error */
+      .cs-error {
+        color: #c93b3b;
+        padding: 0.5rem 0.75rem;
+        background: color-mix(in srgb, #c93b3b 10%, transparent);
+        border: 1.5px solid currentColor;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+
+      /* session-ended banner */
+      .cs-banner-ended {
+        position: sticky;
+        top: 0;
+        padding: 0.75rem 1.25rem;
+        background: color-mix(in srgb, var(--accent) 20%, var(--bg));
+        border-bottom: 1.5px solid var(--accent);
+        text-align: center;
+        font-weight: 600;
+        z-index: 10;
+      }
+
+      /* ─── annotate affordances (.cs-anchor-*) ─────────────────────────────────── */
+
+      /* affordance base — hidden by default, shown on anchor hover/focus */
+      .cs-anchor-affordance {
+        display: none;
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0;
+        line-height: 1;
+        color: var(--muted);
+        transition:
+          color 120ms,
+          background 120ms,
+          opacity 120ms;
+        min-width: 36px;
+        min-height: 36px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .cs-anchor-affordance:hover {
+        color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+      }
+      /* show affordance on anchor hover / focus-within */
+      [data-cesium-anchor]:hover > .cs-anchor-affordance,
+      [data-cesium-anchor]:focus-within > .cs-anchor-affordance {
+        display: inline-flex;
+      }
+
+      /* line affordance — tight gutter "+" icon */
+      .cs-anchor-affordance-line {
+        font-size: 14px;
+        min-width: 24px;
+        min-height: 24px;
+        margin-right: 4px;
+      }
+
+      /* block affordance — pencil icon to the left of block-level elements */
+      .cs-anchor-affordance-block {
+        font-size: 15px;
+        margin-right: 8px;
+      }
+
+      /* ─── annotate comment popup (.cs-comment-popup) ───────────────────────────── */
+
+      .cs-comment-popup {
+        position: absolute;
+        z-index: 100;
+        width: 360px;
+        max-width: calc(100vw - 32px);
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 8px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .cs-comment-popup-quote {
+        font-size: 0.85rem;
+        color: var(--muted);
+        font-style: italic;
+        border-left: 3px solid var(--rule);
+        padding: 4px 10px;
+        margin: 0;
+        white-space: pre-wrap;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+      }
+      .cs-comment-input {
+        display: block;
+        width: 100%;
+        min-height: 80px;
+        padding: 0.625rem 0.875rem;
+        background: var(--surface-2);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        resize: vertical;
+        transition: border-color 120ms;
+      }
+      .cs-comment-input:focus {
+        border-color: var(--accent);
+        outline: none;
+      }
+      .cs-comment-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .cs-comment-save {
+        padding: 0.45rem 1.1rem;
+        background: var(--accent);
+        color: var(--bg);
+        border: 1.5px solid var(--accent);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 120ms;
+      }
+      .cs-comment-save:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+      .cs-comment-save:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .cs-comment-cancel {
+        padding: 0.45rem 1rem;
+        background: var(--surface-2);
+        color: var(--muted);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          border-color 120ms;
+      }
+      .cs-comment-cancel:hover:not(:disabled) {
+        opacity: 0.85;
+        border-color: var(--muted);
+      }
+      .cs-comment-cancel:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* ─── comment rail (.cs-comment-rail) ─────────────────────────────────────── */
+
+      .cs-comment-rail {
+        position: fixed;
+        right: 24px;
+        top: 96px;
+        width: 280px;
+        max-height: 80vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 50;
+        /* custom scrollbar for aesthetics */
+        scrollbar-width: thin;
+        scrollbar-color: var(--rule) transparent;
+      }
+      @media (max-width: 900px) {
+        .cs-comment-rail {
+          position: static;
+          width: 100%;
+          max-height: none;
+          margin-top: 24px;
+        }
+      }
+      .cs-comment-bubble {
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        transition: border-color 120ms;
+      }
+      .cs-comment-bubble:hover {
+        border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+      .cs-comment-bubble-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .cs-comment-anchor-label {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cs-comment-delete {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1.5px solid transparent;
+        background: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          color 120ms,
+          background 120ms,
+          border-color 120ms;
+        padding: 0;
+        line-height: 1;
+      }
+      .cs-comment-delete:hover {
+        color: #c93b3b;
+        background: color-mix(in srgb, #c93b3b 10%, transparent);
+        border-color: #c93b3b;
+      }
+      .cs-comment-text {
+        font-size: 0.9rem;
+        color: var(--ink);
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .cs-comment-bubble-quote {
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-style: italic;
+        border-left: 2px solid var(--rule);
+        padding: 2px 8px;
+        margin: 0;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+      }
+
+      /* ─── verdict footer (.cs-verdict-footer) ─────────────────────────────────── */
+
+      /* extra body padding when annotate scaffold is present, so footer doesn't
+   cover content. Fallback class .cs-annotate-active added by client JS. */
+      body:has(.cs-annotate-scaffold),
+      body.cs-annotate-active {
+        padding-bottom: 80px;
+      }
+      .cs-verdict-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        background: var(--bg);
+        border-top: 1.5px solid var(--rule);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 clamp(16px, 4vw, 48px);
+        z-index: 60;
+        gap: 12px;
+      }
+      .cs-comment-count {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .cs-verdict-btn {
+        padding: 0.5rem 1.2rem;
+        border-radius: 8px;
+        border: 1.5px solid var(--rule);
+        background: var(--surface);
+        color: var(--ink);
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          opacity 120ms,
+          border-color 120ms,
+          background 120ms,
+          color 120ms;
+        min-width: 36px;
+        min-height: 36px;
+      }
+      .cs-verdict-btn:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+      .cs-verdict-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+      .cs-verdict-approve {
+        background: color-mix(in srgb, var(--olive) 16%, var(--surface));
+        border-color: var(--olive);
+        color: var(--olive);
+      }
+      .cs-verdict-approve:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--olive) 28%, var(--surface));
+      }
+      .cs-verdict-request_changes {
+        background: color-mix(in srgb, #c93b3b 10%, var(--surface));
+        border-color: #c93b3b;
+        color: #c93b3b;
+      }
+      .cs-verdict-request_changes:hover:not(:disabled) {
+        background: color-mix(in srgb, #c93b3b 20%, var(--surface));
+      }
+      .cs-verdict-comment {
+        background: var(--surface-2);
+        border-color: var(--rule);
+        color: var(--ink-soft);
+      }
+      .cs-verdict-comment:hover:not(:disabled) {
+        border-color: var(--muted);
+      }
+
+      /* ─── banner for annotate offline mode ────────────────────────────────────── */
+      .cs-banner-offline {
+        position: sticky;
+        top: 0;
+        padding: 0.75rem 1.25rem;
+        background: color-mix(in srgb, var(--muted) 15%, var(--bg));
+        border-bottom: 1.5px solid var(--rule);
+        text-align: center;
+        font-size: 0.9rem;
+        color: var(--ink-soft);
+        z-index: 10;
+      }
+
+      /* diff block */
+      .diff-block {
+        margin: var(--space-6, 1.5rem) 0;
+        border: 1.5px solid var(--rule);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--code-bg);
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--code-fg);
+      }
+      .diff-block.fallback pre {
+        margin: 0;
+        padding: 12px 14px;
+        white-space: pre;
+        overflow-x: auto;
+      }
+      .diff-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-bottom: 1px solid color-mix(in oklab, var(--rule), transparent 40%);
+        background: color-mix(in oklab, var(--code-bg), var(--code-fg) 5%);
+        font-size: 12px;
+        color: color-mix(in oklab, var(--code-fg), transparent 30%);
+      }
+      .diff-filename {
+        font-weight: 500;
+      }
+      .diff-stat {
+        font-variant-numeric: tabular-nums;
+        display: inline-flex;
+        gap: 8px;
+      }
+      .diff-stat .add {
+        color: var(--diff-add);
+      }
+      .diff-stat .rem {
+        color: var(--diff-remove);
+      }
+
+      .diff-grid {
+        display: grid;
+        grid-template-columns: 1fr 60px 1fr;
+        align-items: start;
+      }
+      .diff-side {
+        list-style: none;
+        margin: 0;
+        padding: 8px 0;
+        overflow-x: auto;
+        min-width: 0;
+      }
+      .diff-line {
+        display: grid;
+        grid-template-columns: 3.25em 1fr;
+        gap: 0;
+        height: 22px;
+        line-height: 22px;
+        white-space: pre;
+      }
+      .diff-line .num {
+        text-align: right;
+        padding-right: 12px;
+        color: color-mix(in oklab, var(--code-fg), transparent 60%);
+        user-select: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .diff-line .content {
+        padding-right: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .diff-line.add {
+        background: color-mix(in oklab, transparent, var(--diff-add) 14%);
+      }
+      .diff-line.remove {
+        background: color-mix(in oklab, transparent, var(--diff-remove) 14%);
+      }
+      .diff-line.hunk-sep {
+        background: color-mix(in oklab, var(--code-bg), var(--code-fg) 8%);
+        color: color-mix(in oklab, var(--code-fg), transparent 50%);
+        font-style: italic;
+        font-size: 11px;
+      }
+
+      .diff-connector {
+        position: relative;
+        align-self: stretch;
+        padding: 8px 0;
+        background: color-mix(in oklab, var(--code-bg), var(--code-fg) 2%);
+        border-left: 1px solid color-mix(in oklab, var(--rule), transparent 60%);
+        border-right: 1px solid color-mix(in oklab, var(--rule), transparent 60%);
+      }
+      .diff-connector svg {
+        display: block;
+        width: 100%;
+      }
+      .diff-conn {
+        stroke-width: 1;
+      }
+      .diff-conn.add {
+        fill: var(--diff-add);
+        stroke: var(--diff-add);
+        fill-opacity: 0.22;
+      }
+      .diff-conn.remove {
+        fill: var(--diff-remove);
+        stroke: var(--diff-remove);
+        fill-opacity: 0.22;
+      }
+      .diff-conn.change {
+        fill: var(--diff-change);
+        stroke: var(--diff-change);
+        fill-opacity: 0.18;
+      }
+
+      .diff-block figcaption {
+        padding: 8px 14px;
+        border-top: 1px solid color-mix(in oklab, var(--rule), transparent 40%);
+        font-size: 12px;
+        font-family: var(--sans);
+        color: color-mix(in oklab, var(--code-fg), transparent 30%);
+      }
+
+      @media (max-width: 720px) {
+        .diff-grid {
+          grid-template-columns: 1fr;
+        }
+        .diff-connector {
+          display: none;
+        }
+        .diff-side.before {
+          border-bottom: 1px solid color-mix(in oklab, var(--rule), transparent 60%);
+        }
+      }
+    </style>
+    <script type="application/json" id="cesium-meta">
+      {
+        "id": "AnnotEx",
+        "title": "Refactor: extract UserSession service layer",
+        "kind": "annotate",
+        "summary": "TypeScript refactor extracting session management into a dedicated service layer.",
+        "tags": ["typescript", "refactor", "review"],
+        "createdAt": "2026-05-13T20:49:11Z",
+        "model": "claude-sonnet-4.6",
+        "sessionId": "sess-demo",
+        "projectSlug": "github-com-cfbender-cesium",
+        "projectName": "cfbender/cesium",
+        "cwd": "/Users/cfb/code/github/cesium",
+        "worktree": null,
+        "gitBranch": "feat/user-session",
+        "gitCommit": "a1b2c3d",
+        "supersedes": null,
+        "supersededBy": null,
+        "contentSha256": "example",
+        "inputMode": "blocks",
+        "interactive": {
+          "kind": "annotate",
+          "status": "open",
+          "expiresAt": "2027-12-31T23:59:59Z",
+          "verdictMode": "full",
+          "requireVerdict": false,
+          "perLineFor": ["diff", "code"],
+          "comments": [
+            {
+              "id": "cmt-001",
+              "anchor": "block-2",
+              "selectedText": "export class UserSessionService",
+              "comment": "Nice extraction. Consider adding a factory function or DI token to avoid constructor coupling downstream.",
+              "createdAt": "2026-05-13T21:00:00Z"
+            },
+            {
+              "id": "cmt-002",
+              "anchor": "block-3.line-4",
+              "selectedText": "if (!session) throw new Error(\"Session not found\")",
+              "comment": "Should this throw a typed SessionNotFoundError instead? Makes catch clauses more specific.",
+              "createdAt": "2026-05-13T21:02:00Z"
+            }
+          ],
+          "verdict": null
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <nav
+      class="cesium-back"
+      aria-label="cesium navigation"
+      style="
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        margin-bottom: 24px;
+        color: var(--muted);
+      "
+    >
+      <a href="../index.html" style="color: var(--muted); text-decoration: none"
+        >&#x2190; cfbender/cesium</a
+      >
+      <span style="margin: 0 8px; opacity: 0.5">·</span>
+      <a href="../../../index.html" style="color: var(--muted); text-decoration: none"
+        >all projects</a
+      >
+    </nav>
+
+    <!-- Block 1: hero / intro prose -->
+    <div
+      data-cesium-anchor="block-1"
+      style="position: relative; display: flex; align-items: flex-start"
+    >
+      <div style="flex: 1">
+        <p class="eyebrow">Code Review</p>
+        <h1 class="h-display">Refactor: extract <code>UserSession</code> service layer</h1>
+        <p class="lede">
+          This PR moves session management out of the monolithic <code>AuthController</code> into a
+          dedicated <code>UserSessionService</code>. Below is the key diff with inline commentary.
+        </p>
+      </div>
+    </div>
+
+    <!-- Block 2: prose summary -->
+    <div
+      data-cesium-anchor="block-2"
+      class="card"
+      style="position: relative; display: flex; align-items: flex-start; margin-bottom: 1.5em"
+    >
+      <div style="flex: 1">
+        <p class="eyebrow">Summary</p>
+        <p>
+          The refactor introduces a clean service boundary. <code>UserSessionService</code> takes
+          over all session CRUD, token rotation, and expiry logic from the controller. The
+          controller becomes a thin adapter: parse request → call service → format response.
+        </p>
+        <p>Key changes:</p>
+        <ul>
+          <li>New <code>src/services/user-session.ts</code> — the extracted service</li>
+          <li><code>AuthController</code> reduced from 340 lines to 120</li>
+          <li>
+            Session storage abstracted behind <code>SessionStore</code> interface — injectable for
+            tests
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Block 3: diff block with per-line annotations -->
+    <figure class="diff-block" data-cesium-anchor="block-3" style="position: relative">
+      <div class="diff-header">
+        <span class="diff-filename">src/services/user-session.ts (new file)</span>
+        <span class="diff-stat">
+          <span class="add">+84</span>
+          <span class="rem">-0</span>
+        </span>
+      </div>
+      <div class="diff-grid">
+        <!-- Before (empty new file) -->
+        <ul class="diff-side before" aria-label="before">
+          <li class="diff-line hunk-sep">
+            <span class="num"></span><span class="content">@@ new file @@</span>
+          </li>
+        </ul>
+        <div class="diff-connector"></div>
+        <!-- After (new content) -->
+        <ul class="diff-side after" aria-label="after">
+          <li class="diff-line add" data-cesium-anchor="block-3.line-1" style="position: relative">
+            <span class="num">1</span
+            ><span class="content">import { nanoid } from &quot;nanoid&quot;;</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-2" style="position: relative">
+            <span class="num">2</span
+            ><span class="content"
+              >import type { SessionStore, Session } from &quot;./types.ts&quot;;</span
+            >
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-3" style="position: relative">
+            <span class="num">3</span><span class="content"></span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-4" style="position: relative">
+            <span class="num">4</span><span class="content">export class UserSessionService {</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-5" style="position: relative">
+            <span class="num">5</span
+            ><span class="content"> constructor(private store: SessionStore) {}</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-6" style="position: relative">
+            <span class="num">6</span><span class="content"></span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-7" style="position: relative">
+            <span class="num">7</span
+            ><span class="content"> async create(userId: string): Promise&lt;Session&gt; {</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-8" style="position: relative">
+            <span class="num">8</span
+            ><span class="content">
+              const session = { id: nanoid(), userId, createdAt: new Date() };</span
+            >
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-9" style="position: relative">
+            <span class="num">9</span
+            ><span class="content"> await this.store.set(session.id, session);</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-10" style="position: relative">
+            <span class="num">10</span><span class="content"> return session;</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-11" style="position: relative">
+            <span class="num">11</span><span class="content"> }</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-12" style="position: relative">
+            <span class="num">12</span><span class="content"></span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-13" style="position: relative">
+            <span class="num">13</span
+            ><span class="content"> async get(sessionId: string): Promise&lt;Session&gt; {</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-14" style="position: relative">
+            <span class="num">14</span
+            ><span class="content"> const session = await this.store.get(sessionId);</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-15" style="position: relative">
+            <span class="num">15</span
+            ><span class="content">
+              if (!session) throw new Error(&quot;Session not found&quot;);</span
+            >
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-16" style="position: relative">
+            <span class="num">16</span><span class="content"> return session;</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-17" style="position: relative">
+            <span class="num">17</span><span class="content"> }</span>
+          </li>
+          <li class="diff-line add" data-cesium-anchor="block-3.line-18" style="position: relative">
+            <span class="num">18</span><span class="content">}</span>
+          </li>
+        </ul>
+      </div>
+    </figure>
+
+    <!-- Block 4: follow-up prose -->
+    <div
+      data-cesium-anchor="block-4"
+      style="position: relative; display: flex; align-items: flex-start"
+    >
+      <div style="flex: 1">
+        <div class="callout note">
+          <strong>Testing note:</strong> The new service is tested via
+          <code>test/user-session.test.ts</code> using an in-memory <code>SessionStore</code>.
+          Controller tests no longer need to mock session storage.
+        </div>
+      </div>
+    </div>
+
+    <!-- Annotate scaffold -->
+    <section
+      class="cs-annotate-scaffold"
+      data-cesium-annotate-scaffold
+      data-cesium-verdict-mode="full"
+      data-cesium-status="open"
+    >
+      <template id="cs-annotate-comment-popup">
+        <div class="cs-comment-popup" role="dialog" aria-label="Add a comment">
+          <textarea
+            class="cs-comment-input"
+            placeholder="Add a comment&#x2026;"
+            rows="4"
+          ></textarea>
+          <div class="cs-comment-actions">
+            <button type="button" class="cs-comment-save" disabled>Save</button>
+            <button type="button" class="cs-comment-cancel">Cancel</button>
+          </div>
+        </div>
+      </template>
+      <aside class="cs-comment-rail" data-cesium-comment-rail aria-label="Review comments"></aside>
+      <footer class="cs-verdict-footer">
+        <span class="cs-comment-count" data-cesium-comment-count>0 comments</span>
+        <button
+          type="button"
+          class="cs-verdict-btn cs-verdict cs-verdict-approve"
+          data-verdict="approve"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          class="cs-verdict-btn cs-verdict cs-verdict-request_changes"
+          data-verdict="request_changes"
+        >
+          Request changes
+        </button>
+        <button
+          type="button"
+          class="cs-verdict-btn cs-verdict cs-verdict-comment"
+          data-verdict="comment"
+        >
+          Comment
+        </button>
+      </footer>
+    </section>
+
+    <script data-cesium-client>
+      (function cesiumClient() {
+        "use strict";
+
+        // ─── API base URL derived from window.location.pathname ────────────────────
+        // Artifacts are served at /projects/<projectSlug>/artifacts/<filename>.html
+        // If not served via cesium HTTP server (e.g. file://), apiBase will be null.
+        var m = window.location.pathname.match(/^\/projects\/([^\/]+)\/artifacts\/([^\/]+)$/);
+        var apiBase = m ? "/api/sessions/" + m[1] + "/" + m[2] : null;
+
+        // ─── Read cesium-meta ────────────────────────────────────────────────────────
+        function readMeta() {
+          var el = document.getElementById("cesium-meta");
+          if (!el) return null;
+          try {
+            return JSON.parse(el.textContent || "");
+          } catch (e) {
+            return null;
+          }
+        }
+        var meta = readMeta();
+        var interactive = meta && meta.interactive;
+        var kind = interactive && interactive.kind;
+
+        // ─── File:// / offline banner ───────────────────────────────────────────────
+        if (!apiBase) {
+          document.addEventListener("DOMContentLoaded", function () {
+            if (document.querySelector(".cs-banner-offline")) return;
+            var banner = document.createElement("div");
+            banner.className = "cs-banner cs-banner-offline";
+            banner.textContent =
+              "Review controls require viewing this artifact via the cesium HTTP server. " +
+              "Run cesium open or visit localhost:3030";
+            document.body.insertBefore(banner, document.body.firstChild);
+          });
+        }
+
+        // ─── Session-ended banner ───────────────────────────────────────────────────
+        function showSessionEndedBanner(msg) {
+          if (document.querySelector(".cs-banner-ended")) return;
+          var banner = document.createElement("div");
+          banner.className = "cs-banner cs-banner-ended";
+          banner.textContent = msg || "Session ended — answers can no longer be submitted.";
+          document.body.insertBefore(banner, document.body.firstChild);
+          // Disable all interactive controls
+          var disabled = document.querySelectorAll(
+            ".cs-submit, .cs-skip, .cs-pick, .cs-confirm, .cs-react",
+          );
+          for (var i = 0; i < disabled.length; i++) {
+            var el = disabled[i];
+            if (el instanceof HTMLButtonElement || el instanceof HTMLInputElement) {
+              el.disabled = true;
+            }
+          }
+        }
+
+        // ─── POST answer ────────────────────────────────────────────────────────────
+        function postAnswer(qid, value) {
+          if (!apiBase) {
+            return Promise.reject(new Error("not served via cesium HTTP server"));
+          }
+          return fetch(apiBase + "/answers/" + qid, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: value }),
+          }).then(function (r) {
+            if (r.status === 410) {
+              showSessionEndedBanner();
+              throw new Error("session ended");
+            }
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+          });
+        }
+
+        // ─── Section replacement ────────────────────────────────────────────────────
+        function replaceSection(qid, replacementHtml) {
+          var section = document.querySelector('section[data-question-id="' + qid + '"]');
+          if (!section) return;
+          var tmp = document.createElement("div");
+          tmp.innerHTML = replacementHtml;
+          var newSection = tmp.firstElementChild;
+          if (newSection && section.parentNode) {
+            section.parentNode.replaceChild(newSection, section);
+          }
+        }
+
+        // ─── Pending / error state ──────────────────────────────────────────────────
+        function setPending(section, pending) {
+          if (pending) {
+            section.dataset["pending"] = "true";
+            section.classList.add("cs-saving");
+            var btns = section.querySelectorAll("button, input");
+            for (var i = 0; i < btns.length; i++) {
+              var b = btns[i];
+              if (b instanceof HTMLButtonElement || b instanceof HTMLInputElement) {
+                b.disabled = true;
+              }
+            }
+          } else {
+            delete section.dataset["pending"];
+            section.classList.remove("cs-saving");
+            var btns2 = section.querySelectorAll("button, input");
+            for (var i2 = 0; i2 < btns2.length; i2++) {
+              var b2 = btns2[i2];
+              if (b2 instanceof HTMLButtonElement || b2 instanceof HTMLInputElement) {
+                b2.disabled = false;
+              }
+            }
+          }
+        }
+
+        function showError(section, message) {
+          var existing = section.querySelector(".cs-error");
+          if (existing) existing.remove();
+          var errEl = document.createElement("p");
+          errEl.className = "cs-error";
+          errEl.setAttribute("role", "alert");
+          errEl.textContent = "Failed to save: " + message;
+          section.appendChild(errEl);
+        }
+
+        function clearError(section) {
+          var existing = section.querySelector(".cs-error");
+          if (existing) existing.remove();
+        }
+
+        // ─── Submit helper ──────────────────────────────────────────────────────────
+        function submitAnswer(section, qid, value) {
+          clearError(section);
+          setPending(section, true);
+          postAnswer(qid, value)
+            .then(function (resp) {
+              if (resp && resp.replacementHtml) {
+                replaceSection(qid, resp.replacementHtml);
+              } else {
+                setPending(section, false);
+              }
+            })
+            .catch(function (err) {
+              setPending(section, false);
+              showError(section, err instanceof Error ? err.message : String(err));
+            });
+        }
+
+        // ─── pick_one wiring ─────────────────────────────────────────────────────────
+        function wirePickOne(section) {
+          var qid = section.dataset["questionId"] || "";
+          var btns = section.querySelectorAll("button.cs-pick");
+          for (var i = 0; i < btns.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var dataValue = btn.dataset["value"] || "";
+                submitAnswer(section, qid, { type: "pick_one", selected: dataValue });
+              });
+            })(btns[i]);
+          }
+        }
+
+        // ─── pick_many wiring ────────────────────────────────────────────────────────
+        function wirePickMany(section) {
+          var qid = section.dataset["questionId"] || "";
+          var submitBtn = section.querySelector("button.cs-submit");
+          var minAttr = section.dataset["min"];
+          var maxAttr = section.dataset["max"];
+          var min = minAttr ? parseInt(minAttr, 10) : 1;
+          var max = maxAttr ? parseInt(maxAttr, 10) : Infinity;
+
+          function updateSubmitState() {
+            var checked = section.querySelectorAll("input[type=checkbox]:checked");
+            var count = checked.length;
+            if (submitBtn instanceof HTMLButtonElement) {
+              submitBtn.disabled = count < min || count > max;
+            }
+          }
+
+          var checkboxes = section.querySelectorAll("input[type=checkbox]");
+          for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].addEventListener("change", updateSubmitState);
+          }
+
+          if (submitBtn) {
+            submitBtn.addEventListener("click", function () {
+              var checked = section.querySelectorAll("input[type=checkbox]:checked");
+              var selected = [];
+              for (var i2 = 0; i2 < checked.length; i2++) {
+                var cb = checked[i2];
+                if (cb instanceof HTMLInputElement) {
+                  selected.push(cb.dataset["value"] || "");
+                }
+              }
+              submitAnswer(section, qid, { type: "pick_many", selected: selected });
+            });
+          }
+        }
+
+        // ─── confirm wiring ──────────────────────────────────────────────────────────
+        function wireConfirm(section) {
+          var qid = section.dataset["questionId"] || "";
+          var btns = section.querySelectorAll("button.cs-confirm");
+          for (var i = 0; i < btns.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var choice = btn.dataset["value"] || "";
+                submitAnswer(section, qid, { type: "confirm", choice: choice });
+              });
+            })(btns[i]);
+          }
+        }
+
+        // ─── ask_text wiring ─────────────────────────────────────────────────────────
+        function wireAskText(section) {
+          var qid = section.dataset["questionId"] || "";
+          var input = section.querySelector("input.cs-text, textarea.cs-text");
+          var submitBtn = section.querySelector("button.cs-submit");
+          var skipBtn = section.querySelector("button.cs-skip");
+
+          function updateSubmitState() {
+            if (submitBtn instanceof HTMLButtonElement && input) {
+              var val =
+                input instanceof HTMLInputElement
+                  ? input.value
+                  : input instanceof HTMLTextAreaElement
+                    ? input.value
+                    : "";
+              submitBtn.disabled = val.trim() === "";
+            }
+          }
+
+          if (input) {
+            input.addEventListener("input", updateSubmitState);
+          }
+
+          if (submitBtn) {
+            submitBtn.addEventListener("click", function () {
+              var text = "";
+              if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+                text = input.value;
+              }
+              submitAnswer(section, qid, { type: "ask_text", text: text });
+            });
+          }
+
+          if (skipBtn) {
+            skipBtn.addEventListener("click", function () {
+              submitAnswer(section, qid, { type: "ask_text", text: "" });
+            });
+          }
+        }
+
+        // ─── slider wiring ───────────────────────────────────────────────────────────
+        function wireSlider(section) {
+          var qid = section.dataset["questionId"] || "";
+          var sliderInput = section.querySelector("input.cs-slider");
+          var outputEl = section.querySelector("output.cs-slider-out");
+          var submitBtn = section.querySelector("button.cs-submit");
+
+          if (sliderInput) {
+            sliderInput.addEventListener("input", function () {
+              if (outputEl && sliderInput instanceof HTMLInputElement) {
+                outputEl.textContent = sliderInput.value;
+              }
+            });
+          }
+
+          if (submitBtn) {
+            submitBtn.addEventListener("click", function () {
+              var value = sliderInput instanceof HTMLInputElement ? Number(sliderInput.value) : 0;
+              submitAnswer(section, qid, { type: "slider", value: value });
+            });
+          }
+        }
+
+        // ─── react wiring ────────────────────────────────────────────────────────────
+        function wireReact(section) {
+          var qid = section.dataset["questionId"] || "";
+          var btns = section.querySelectorAll("button.cs-react");
+          var commentArea = section.querySelector("textarea.cs-react-comment");
+
+          for (var i = 0; i < btns.length; i++) {
+            (function (btn) {
+              btn.addEventListener("click", function () {
+                var decision = btn.dataset["value"] || "";
+                var comment =
+                  commentArea instanceof HTMLTextAreaElement && commentArea.value !== ""
+                    ? commentArea.value
+                    : undefined;
+                var value =
+                  comment !== undefined
+                    ? { type: "react", decision: decision, comment: comment }
+                    : { type: "react", decision: decision };
+                submitAnswer(section, qid, value);
+              });
+            })(btns[i]);
+          }
+        }
+
+        // ─── wireAsk ─────────────────────────────────────────────────────────────────
+        function wireAsk() {
+          var sections = document.querySelectorAll("section[data-question-id]");
+          for (var i = 0; i < sections.length; i++) {
+            var section = sections[i];
+            if (!(section instanceof HTMLElement)) continue;
+            var cls = section.className || "";
+            if (cls.indexOf("cs-control-pick_one") !== -1) {
+              wirePickOne(section);
+            } else if (cls.indexOf("cs-control-pick_many") !== -1) {
+              wirePickMany(section);
+            } else if (cls.indexOf("cs-control-confirm") !== -1) {
+              wireConfirm(section);
+            } else if (cls.indexOf("cs-control-ask_text") !== -1) {
+              wireAskText(section);
+            } else if (cls.indexOf("cs-control-slider") !== -1) {
+              wireSlider(section);
+            } else if (cls.indexOf("cs-control-react") !== -1) {
+              wireReact(section);
+            }
+          }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // ─── wireAnnotate ────────────────────────────────────────────────────────
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        function wireAnnotate(interactiveData) {
+          // ─── Helpers ────────────────────────────────────────────────────────────
+          function escapeHtml(str) {
+            return String(str)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;");
+          }
+
+          function humanizeAnchor(anchor) {
+            var parts = String(anchor).split(".");
+            var blockPart = parts[0] || "";
+            var blockNum = blockPart.replace("block-", "");
+            if (parts.length === 1) {
+              return "Block " + blockNum;
+            }
+            var linePart = parts[1] || "";
+            var lineNum = linePart.replace("line-", "");
+            return "Block " + blockNum + " · line " + lineNum;
+          }
+
+          function apiPost(path, body) {
+            return fetch(path, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }).then(function (r) {
+              if (r.status === 410) {
+                showSessionEndedBanner("Review closed.");
+                return r.json().then(function (data) {
+                  throw new Error(
+                    data && data.status ? "session ended: " + data.status : "session ended",
+                  );
+                });
+              }
+              return r.json().then(function (data) {
+                if (!r.ok) {
+                  var msg =
+                    (data && (data.message || data.reason || data.error)) || "HTTP " + r.status;
+                  throw new Error(msg);
+                }
+                return data;
+              });
+            });
+          }
+
+          function apiDelete(path) {
+            return fetch(path, { method: "DELETE" }).then(function (r) {
+              if (r.status === 410) {
+                showSessionEndedBanner("Review closed.");
+                return r.json().then(function (data) {
+                  throw new Error(
+                    data && data.status ? "session ended: " + data.status : "session ended",
+                  );
+                });
+              }
+              return r.json().then(function (data) {
+                if (!r.ok) {
+                  var msg =
+                    (data && (data.message || data.reason || data.error)) || "HTTP " + r.status;
+                  throw new Error(msg);
+                }
+                return data;
+              });
+            });
+          }
+
+          // ─── State ──────────────────────────────────────────────────────────────
+          var state = {
+            comments:
+              interactiveData && Array.isArray(interactiveData.comments)
+                ? interactiveData.comments.slice()
+                : [],
+            verdictMode: (interactiveData && interactiveData.verdictMode) || "approve",
+            status: (interactiveData && interactiveData.status) || "open",
+          };
+
+          // Active popup reference (only one at a time)
+          var activePopup = null;
+
+          // ─── Count display ───────────────────────────────────────────────────────
+          function updateCount() {
+            var countEl = document.querySelector("[data-cesium-comment-count]");
+            if (!countEl) return;
+            var n = state.comments.length;
+            countEl.textContent = n === 1 ? "1 comment" : n + " comments";
+          }
+
+          // ─── Verdict button enablement ───────────────────────────────────────────
+          function updateVerdictButtons() {
+            var hasComments = state.comments.length > 0;
+            var btns = document.querySelectorAll("button.cs-verdict[data-verdict]");
+            for (var i = 0; i < btns.length; i++) {
+              var btn = btns[i];
+              if (!(btn instanceof HTMLButtonElement)) continue;
+              var v = btn.getAttribute("data-verdict");
+              // approve — always enabled; request_changes + comment — need comments
+              if (v === "approve") {
+                btn.disabled = false;
+              } else {
+                btn.disabled = !hasComments;
+              }
+            }
+          }
+
+          // ─── Banner error (toplevel) ─────────────────────────────────────────────
+          function showBannerError(message) {
+            var existing = document.querySelector(".cs-banner-error");
+            if (existing) existing.remove();
+            var banner = document.createElement("div");
+            banner.className = "cs-banner cs-banner-error cs-error";
+            banner.setAttribute("role", "alert");
+            banner.textContent = message;
+            banner.style.cssText =
+              "position:fixed;top:0;left:0;right:0;padding:0.75rem 1.25rem;" +
+              "text-align:center;z-index:200;";
+            document.body.insertBefore(banner, document.body.firstChild);
+            setTimeout(function () {
+              if (banner.parentNode) banner.remove();
+            }, 6000);
+          }
+
+          // ─── Comment rail ────────────────────────────────────────────────────────
+          function getRail() {
+            return document.querySelector("[data-cesium-comment-rail]");
+          }
+
+          function buildBubble(comment) {
+            var article = document.createElement("article");
+            article.className = "cs-comment-bubble";
+            article.setAttribute("data-comment-id", comment.id);
+            article.setAttribute("data-anchor", comment.anchor);
+
+            var head = document.createElement("header");
+            head.className = "cs-comment-bubble-head";
+
+            var label = document.createElement("span");
+            label.className = "cs-comment-anchor-label";
+            label.textContent = humanizeAnchor(comment.anchor);
+
+            var delBtn = document.createElement("button");
+            delBtn.type = "button";
+            delBtn.className = "cs-comment-delete";
+            delBtn.setAttribute("aria-label", "Delete comment");
+            delBtn.textContent = "×";
+
+            head.appendChild(label);
+            head.appendChild(delBtn);
+
+            var textEl = document.createElement("p");
+            textEl.className = "cs-comment-text";
+            textEl.textContent = comment.comment;
+
+            article.appendChild(head);
+            article.appendChild(textEl);
+
+            if (comment.selectedText && comment.selectedText.trim() !== "") {
+              var quoteEl = document.createElement("blockquote");
+              quoteEl.className = "cs-comment-bubble-quote";
+              quoteEl.textContent = comment.selectedText;
+              article.appendChild(quoteEl);
+            }
+
+            // ─── Delete handler ────────────────────────────────────────────────────
+            delBtn.addEventListener("click", function () {
+              if (!apiBase) return;
+              // Optimistic: mark pending
+              article.classList.add("cs-saving");
+              delBtn.disabled = true;
+              apiDelete(apiBase + "/comments/" + comment.id)
+                .then(function () {
+                  // Remove from state
+                  state.comments = state.comments.filter(function (c) {
+                    return c.id !== comment.id;
+                  });
+                  article.remove();
+                  updateCount();
+                  updateVerdictButtons();
+                })
+                .catch(function (err) {
+                  // Restore
+                  article.classList.remove("cs-saving");
+                  delBtn.disabled = false;
+                  showBannerError(
+                    "Could not delete comment: " +
+                      (err instanceof Error ? err.message : String(err)),
+                  );
+                });
+            });
+
+            return article;
+          }
+
+          function mountBubble(comment) {
+            var rail = getRail();
+            if (!rail) return;
+            var bubble = buildBubble(comment);
+            rail.appendChild(bubble);
+          }
+
+          function mountAllSeededComments() {
+            for (var i = 0; i < state.comments.length; i++) {
+              mountBubble(state.comments[i]);
+            }
+          }
+
+          // ─── Popup ──────────────────────────────────────────────────────────────
+          function closePopup() {
+            if (activePopup && activePopup.parentNode) {
+              activePopup.remove();
+            }
+            activePopup = null;
+          }
+
+          function openPopup(anchorEl, anchorStr) {
+            closePopup();
+
+            var tmpl = document.getElementById("cs-annotate-comment-popup");
+            if (!(tmpl instanceof HTMLTemplateElement)) return;
+            var clone = tmpl.content.cloneNode(true);
+            var popup = clone instanceof DocumentFragment ? clone.firstElementChild : null;
+            if (!popup) return;
+            if (!(popup instanceof HTMLElement)) return;
+
+            popup.setAttribute("data-popup-anchor", anchorStr);
+            popup.style.position = "absolute";
+            popup.style.zIndex = "200";
+
+            // Capture selection
+            var sel = window.getSelection ? window.getSelection() : null;
+            var selText = "";
+            if (sel && sel.rangeCount > 0 && sel.toString().trim() !== "") {
+              var range = sel.getRangeAt(0);
+              // Check containment: range must intersect anchor element
+              if (
+                anchorEl.contains(range.commonAncestorContainer) ||
+                range.commonAncestorContainer === anchorEl
+              ) {
+                selText = sel.toString().slice(0, 4096);
+              }
+            }
+            if (!selText) {
+              selText = (anchorEl.textContent || "").trim().slice(0, 300);
+            }
+            popup.setAttribute("data-selected-text", selText);
+
+            // Prepend quote block above textarea if we have text
+            if (selText) {
+              var quote = document.createElement("blockquote");
+              quote.className = "cs-comment-popup-quote";
+              quote.textContent = selText.slice(0, 200) + (selText.length > 200 ? "…" : "");
+              popup.insertBefore(quote, popup.firstChild);
+            }
+
+            document.body.appendChild(popup);
+            activePopup = popup;
+
+            // Position the popup
+            var rect = anchorEl.getBoundingClientRect();
+            var scrollX = window.scrollX || window.pageXOffset || 0;
+            var scrollY = window.scrollY || window.pageYOffset || 0;
+            var viewportW = window.innerWidth || document.documentElement.clientWidth;
+            var popupW = 360;
+
+            var top = rect.bottom + scrollY + 4;
+            var left = rect.left + scrollX;
+            // Wide viewport: try to place to the right
+            if (viewportW > 900 && rect.right + popupW + 16 < viewportW) {
+              left = rect.right + scrollX + 12;
+              top = rect.top + scrollY;
+            }
+            // Clamp to viewport
+            if (left + popupW > scrollX + viewportW - 16) {
+              left = scrollX + viewportW - popupW - 16;
+            }
+            if (left < scrollX + 8) left = scrollX + 8;
+
+            popup.style.top = top + "px";
+            popup.style.left = left + "px";
+
+            // Wire save / cancel
+            var textarea = popup.querySelector("textarea.cs-comment-input");
+            var saveBtn = popup.querySelector("button.cs-comment-save");
+            var cancelBtn = popup.querySelector("button.cs-comment-cancel");
+
+            // Save starts disabled — enable when text is non-empty
+            if (saveBtn instanceof HTMLButtonElement) {
+              saveBtn.disabled = true;
+            }
+
+            if (textarea instanceof HTMLTextAreaElement && saveBtn instanceof HTMLButtonElement) {
+              textarea.addEventListener("input", function () {
+                saveBtn.disabled = textarea.value.trim() === "";
+              });
+              // Cmd/Ctrl+Enter to submit
+              textarea.addEventListener("keydown", function (e) {
+                if ((e.metaKey || e.ctrlKey) && (e.key === "Enter" || e.keyCode === 13)) {
+                  if (!saveBtn.disabled) saveBtn.click();
+                }
+              });
+              // Auto-focus
+              textarea.focus();
+            }
+
+            if (saveBtn instanceof HTMLButtonElement) {
+              saveBtn.addEventListener("click", function () {
+                if (!(textarea instanceof HTMLTextAreaElement)) return;
+                var commentText = textarea.value;
+                if (!commentText.trim()) return;
+                if (!apiBase) {
+                  closePopup();
+                  return;
+                }
+
+                // Disable buttons during save
+                saveBtn.disabled = true;
+                if (cancelBtn instanceof HTMLButtonElement) cancelBtn.disabled = true;
+                popup.classList.add("cs-saving");
+
+                // Remove any prior error
+                var priorErr = popup.querySelector(".cs-error");
+                if (priorErr) priorErr.remove();
+
+                apiPost(apiBase + "/comments", {
+                  anchor: anchorStr,
+                  selectedText: selText,
+                  comment: commentText,
+                })
+                  .then(function (resp) {
+                    var newComment = resp && resp.comment;
+                    if (newComment) {
+                      state.comments.push(newComment);
+                      mountBubble(newComment);
+                      updateCount();
+                      updateVerdictButtons();
+                    }
+                    closePopup();
+                  })
+                  .catch(function (err) {
+                    popup.classList.remove("cs-saving");
+                    saveBtn.disabled = textarea.value.trim() === "";
+                    if (cancelBtn instanceof HTMLButtonElement) cancelBtn.disabled = false;
+                    var errEl = document.createElement("p");
+                    errEl.className = "cs-error";
+                    errEl.setAttribute("role", "alert");
+                    errEl.textContent = err instanceof Error ? err.message : String(err);
+                    popup.appendChild(errEl);
+                  });
+              });
+            }
+
+            if (cancelBtn instanceof HTMLButtonElement) {
+              cancelBtn.addEventListener("click", closePopup);
+            }
+
+            // Escape closes the popup
+            function onKeydown(e) {
+              if (e.key === "Escape" || e.keyCode === 27) {
+                closePopup();
+                document.removeEventListener("keydown", onKeydown);
+              }
+            }
+            document.addEventListener("keydown", onKeydown);
+
+            // Click outside closes
+            setTimeout(function () {
+              function onOutside(e) {
+                if (activePopup && !activePopup.contains(e.target)) {
+                  closePopup();
+                  document.removeEventListener("click", onOutside);
+                }
+              }
+              document.addEventListener("click", onOutside);
+            }, 0);
+          }
+
+          // ─── Inject affordances ──────────────────────────────────────────────────
+          function injectAffordances() {
+            var anchors = document.querySelectorAll("[data-cesium-anchor]");
+            for (var i = 0; i < anchors.length; i++) {
+              var anchorEl = anchors[i];
+              if (!(anchorEl instanceof HTMLElement)) continue;
+              var anchorStr = anchorEl.getAttribute("data-cesium-anchor") || "";
+
+              // Determine line vs block affordance
+              var isLine = /^block-\d+\.line-\d+$/.test(anchorStr);
+
+              var btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = isLine
+                ? "cs-anchor-affordance cs-anchor-affordance-line"
+                : "cs-anchor-affordance cs-anchor-affordance-block";
+              btn.setAttribute("aria-label", "Add comment");
+              btn.setAttribute("data-anchor", anchorStr);
+              btn.textContent = isLine ? "+" : "✏️";
+
+              // Wire click: open popup for this anchor
+              (function (el, aStr, affordBtn) {
+                affordBtn.addEventListener("click", function (e) {
+                  e.stopPropagation();
+                  openPopup(el, aStr);
+                });
+              })(anchorEl, anchorStr, btn);
+
+              anchorEl.insertBefore(btn, anchorEl.firstChild);
+            }
+          }
+
+          // ─── Verdict button wiring ───────────────────────────────────────────────
+          function wireVerdictButtons() {
+            var btns = document.querySelectorAll("button.cs-verdict[data-verdict]");
+            for (var i = 0; i < btns.length; i++) {
+              (function (btn) {
+                btn.addEventListener("click", function () {
+                  if (!(btn instanceof HTMLButtonElement)) return;
+                  if (!apiBase) return;
+                  var verdictValue = btn.getAttribute("data-verdict");
+                  if (!verdictValue) return;
+
+                  // Two-step confirmation: show confirm/cancel pair inline
+                  if (btn.getAttribute("data-confirming") === "true") return;
+                  btn.setAttribute("data-confirming", "true");
+
+                  var originalText = btn.textContent;
+                  btn.textContent = "Confirm " + originalText + "?";
+                  btn.setAttribute("aria-label", "Confirm " + originalText);
+
+                  var cancelConfirmBtn = document.createElement("button");
+                  cancelConfirmBtn.type = "button";
+                  cancelConfirmBtn.className = "cs-verdict-btn cs-comment-cancel";
+                  cancelConfirmBtn.style.cssText = "margin-left:8px;";
+                  cancelConfirmBtn.textContent = "Cancel";
+
+                  btn.parentNode && btn.parentNode.insertBefore(cancelConfirmBtn, btn.nextSibling);
+
+                  var cancelConfirmTimeout = setTimeout(function () {
+                    btn.removeAttribute("data-confirming");
+                    btn.textContent = originalText;
+                    btn.removeAttribute("aria-label");
+                    if (cancelConfirmBtn.parentNode) cancelConfirmBtn.remove();
+                  }, 6000);
+
+                  cancelConfirmBtn.addEventListener("click", function () {
+                    clearTimeout(cancelConfirmTimeout);
+                    btn.removeAttribute("data-confirming");
+                    btn.textContent = originalText;
+                    btn.removeAttribute("aria-label");
+                    cancelConfirmBtn.remove();
+                  });
+
+                  btn.addEventListener(
+                    "click",
+                    function onConfirm() {
+                      clearTimeout(cancelConfirmTimeout);
+                      cancelConfirmBtn.remove();
+
+                      // Disable all verdict buttons
+                      var allVerdictBtns = document.querySelectorAll("button.cs-verdict");
+                      for (var j = 0; j < allVerdictBtns.length; j++) {
+                        var vb = allVerdictBtns[j];
+                        if (vb instanceof HTMLButtonElement) vb.disabled = true;
+                      }
+                      btn.textContent = "Submitting…";
+                      btn.removeEventListener("click", onConfirm);
+
+                      apiPost(apiBase + "/verdict", { verdict: verdictValue })
+                        .then(function () {
+                          window.location.reload();
+                        })
+                        .catch(function (err) {
+                          // Re-enable buttons on error
+                          for (var j2 = 0; j2 < allVerdictBtns.length; j2++) {
+                            var vb2 = allVerdictBtns[j2];
+                            if (vb2 instanceof HTMLButtonElement) vb2.disabled = false;
+                          }
+                          btn.removeAttribute("data-confirming");
+                          btn.textContent = originalText;
+                          updateVerdictButtons();
+                          showBannerError(
+                            "Could not submit verdict: " +
+                              (err instanceof Error ? err.message : String(err)),
+                          );
+                        });
+                    },
+                    { once: true },
+                  );
+                });
+              })(btns[i]);
+            }
+          }
+
+          // ─── Freeze UI (non-open status) ─────────────────────────────────────────
+          function freezeUi() {
+            // Hide affordances, disable verdict buttons
+            var affordances = document.querySelectorAll(".cs-anchor-affordance");
+            for (var i = 0; i < affordances.length; i++) {
+              var a = affordances[i];
+              if (a instanceof HTMLElement) a.style.display = "none";
+            }
+            var vBtns = document.querySelectorAll("button.cs-verdict");
+            for (var j = 0; j < vBtns.length; j++) {
+              var vb = vBtns[j];
+              if (vb instanceof HTMLButtonElement) vb.disabled = true;
+            }
+          }
+
+          // ─── DOMContentLoaded: main init ─────────────────────────────────────────
+          document.addEventListener("DOMContentLoaded", function () {
+            // Add body class for padding-bottom (fallback for browsers without :has)
+            document.body.classList.add("cs-annotate-active");
+
+            if (state.status !== "open") {
+              showSessionEndedBanner("Review closed.");
+              mountAllSeededComments();
+              updateCount();
+              return;
+            }
+
+            if (!apiBase) {
+              // Offline: render seeded comments but hide affordances, disable verdict btns
+              mountAllSeededComments();
+              updateCount();
+              freezeUi();
+              return;
+            }
+
+            // Normal wiring
+            injectAffordances();
+            mountAllSeededComments();
+            updateCount();
+            updateVerdictButtons();
+            wireVerdictButtons();
+          });
+        }
+
+        // ─── Dispatch on kind ────────────────────────────────────────────────────────
+        if (kind === "annotate") {
+          wireAnnotate(interactive);
+        } else {
+          // ask (or legacy without kind) — existing wiring
+          document.addEventListener("DOMContentLoaded", wireAsk);
+        }
+      })();
+    </script>
+
+    <footer class="byline">
+      <span>id: <code>AnnotEx</code></span>
+      <span>kind: annotate</span>
+      <span>created: 2026-05-13T20:49:11Z</span>
+      <span>model: claude-sonnet-4.6</span>
+    </footer>
+  </body>
+</html>
