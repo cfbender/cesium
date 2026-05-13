@@ -46,16 +46,16 @@ test("system-fragment.md contains word-count threshold language", () => {
   expect(content).toMatch(/400\s*words/i);
 });
 
-test("system-fragment.md references blocks (preferred input mode)", () => {
+test("system-fragment.md describes the blocks input model", () => {
   const content = readFragment();
   expect(content).toContain("blocks");
-  expect(content).toContain("preferred");
+  expect(content).toContain("Block");
 });
 
-test("system-fragment.md references html escape valve", () => {
+test("system-fragment.md describes raw_html as an escape hatch", () => {
   const content = readFragment();
-  expect(content).toContain("html");
-  expect(content).toContain("escape valve");
+  expect(content).toContain("raw_html");
+  expect(content).toContain("escape hatch");
 });
 
 test("system-fragment.md references tldr block type", () => {

@@ -192,7 +192,6 @@ export function createAnnotateTool(
         supersedes: null,
         supersededBy: null,
         contentSha256,
-        inputMode: "blocks",
       };
 
       // 12. Build interactive data

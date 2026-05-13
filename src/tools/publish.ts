@@ -6,10 +6,9 @@ import { join } from "node:path";
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
 import { loadConfig, type CesiumConfig } from "../config.ts";
-import { scrub } from "../render/scrub.ts";
 import { extractTextContent } from "../render/extract.ts";
 import { themeFromPreset, mergeTheme } from "../render/theme.ts";
-import { validatePublishInput, htmlBodyWarnings, PUBLISH_KINDS } from "../render/validate.ts";
+import { validatePublishInput, PUBLISH_KINDS } from "../render/validate.ts";
 import { renderBlocks } from "../render/blocks/render.ts";
 import { resolveHighlightTheme } from "../render/blocks/highlight.ts";
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
@@ -74,29 +73,14 @@ When to stay in the terminal: short factual answers, status updates ("done", "fi
 
 User overrides win: "/cesium" or "publish this" → publish; "in terminal" → don't.
 
-The \`html\` argument is the BODY ONLY — do NOT include <!doctype>, <html>, <head>, <body>.
-The plugin wraps your body with the design system.
+Content is described as a \`blocks\` array — a closed set of typed building blocks
+(hero, tldr, section, prose, list, callout, code, diff, timeline, compare_table,
+risk_table, kv, pill_row, divider, diagram, raw_html). Call \`cesium_styleguide\` for
+the full block catalog with schemas and rendered examples.
 
-Available CSS classes (call cesium_styleguide for full reference + examples):
-- .eyebrow         uppercase mono micro-label above headings
-- .h-display       page-title heading
-- .h-section       section heading paired with .section-num
-- .section-num     numbered chip ("01", "02") next to .h-section
-- .card            bordered surface block (1.5px border, 12px radius)
-- .tldr            clay-bordered summary box (use ONE per doc, near top)
-- .callout         info box; modifiers: .callout.note .callout.warn .callout.risk
-- .code            block-level code panel; inline highlights via .kw .str .cm .fn
-- .timeline        milestone list with dots and connectors
-- .diagram         wraps inline SVG with a caption below
-- .compare-table   bordered comparison grid
-- .risk-table      bordered risk-grid (likelihood/impact/mitigation columns)
-- .kbd .pill .tag  inline chips
-- .byline          rendered automatically as the footer
-
-Inline \`style="..."\` and inline \`<svg>\` are encouraged for bespoke diagrams. NEVER reference
-external resources: no <script src=>, no <link rel=stylesheet href=http>, no remote fonts,
-no remote images. The plugin will silently strip external resources but the artifact will
-look broken in the resulting render.
+The \`raw_html\` block is an escape hatch for content that doesn't fit the available
+blocks; \`diagram\` is for inline SVG/HTML visualizations. Both have their payloads
+scrubbed of external resources at publish time.
 
 Title aim: 3-8 words, descriptive. Kind: pick the closest match.`;
 
@@ -114,15 +98,10 @@ export function createPublishTool(
     args: {
       title: tool.schema.string(),
       kind: tool.schema.enum([...PUBLISH_KINDS] as [string, ...string[]]),
-      html: tool.schema
-        .string()
-        .optional()
-        .describe("Body HTML — escape valve / legacy mode. Provide exactly one of html or blocks."),
       blocks: tool.schema
         .array(tool.schema.any())
-        .optional()
         .describe(
-          "Structured block array — preferred for token efficiency. Provide exactly one of html or blocks.",
+          "Structured block array describing the artifact's content. Call cesium_styleguide for the block catalog.",
         ),
       summary: tool.schema.string().optional(),
       tags: tool.schema.array(tool.schema.string()).optional(),
@@ -185,21 +164,9 @@ export function createPublishTool(
       // 6. Timestamps
       const createdAt = now();
 
-      // 7. Render body (blocks path or html path)
-      let bodyHtml: string;
-      let scrubRemovedCount = 0;
-      const inputMode: "html" | "blocks" = input.blocks !== undefined ? "blocks" : "html";
-
-      if (input.blocks !== undefined) {
-        // Blocks path: render structured blocks → trusted HTML
-        const highlightTheme = resolveHighlightTheme(config.themePreset);
-        bodyHtml = await renderBlocks(input.blocks, { highlightTheme });
-      } else {
-        // HTML path: scrub agent-supplied HTML
-        const scrubbed = scrub(input.html);
-        bodyHtml = scrubbed.html;
-        scrubRemovedCount = scrubbed.removed.length;
-      }
+      // 7. Render body from structured blocks
+      const highlightTheme = resolveHighlightTheme(config.themePreset);
+      const bodyHtml = await renderBlocks(input.blocks, { highlightTheme });
 
       // 7a. Extract body text for full-text search
       const bodyText = extractTextContent(bodyHtml);
@@ -234,18 +201,11 @@ export function createPublishTool(
         supersedes: input.supersedes ?? null,
         supersededBy: null,
         contentSha256,
-        inputMode,
       };
 
-      // 11. Build warnings
+      // 11. Build warnings (reserved for future use — block-mode publishes
+      // produce trusted templated output so there is nothing to warn about today).
       const warnings: string[] = [];
-      if (scrubRemovedCount > 0) {
-        warnings.push(`Removed ${scrubRemovedCount} external resource(s) during scrub.`);
-      }
-      const bodyWarnings = input.html !== undefined ? htmlBodyWarnings(bodyHtml) : [];
-      for (const w of bodyWarnings) {
-        warnings.push(w);
-      }
 
       // 12. Build theme + wrap document
       const theme = mergeTheme(themeFromPreset(config.themePreset), config.theme);
@@ -282,7 +242,7 @@ export function createPublishTool(
         projectSlug: identity.slug,
         projectName: identity.name,
         bodyText,
-        inputMode,
+        inputMode: "blocks",
       };
 
       const lockPath = join(config.stateDir, ".index.lock");

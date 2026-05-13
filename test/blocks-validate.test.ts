@@ -9,30 +9,26 @@ function validateBlocks(blocks: unknown) {
   return validatePublishInput({ title: "Test", kind: "plan", blocks });
 }
 
-// ─── XOR enforcement ─────────────────────────────────────────────────────────
+// ─── Top-level input requirements ────────────────────────────────────────────
 
-describe("XOR: html vs blocks", () => {
-  test("rejects when both html and blocks are provided", () => {
+describe("publish input: blocks requirement", () => {
+  test("rejects when html is provided (no longer accepted)", () => {
     const r = validatePublishInput({
       title: "Test",
       kind: "plan",
       html: "<p>hi</p>",
-      blocks: [{ type: "prose", markdown: "hello" }],
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain("exactly one");
+    if (!r.ok) expect(r.error).toContain("blocks");
   });
 
-  test("rejects when neither html nor blocks are provided", () => {
+  test("rejects when blocks is missing and points at cesium_styleguide", () => {
     const r = validatePublishInput({ title: "Test", kind: "plan" });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain("exactly one");
-  });
-
-  test("accepts html alone", () => {
-    const r = validatePublishInput({ title: "Test", kind: "plan", html: "<p>hi</p>" });
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.html).toBe("<p>hi</p>");
+    if (!r.ok) {
+      expect(r.error).toContain("blocks");
+      expect(r.error).toContain("cesium_styleguide");
+    }
   });
 
   test("accepts blocks alone", () => {

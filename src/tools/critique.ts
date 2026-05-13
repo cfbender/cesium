@@ -1,43 +1,34 @@
-// Tool handler for cesium_critique — mode-aware body analyzer.
-// Accepts either { html: string } (html mode) or { blocks: Block[] } (blocks mode). Exactly one required.
+// Tool handler for cesium_critique — analyzes a draft blocks array.
 
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput } from "@opencode-ai/plugin";
-import {
-  critiqueHtml,
-  critiqueBlocks,
-  type CritiqueResult,
-  type CritiqueSeverity,
-} from "../render/critique.ts";
+import { critique, type CritiqueResult, type CritiqueSeverity } from "../render/critique.ts";
 import type { Block } from "../render/blocks/types.ts";
 
-const TOOL_DESCRIPTION = `Analyze a draft HTML body for adherence to the cesium design
-system before publishing. Returns a 0-100 score and findings (warn/suggest/info).
+const TOOL_DESCRIPTION = `Analyze a draft cesium artifact (blocks array) for adherence to the
+cesium design system before publishing. Returns a 0-100 score and findings (warn/suggest/info).
 
-Call this on complex artifacts (>500 words, plans/comparisons/explainers) BEFORE
-calling cesium_publish. Address warn-level findings; suggest-level findings are
-optional but usually worth applying. info-level findings are FYI.
+Call this on substantive artifacts before \`cesium_publish\`. Address warn-level findings;
+suggest-level findings are optional but usually worth applying. info-level findings are FYI.
 
-The 'html' argument is the same body you'd pass to cesium_publish — body inner
-HTML only, no <!doctype>/<html>/<head>/<body> wrappers.`;
+The 'blocks' argument is the same array you'd pass to cesium_publish.`;
 
 /**
  * Format a CritiqueResult into a concise human-readable string the agent can parse.
  * Format:
  *   score: 87/100
- *   mode: html
  *
  *   warn:
- *   - [external-resource] External resource will be stripped...
+ *   - [raw-html-overuse] raw_html overuse: 3 raw_html blocks...
  *
  *   suggest:
- *   - [no-tldr] Long artifact with no .tldr summary...
+ *   - [missing-tldr] Document has 6 sections but no tldr block...
  *
  *   info:
- *   - [code-without-highlights] Code blocks render without...
+ *   - [code-without-meaningful-lang] Code block at ... uses lang "text"...
  */
 export function formatCritiqueForAgent(result: CritiqueResult): string {
-  const lines: string[] = [`score: ${result.score}/100`, `mode: ${result.mode}`];
+  const lines: string[] = [`score: ${result.score}/100`];
 
   const bySeverity: Record<CritiqueSeverity, typeof result.findings> = {
     warn: [],
@@ -67,34 +58,13 @@ export function createCritiqueTool(_ctx: PluginInput): ReturnType<typeof tool> {
   return tool({
     description: TOOL_DESCRIPTION,
     args: {
-      html: tool.schema.string().optional(),
-      blocks: tool.schema.any().optional(),
+      blocks: tool.schema.any(),
     },
     async execute(args) {
-      const hasHtml = args.html !== undefined && args.html !== null;
-      const hasBlocks = args.blocks !== undefined && args.blocks !== null;
-
-      if (hasHtml && hasBlocks) {
-        return "error: provide exactly one of html or blocks, not both";
+      if (!Array.isArray(args.blocks)) {
+        return "error: blocks must be an array";
       }
-      if (!hasHtml && !hasBlocks) {
-        return "error: provide exactly one of html or blocks";
-      }
-
-      let result: CritiqueResult;
-
-      if (hasHtml) {
-        if (typeof args.html !== "string") {
-          return "error: html must be a string";
-        }
-        result = critiqueHtml(args.html);
-      } else {
-        if (!Array.isArray(args.blocks)) {
-          return "error: blocks must be an array";
-        }
-        result = critiqueBlocks(args.blocks as Block[]);
-      }
-
+      const result = critique(args.blocks as Block[]);
       return formatCritiqueForAgent(result);
     },
   });

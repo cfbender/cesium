@@ -31,7 +31,6 @@ export interface ArtifactMeta {
   supersedes: string | null;
   supersededBy: string | null;
   contentSha256: string;
-  inputMode: "html" | "blocks";
 }
 
 export interface WrapOptions {
@@ -205,8 +204,10 @@ export function wrapDocument(opts: WrapOptions): string {
   // cascade order — so theme upgrades retroactively apply to served artifacts
   // while standalone copies retain their generation-time look.
   const themeCss = buildThemeCss(theme);
-  // Embed interactive into the cesium-meta JSON block when present
-  const metaPayload: Record<string, unknown> = { ...meta };
+  // Embed interactive into the cesium-meta JSON block when present.
+  // inputMode is frozen at "blocks" on-disk for stability; the field is kept
+  // on emitted metadata so older readers/tools that look for it still see a value.
+  const metaPayload: Record<string, unknown> = { ...meta, inputMode: "blocks" };
   if (interactive !== undefined) {
     metaPayload["interactive"] = interactive;
   }

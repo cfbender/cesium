@@ -12,7 +12,7 @@ cesium/
 │   ├── index.ts          # opencode plugin entry — registers tools + injects prompt fragment
 │   ├── config.ts         # config loader (~/.config/opencode/cesium.json)
 │   ├── tools/
-│   │   ├── publish.ts    # cesium_publish tool handler (html or blocks)
+│   │   ├── publish.ts    # cesium_publish tool handler
 │   │   ├── ask.ts        # cesium_ask tool handler
 │   │   ├── annotate.ts   # cesium_annotate tool handler (interactive review)
 │   │   ├── styleguide.ts # cesium_styleguide tool handler (catalog-driven)
@@ -22,7 +22,7 @@ cesium/
 │   │   ├── wrap.ts       # assembles full document; links /theme.css + inline fallback
 │   │   ├── fallback.ts   # ~8 lines of inline CSS for standalone-readable artifacts
 │   │   ├── scrub.ts      # external-resource stripper; only used on escape-hatch payloads
-│   │   ├── validate.ts   # validates publish input (html branch + blocks branch)
+│   │   ├── validate.ts   # validates publish input
 │   │   ├── critique.ts   # mode-aware findings
 │   │   ├── annotate-frozen.ts # server-side frozen state rendering post-verdict
 │   │   └── blocks/       # structured-block renderers (the closed union)
@@ -103,8 +103,8 @@ Design synthesis docs live in `.specs/` (gitignored, not checked in). Read the l
 before working on any non-trivial feature.
 
 - `.specs/2026-05-11-cesium-design.md` — original v1 design.
-- `.specs/2026-05-12-cesium-block-mode.md` — current refactor: structured `blocks` input
-  alongside legacy `html`, server-served `theme.css` with inline fallback, mode-aware
+- `.specs/2026-05-12-cesium-block-mode.md` — structured `blocks` input,
+  server-served `theme.css` with inline fallback, mode-aware
   critique, catalog-driven styleguide.
 - `.specs/2026-05-13-cesium-annotate.md` — `cesium_annotate` feature: anchor model, comment/verdict
   data types, HTTP routes, frozen state rendering, and round-trip workflow.
@@ -116,20 +116,18 @@ history.
 
 ## Architecture
 
-### Two input modes
+### Blocks input model
 
-`cesium_publish` accepts either `html: string` (escape valve / legacy) **or**
-`blocks: Block[]` (preferred). Exactly one is required; the runtime XOR is enforced in
-`src/render/validate.ts`.
+`cesium_publish` accepts a `blocks: Block[]` array describing structured content.
+`Block` is a closed discriminated union (see `src/render/blocks/types.ts`). The server
+templates known block types into HTML; the `raw_html` and `diagram` blocks are
+escape-hatch types whose payload is scrubbed but whose template wrapper is trusted.
+Adding a new block type is a deliberate code change: types + renderer + catalog entry
 
-`blocks` is a closed discriminated union (see `src/render/blocks/types.ts`). The server
-templates known block types into HTML; raw HTML lives in dedicated escape-hatch block
-types (`raw_html`, `diagram`) whose payload is scrubbed but whose template wrapper is
-trusted. Adding a new block type is a deliberate code change: types + renderer + catalog
-entry + tests.
+- tests.
 
-`cesium_ask` is unchanged — it is already tool-call-driven (questions array → server-
-templated controls). The freeform body field stays as-is.
+`cesium_ask` is tool-call-driven (questions array → server-templated controls). Its
+freeform `body` field is scrubbed at publish time.
 
 ### Two interactive modes
 
@@ -167,9 +165,9 @@ served stylesheet.
   `https://` URLs for stylesheets, scripts, fonts, or images. The scrub pass in
   `src/render/scrub.ts` enforces this. The local `/theme.css` link is allowed and is the
   only stylesheet reference.
-- **Templated output is trusted.** `scrub.ts` runs only on legacy `html`-mode bodies
-  and on the payload of escape-hatch blocks (`raw_html.html`, `diagram.svg`,
-  `diagram.html`). Never re-scrub the assembled body produced by the block dispatcher.
+- **Templated output is trusted.** `scrub.ts` runs only on the payload of escape-hatch
+  blocks (`raw_html.html`, `diagram.svg`, `diagram.html`) and on the freeform body of
+  `cesium_ask`. Never re-scrub the assembled body produced by the block dispatcher.
 - **Closed block union.** `Block` in `src/render/blocks/types.ts` is the canonical list.
   Validation rejects unknown `type` strings. Anything not expressible as a known block
   belongs in `raw_html` (with a `purpose` string for the audit trail).

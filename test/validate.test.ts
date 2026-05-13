@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  htmlBodyWarnings,
   PUBLISH_KINDS,
   validatePublishInput,
   validateQuestion,
@@ -12,6 +11,8 @@ import {
   coerceInteractiveData,
   type PublishInput,
 } from "../src/render/validate.ts";
+
+const PROSE = { type: "prose", markdown: "hi" };
 
 describe("validatePublishInput — rejection cases", () => {
   test("rejects null input", () => {
@@ -25,13 +26,13 @@ describe("validatePublishInput — rejection cases", () => {
   });
 
   test("rejects missing title", () => {
-    const r = validatePublishInput({ kind: "plan", html: "<p>hi</p>" });
+    const r = validatePublishInput({ kind: "plan", blocks: [PROSE] });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain("title");
   });
 
   test("rejects empty title", () => {
-    const r = validatePublishInput({ title: "  ", kind: "plan", html: "<p>hi</p>" });
+    const r = validatePublishInput({ title: "  ", kind: "plan", blocks: [PROSE] });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain("title");
   });
@@ -40,7 +41,7 @@ describe("validatePublishInput — rejection cases", () => {
     const r = validatePublishInput({
       title: "a".repeat(201),
       kind: "plan",
-      html: "<p>hi</p>",
+      blocks: [PROSE],
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain("200");
@@ -50,33 +51,44 @@ describe("validatePublishInput — rejection cases", () => {
     const r = validatePublishInput({
       title: "a".repeat(200),
       kind: "plan",
-      html: "<p>hi</p>",
+      blocks: [PROSE],
     });
     expect(r.ok).toBe(true);
   });
 
   test("rejects invalid kind", () => {
-    const r = validatePublishInput({ title: "Test", kind: "invalid-kind", html: "<p>hi</p>" });
+    const r = validatePublishInput({
+      title: "Test",
+      kind: "invalid-kind",
+      blocks: [PROSE],
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain("kind");
   });
 
-  test("rejects missing html", () => {
+  test("rejects missing blocks and points at cesium_styleguide", () => {
     const r = validatePublishInput({ title: "Test", kind: "plan" });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain("html");
+    if (!r.ok) {
+      expect(r.error).toContain("blocks");
+      expect(r.error).toContain("cesium_styleguide");
+    }
   });
 
-  test("rejects empty html", () => {
-    const r = validatePublishInput({ title: "Test", kind: "plan", html: "   " });
+  test("rejects empty blocks array and points at cesium_styleguide", () => {
+    const r = validatePublishInput({ title: "Test", kind: "plan", blocks: [] });
     expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("blocks");
+      expect(r.error).toContain("cesium_styleguide");
+    }
   });
 
   test("rejects summary > 500 chars", () => {
     const r = validatePublishInput({
       title: "Test",
       kind: "plan",
-      html: "<p>hi</p>",
+      blocks: [PROSE],
       summary: "s".repeat(501),
     });
     expect(r.ok).toBe(false);
@@ -87,7 +99,7 @@ describe("validatePublishInput — rejection cases", () => {
     const r = validatePublishInput({
       title: "Test",
       kind: "plan",
-      html: "<p>hi</p>",
+      blocks: [PROSE],
       tags: "not-an-array",
     });
     expect(r.ok).toBe(false);
@@ -98,7 +110,7 @@ describe("validatePublishInput — rejection cases", () => {
     const r = validatePublishInput({
       title: "Test",
       kind: "plan",
-      html: "<p>hi</p>",
+      blocks: [PROSE],
       tags: ["valid", 42],
     });
     expect(r.ok).toBe(false);
@@ -108,7 +120,7 @@ describe("validatePublishInput — rejection cases", () => {
     const r = validatePublishInput({
       title: "Test",
       kind: "plan",
-      html: "<p>hi</p>",
+      blocks: [PROSE],
       supersedes: 123,
     });
     expect(r.ok).toBe(false);
@@ -117,24 +129,28 @@ describe("validatePublishInput — rejection cases", () => {
 
 describe("validatePublishInput — acceptance cases", () => {
   test("accepts canonical minimal input", () => {
-    const r = validatePublishInput({ title: "Test Plan", kind: "plan", html: "<h1>Plan</h1>" });
+    const r = validatePublishInput({
+      title: "Test Plan",
+      kind: "plan",
+      blocks: [{ type: "prose", markdown: "Plan body" }],
+    });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.title).toBe("Test Plan");
       expect(r.value.kind).toBe("plan");
-      expect(r.value.html).toBe("<h1>Plan</h1>");
+      expect(r.value.blocks).toHaveLength(1);
     }
   });
 
   test("accepts all valid kinds", () => {
     for (const kind of PUBLISH_KINDS) {
-      const r = validatePublishInput({ title: "T", kind, html: "<p>x</p>" });
+      const r = validatePublishInput({ title: "T", kind, blocks: [PROSE] });
       expect(r.ok).toBe(true);
     }
   });
 
   test("coerces optional fields absent = not set on result", () => {
-    const r = validatePublishInput({ title: "Test", kind: "design", html: "<p>x</p>" });
+    const r = validatePublishInput({ title: "Test", kind: "design", blocks: [PROSE] });
     expect(r.ok).toBe(true);
     if (r.ok) {
       const v: PublishInput = r.value;
@@ -148,7 +164,7 @@ describe("validatePublishInput — acceptance cases", () => {
     const r = validatePublishInput({
       title: "Full Test",
       kind: "report",
-      html: "<p>report</p>",
+      blocks: [PROSE],
       summary: "A brief summary",
       tags: ["a", "b", "c"],
       supersedes: "prev-id-123",
@@ -165,7 +181,7 @@ describe("validatePublishInput — acceptance cases", () => {
     const r = validatePublishInput({
       title: "Test",
       kind: "plan",
-      html: "<p>x</p>",
+      blocks: [PROSE],
       summary: "s".repeat(500),
     });
     expect(r.ok).toBe(true);
@@ -181,34 +197,6 @@ describe("validatePublishInput — acceptance cases", () => {
     expect(PUBLISH_KINDS).toContain("audit");
     expect(PUBLISH_KINDS).toContain("rfc");
     expect(PUBLISH_KINDS).toContain("other");
-  });
-});
-
-describe("htmlBodyWarnings", () => {
-  test("warns when no headings found", () => {
-    const warnings = htmlBodyWarnings("<p>No headings here</p>");
-    expect(warnings.some((w) => w.includes("no headings"))).toBe(true);
-  });
-
-  test("no warning when heading present", () => {
-    const warnings = htmlBodyWarnings("<h1>Title</h1><p>Content</p>");
-    expect(warnings.every((w) => !w.includes("no headings"))).toBe(true);
-  });
-
-  test("returns empty array for empty string", () => {
-    const warnings = htmlBodyWarnings("");
-    expect(Array.isArray(warnings)).toBe(true);
-  });
-
-  test("never throws on malformed HTML", () => {
-    expect(() => htmlBodyWarnings("<div><unclosed><<>>")).not.toThrow();
-  });
-
-  test("recognizes h2-h6 as headings too", () => {
-    for (const tag of ["h2", "h3", "h4", "h5", "h6"]) {
-      const warnings = htmlBodyWarnings(`<${tag}>Section</${tag}><p>text</p>`);
-      expect(warnings.every((w) => !w.includes("no headings"))).toBe(true);
-    }
   });
 });
 

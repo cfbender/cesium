@@ -1,13 +1,8 @@
 // Validates cesium_publish and cesium_ask tool input before any write occurs.
 
-import { parseFragment, defaultTreeAdapter as ta } from "parse5";
-import type { DefaultTreeAdapterTypes } from "parse5";
 import type { Block } from "./blocks/types.ts";
 import { blockCatalog } from "./blocks/catalog.ts";
 import { deepValidateBlock } from "./blocks/validate-block.ts";
-
-type ChildNode = DefaultTreeAdapterTypes.ChildNode;
-type Element = DefaultTreeAdapterTypes.Element;
 
 export interface ValidationOk<T> {
   ok: true;
@@ -732,27 +727,16 @@ export function coerceInteractiveData(raw: unknown): InteractiveData | null {
   return null;
 }
 
-// ─── PublishInput — supports html XOR blocks ──────────────────────────────────
+// ─── PublishInput — blocks-only ──────────────────────────────────────────────
 
-export type PublishInput =
-  | {
-      title: string;
-      kind: PublishKind;
-      html: string;
-      blocks?: never;
-      summary?: string;
-      tags?: string[];
-      supersedes?: string;
-    }
-  | {
-      title: string;
-      kind: PublishKind;
-      blocks: Block[];
-      html?: never;
-      summary?: string;
-      tags?: string[];
-      supersedes?: string;
-    };
+export interface PublishInput {
+  title: string;
+  kind: PublishKind;
+  blocks: Block[];
+  summary?: string;
+  tags?: string[];
+  supersedes?: string;
+}
 
 function isPublishKind(val: unknown): val is PublishKind {
   return typeof val === "string" && (PUBLISH_KINDS as readonly string[]).includes(val);
@@ -1047,15 +1031,18 @@ export function validatePublishInput(input: unknown): ValidationResult<PublishIn
   }
   const kind = raw["kind"];
 
-  // XOR: exactly one of html or blocks
-  const hasHtml = "html" in raw && raw["html"] !== undefined;
-  const hasBlocks = "blocks" in raw && raw["blocks"] !== undefined;
-
-  if (hasHtml && hasBlocks) {
-    return { ok: false, error: "provide exactly one of html or blocks, not both" };
-  }
-  if (!hasHtml && !hasBlocks) {
-    return { ok: false, error: "provide exactly one of html or blocks" };
+  // blocks — required, non-empty
+  if (
+    !("blocks" in raw) ||
+    raw["blocks"] === undefined ||
+    !Array.isArray(raw["blocks"]) ||
+    raw["blocks"].length === 0
+  ) {
+    return {
+      ok: false,
+      error:
+        "cesium_publish requires a non-empty `blocks` array. Call `cesium_styleguide` for the block catalog.",
+    };
   }
 
   // summary (optional)
@@ -1087,69 +1074,16 @@ export function validatePublishInput(input: unknown): ValidationResult<PublishIn
     }
   }
 
-  const commonFields = {
-    title,
-    kind,
-    ...(typeof raw["summary"] === "string" ? { summary: raw["summary"] } : {}),
-    ...(Array.isArray(raw["tags"]) ? { tags: raw["tags"] as string[] } : {}),
-    ...(typeof raw["supersedes"] === "string" ? { supersedes: raw["supersedes"] } : {}),
-  };
-
-  if (hasHtml) {
-    // html branch
-    if (typeof raw["html"] !== "string" || raw["html"].trim() === "") {
-      return { ok: false, error: "html is required and must be a non-empty string" };
-    }
-    return {
-      ok: true,
-      value: { ...commonFields, html: raw["html"] },
-    };
-  } else {
-    // blocks branch
-    const blocksResult = validateBlocksArray(raw["blocks"]);
-    if (!blocksResult.ok) {
-      const errorMessages = blocksResult.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
-      return { ok: false, error: `blocks validation failed — ${errorMessages}` };
-    }
-    return {
-      ok: true,
-      value: { ...commonFields, blocks: blocksResult.blocks },
-    };
+  const blocksResult = validateBlocksArray(raw["blocks"]);
+  if (!blocksResult.ok) {
+    const errorMessages = blocksResult.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
+    return { ok: false, error: `blocks validation failed — ${errorMessages}` };
   }
-}
 
-const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
+  const value: PublishInput = { title, kind, blocks: blocksResult.blocks };
+  if (typeof raw["summary"] === "string") value.summary = raw["summary"];
+  if (Array.isArray(raw["tags"])) value.tags = raw["tags"] as string[];
+  if (typeof raw["supersedes"] === "string") value.supersedes = raw["supersedes"];
 
-function walkNodes(nodes: ChildNode[], visitor: (node: ChildNode) => void): void {
-  for (const node of nodes) {
-    visitor(node);
-    if (ta.isElementNode(node)) {
-      walkNodes(ta.getChildNodes(node as Element) as ChildNode[], visitor);
-    }
-  }
-}
-
-export function htmlBodyWarnings(htmlBody: string): string[] {
-  try {
-    const warnings: string[] = [];
-    const fragment = parseFragment(htmlBody);
-    const children = ta.getChildNodes(fragment) as ChildNode[];
-    let hasHeading = false;
-
-    walkNodes(children, (node) => {
-      if (ta.isElementNode(node)) {
-        const el = node as Element;
-        const tag = ta.getTagName(el);
-        if (HEADING_TAGS.has(tag)) hasHeading = true;
-      }
-    });
-
-    if (!hasHeading) {
-      warnings.push("no headings found — consider adding an <h1> or <h2>");
-    }
-
-    return warnings;
-  } catch {
-    return [];
-  }
+  return { ok: true, value };
 }

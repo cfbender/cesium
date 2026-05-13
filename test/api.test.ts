@@ -53,7 +53,6 @@ function makeMeta(overrides?: Partial<ArtifactMeta>): ArtifactMeta {
     supersedes: null,
     supersededBy: null,
     contentSha256: "deadbeef",
-    inputMode: "html",
     ...overrides,
   };
 }

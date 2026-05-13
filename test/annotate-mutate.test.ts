@@ -44,7 +44,6 @@ function makeArtifactMeta(overrides?: Partial<ArtifactMeta>): ArtifactMeta {
     supersedes: null,
     supersededBy: null,
     contentSha256: "deadbeef",
-    inputMode: "blocks",
     ...overrides,
   };
 }
@@ -151,7 +150,7 @@ async function writeAskArtifact(
   const path = join(dir, filename);
   const html = wrapDocument({
     body: "<p>framing</p>",
-    meta: makeArtifactMeta({ kind: "ask", inputMode: "html" }),
+    meta: makeArtifactMeta({ kind: "ask" }),
     theme: defaultTheme(),
     interactive,
     themeCssHref: null,
@@ -203,7 +202,7 @@ async function writeApiAskArtifact(interactive?: InteractiveData): Promise<strin
   const path = join(apiArtifactsDir, FILENAME);
   const html = wrapDocument({
     body: "<p>framing</p>",
-    meta: makeArtifactMeta({ kind: "ask", inputMode: "html", projectSlug: PROJECT_SLUG }),
+    meta: makeArtifactMeta({ kind: "ask", projectSlug: PROJECT_SLUG }),
     theme: defaultTheme(),
     themeCssHref: null,
     ...(interactive !== undefined ? { interactive } : {}),

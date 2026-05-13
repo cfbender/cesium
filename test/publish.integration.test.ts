@@ -67,7 +67,16 @@ async function publish(
   const ctx = mockCtx(workDir);
   const overrides = makeOverrides(stateDir, nanoid);
   const t = createPublishTool(ctx, overrides);
-  const raw = await t.execute(args, {} as never);
+  // Wrap the legacy `html` argument in a single raw_html block so existing
+  // fixtures keep working after the html input mode was removed.
+  const { html, ...rest } = args;
+  const blocksArgs: BlocksPublishArgs = {
+    ...rest,
+    title: args.title,
+    kind: args.kind,
+    blocks: [{ type: "raw_html", html, purpose: "test fixture" }],
+  };
+  const raw = await t.execute(blocksArgs, {} as never);
   if (typeof raw !== "string") throw new Error("expected string from publish tool");
   return JSON.parse(raw) as Record<string, unknown>;
 }
@@ -134,7 +143,7 @@ test("wrapped output is well-formed HTML with correct title and meta block", asy
   expect(html.toLowerCase().trimStart()).toMatch(/^<!doctype html>/);
   expect(html).toContain("<title>Test plan · cesium</title>");
   expect(html).toContain('<script type="application/json" id="cesium-meta">');
-  expect(html).toContain('<h1 class="h-display">hi</h1>');
+  expect(html).toMatch(/<h1[^>]*class="h-display"[^>]*>hi<\/h1>/);
 });
 
 test("embedded metadata round-trip returns expected fields", async () => {
@@ -259,7 +268,10 @@ test("validation failure: empty title returns Error: string", async () => {
   const ctx = mockCtx(workDir);
   const overrides = makeOverrides(stateDir);
   const t = createPublishTool(ctx, overrides);
-  const result = await t.execute({ title: "", kind: "plan", html: "x" }, {} as never);
+  const result = await t.execute(
+    { title: "", kind: "plan", blocks: [{ type: "prose", markdown: "x" }] },
+    {} as never,
+  );
   expect(typeof result).toBe("string");
   expect((result as string).startsWith("Error:")).toBe(true);
 });
@@ -268,7 +280,10 @@ test("validation failure: invalid kind returns Error: string", async () => {
   const ctx = mockCtx(workDir);
   const overrides = makeOverrides(stateDir);
   const t = createPublishTool(ctx, overrides);
-  const result = await t.execute({ title: "x", kind: "wrong", html: "y" }, {} as never);
+  const result = await t.execute(
+    { title: "x", kind: "wrong", blocks: [{ type: "prose", markdown: "y" }] },
+    {} as never,
+  );
   expect(typeof result).toBe("string");
   expect((result as string).startsWith("Error:")).toBe(true);
 });
@@ -683,7 +698,14 @@ test("theme.css contains full framework css with default theme tokens", async ()
     }),
   };
   const t = createPublishTool(ctx, overrides);
-  await t.execute({ title: "Warm Test", kind: "plan", html: "<p>warm</p>" }, {} as never);
+  await t.execute(
+    {
+      title: "Warm Test",
+      kind: "plan",
+      blocks: [{ type: "prose", markdown: "warm" }],
+    },
+    {} as never,
+  );
 
   // theme.css is updated to reflect the warm preset
   const themeCss2 = readFileSync(join(stateDir, "theme.css"), "utf8");
@@ -830,19 +852,6 @@ test("blocks mode: embedded metadata round-trip returns expected fields", async 
   expect(meta["kind"]).toBe("design");
 });
 
-test("blocks mode: validation failure — both html and blocks provided", async () => {
-  const ctx = mockCtx(workDir);
-  const overrides = makeOverrides(stateDir);
-  const t = createPublishTool(ctx, overrides);
-  const result = await t.execute(
-    { title: "Bad", kind: "plan", html: "<p>x</p>", blocks: [{ type: "prose", markdown: "y" }] },
-    {} as never,
-  );
-  expect(typeof result).toBe("string");
-  expect((result as string).startsWith("Error:")).toBe(true);
-  expect(result as string).toContain("exactly one");
-});
-
 test("blocks mode: validation failure — invalid block type", async () => {
   const ctx = mockCtx(workDir);
   const overrides = makeOverrides(stateDir);
@@ -853,6 +862,16 @@ test("blocks mode: validation failure — invalid block type", async () => {
   );
   expect(typeof result).toBe("string");
   expect((result as string).startsWith("Error:")).toBe(true);
+});
+
+test("blocks mode: validation failure — missing blocks points at styleguide", async () => {
+  const ctx = mockCtx(workDir);
+  const overrides = makeOverrides(stateDir);
+  const t = createPublishTool(ctx, overrides);
+  const result = await t.execute({ title: "Missing", kind: "plan" }, {} as never);
+  expect(typeof result).toBe("string");
+  expect((result as string).startsWith("Error:")).toBe(true);
+  expect(result as string).toContain("cesium_styleguide");
 });
 
 test("blocks mode: index updated with artifact from blocks input", async () => {
@@ -874,20 +893,7 @@ test("blocks mode: index updated with artifact from blocks input", async () => {
   expect((entries[0] as Record<string, unknown>)["id"]).toBe("abc123");
 });
 
-// ─── Phase 2.5 Bug 4: inputMode in metadata ─────────────────────────────────
-
-test("html mode: embedded metadata contains inputMode='html'", async () => {
-  const result = await publish(workDir, stateDir, {
-    title: "HTML Mode Test",
-    kind: "plan",
-    html: "<p>content</p>",
-  });
-
-  const html = readFileSync(result["filePath"] as string, "utf8");
-  const meta = readEmbeddedMetadata(html);
-  if (meta === null) throw new Error("expected embedded metadata");
-  expect(meta["inputMode"]).toBe("html");
-});
+// ─── inputMode in metadata (frozen at "blocks") ────────────────────────────
 
 test("blocks mode: embedded metadata contains inputMode='blocks'", async () => {
   const result = await publishBlocks(workDir, stateDir, {
@@ -920,25 +926,6 @@ test("blocks mode: index.json entry contains inputMode='blocks'", async () => {
   const entry = entries[0];
   if (entry === undefined) throw new Error("expected entry");
   expect(entry["inputMode"]).toBe("blocks");
-});
-
-test("html mode: index.json entry contains inputMode='html'", async () => {
-  const result = await publish(workDir, stateDir, {
-    title: "HTML Mode Index Test",
-    kind: "plan",
-    html: "<p>content</p>",
-  });
-
-  const httpUrl = result["httpUrl"] as string;
-  const slugMatch = /\/projects\/([^/]+)\//.exec(httpUrl);
-  if (slugMatch === null || slugMatch[1] === undefined) throw new Error("could not parse slug");
-  const slug = slugMatch[1];
-
-  const projectIndexPath = join(stateDir, "projects", slug, "index.json");
-  const entries = JSON.parse(readFileSync(projectIndexPath, "utf8")) as Record<string, unknown>[];
-  const entry = entries[0];
-  if (entry === undefined) throw new Error("expected entry");
-  expect(entry["inputMode"]).toBe("html");
 });
 
 test("blocks mode: index.html card contains inputMode tag badge", async () => {

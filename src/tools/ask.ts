@@ -8,7 +8,7 @@ import { loadConfig, type CesiumConfig } from "../config.ts";
 import { scrub } from "../render/scrub.ts";
 import { extractTextContent } from "../render/extract.ts";
 import { themeFromPreset, mergeTheme } from "../render/theme.ts";
-import { validateAskInput, htmlBodyWarnings } from "../render/validate.ts";
+import { validateAskInput } from "../render/validate.ts";
 import { wrapDocument, type ArtifactMeta } from "../render/wrap.ts";
 import type { InteractiveData } from "../render/validate.ts";
 import { deriveProjectIdentity, artifactFilename, pathsFor } from "../storage/paths.ts";
@@ -204,7 +204,6 @@ export function createAskTool(
         supersedes: null,
         supersededBy: null,
         contentSha256,
-        inputMode: "html",
       };
 
       // 12. Build interactive data
@@ -221,10 +220,6 @@ export function createAskTool(
       const warnings: string[] = [];
       if (scrubbed.removed.length > 0) {
         warnings.push(`Removed ${scrubbed.removed.length} external resource(s) during scrub.`);
-      }
-      const bodyWarnings = htmlBodyWarnings(scrubbed.html);
-      for (const w of bodyWarnings) {
-        warnings.push(w);
       }
 
       // 14. Build theme + wrap document

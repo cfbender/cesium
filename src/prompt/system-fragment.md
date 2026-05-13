@@ -12,11 +12,11 @@ You have access to seven tools:
 - `cesium_critique` — analyze a draft artifact; returns a 0-100 score and findings
 - `cesium_stop` — stop the running cesium HTTP server
 
-## Two input modes
+## Describing content with blocks
 
-`cesium_publish` accepts either `blocks: Block[]` (preferred) or `html: string` (escape valve). Provide exactly one.
+`cesium_publish` takes a `blocks: Block[]` array — a closed set of typed building blocks (hero, tldr, section, prose, list, callout, code, diff, timeline, compare_table, risk_table, kv, pill_row, divider, diagram, raw_html). Blocks are token-efficient, server-templated, and machine-checkable. Call `cesium_styleguide` for the full block catalog with schemas and rendered examples.
 
-**Prefer `blocks`** for plans, reviews, reports, explainers, comparisons, audits, design docs. Blocks are token-efficient (no structural boilerplate), server-templated, and machine-checkable. Use `html` only when the whole document needs bespoke art-direction. For isolated bespoke regions, use `raw_html` or `diagram` blocks.
+For content that doesn't fit any typed block, use `raw_html` (an escape hatch for free-form HTML) or `diagram` (for inline SVG/HTML visualizations).
 
 ### Example
 
@@ -122,7 +122,7 @@ Default bias for review-flavored work: prefer `cesium_annotate` over chat back-a
 
 ## Self-check before publishing
 
-Call `cesium_critique` before `cesium_publish` on substantive artifacts. Mode is auto-detected (pass `html` or `blocks`). Act on warn-level findings; consider suggest-level. If score < 70, revise.
+Call `cesium_critique` before `cesium_publish` on substantive artifacts. Act on warn-level findings; consider suggest-level. If score < 70, revise.
 
 ## After publishing
 
