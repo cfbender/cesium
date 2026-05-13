@@ -144,11 +144,11 @@ describe("wrapDocument", () => {
     expect(doc).toContain("previd456");
   });
 
-  test("includes <style> with fallback css", () => {
+  test("includes <style> with theme tokens and framework rules", () => {
     const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
     expect(doc).toContain("<style>");
     expect(doc).toContain(":root");
-    // fallback uses system-ui font stack
+    // theme tokens use system-ui in --sans
     expect(doc).toContain("system-ui");
   });
 
@@ -212,19 +212,21 @@ describe("wrapDocument", () => {
     expect(linkPos).toBeGreaterThan(stylePos);
   });
 
-  test("inline <style> contains fallback selectors but NOT full framework rules", () => {
+  test("inline <style> contains full theme CSS (tokens + framework rules)", () => {
     const doc = wrapDocument({ body: "<p>hi</p>", meta: makeMeta(), theme: defaultTheme() });
     const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(doc);
     expect(styleMatch).not.toBeNull();
     const styleContent = styleMatch?.[1] ?? "";
-    // Fallback selectors present
+    // Tokens present
+    expect(styleContent).toContain(":root");
+    expect(styleContent).toContain("--accent");
+    // Component classes present
     expect(styleContent).toContain(".card");
     expect(styleContent).toContain(".callout");
-    expect(styleContent).toContain(":root");
-    // Full framework rules NOT in inline style (they live in /theme.css)
-    expect(styleContent).not.toContain(".h-section");
-    expect(styleContent).not.toContain(".eyebrow");
-    expect(styleContent).not.toContain(".tldr\n");
+    expect(styleContent).toContain(".tldr");
+    // Full framework rules ARE present (artifact is self-contained)
+    expect(styleContent).toContain(".h-section");
+    expect(styleContent).toContain(".eyebrow");
   });
 
   test("empty string themeCssHref uses the default ../../../theme.css", () => {

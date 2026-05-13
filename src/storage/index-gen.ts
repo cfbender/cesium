@@ -3,7 +3,7 @@
 import type { IndexEntry } from "./index-cache.ts";
 import type { ThemeTokens } from "../render/theme.ts";
 import { faviconLinkTag, faviconEmblemSvg } from "../render/favicon.ts";
-import { fallbackCss } from "../render/fallback.ts";
+import { buildThemeCss } from "./theme-write.ts";
 
 export interface RenderProjectIndexArgs {
   projectSlug: string;
@@ -267,7 +267,7 @@ function renderEntryCard(entry: IndexEntry): string {
 // ─── renderProjectIndex ──────────────────────────────────────────────────────
 
 export function renderProjectIndex(args: RenderProjectIndexArgs): string {
-  const { projectSlug, projectName, entries } = args;
+  const { projectSlug, projectName, entries, theme } = args;
   const href =
     args.themeCssHref === undefined
       ? "../../theme.css"
@@ -276,7 +276,9 @@ export function renderProjectIndex(args: RenderProjectIndexArgs): string {
         : args.themeCssHref;
   const suppressLink = args.themeCssHref === null;
 
-  const fallback = fallbackCss();
+  // Bake the full theme CSS into the index so it's self-contained when opened
+  // standalone; the <link> below still loads and overrides when served.
+  const themeCss = buildThemeCss(theme);
   const iCss = indexCss();
   const iJs = indexJs();
 
@@ -359,8 +361,7 @@ ${cardsHtml}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(projectName)} · cesium</title>
-  <style>/* fallback — standalone-readable; full styles served from /theme.css */
-${fallback}${iCss}</style>${linkTag}${faviconTag}
+  <style>${themeCss}${iCss}</style>${linkTag}${faviconTag}
 </head>
 <body>
 <div class="page">
@@ -381,7 +382,7 @@ ${fallback}${iCss}</style>${linkTag}${faviconTag}
 // ─── renderGlobalIndex ───────────────────────────────────────────────────────
 
 export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
-  const { projects } = args;
+  const { projects, theme } = args;
   const href =
     args.themeCssHref === undefined
       ? "theme.css"
@@ -390,7 +391,9 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
         : args.themeCssHref;
   const suppressLink = args.themeCssHref === null;
 
-  const fallback = fallbackCss();
+  // Bake the full theme CSS into the index so it's self-contained when opened
+  // standalone; the <link> below still loads and overrides when served.
+  const themeCss = buildThemeCss(theme);
   const iCss = indexCss();
 
   const linkTag = suppressLink ? "" : `\n  <link rel="stylesheet" href="${href}">`;
@@ -447,8 +450,7 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>All projects · cesium</title>
-  <style>/* fallback — standalone-readable; full styles served from /theme.css */
-${fallback}${iCss}</style>${linkTag}${faviconTag}
+  <style>${themeCss}${iCss}</style>${linkTag}${faviconTag}
 </head>
 <body>
 <div class="page">

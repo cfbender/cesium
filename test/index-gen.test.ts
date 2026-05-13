@@ -306,17 +306,17 @@ describe("renderProjectIndex", () => {
     expect(textPos).toBeGreaterThan(svgPos);
   });
 
-  test("inline <style> includes fallback css and index-specific rules", () => {
+  test("inline <style> includes full theme CSS plus index-specific rules", () => {
     const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
     const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(html);
     expect(styleMatch).not.toBeNull();
     const styleContent = styleMatch?.[1] ?? "";
-    // Fallback CSS present (minified)
-    expect(styleContent).toContain(":root{");
+    // Full theme tokens + framework rules baked in
+    expect(styleContent).toContain(":root");
+    expect(styleContent).toContain("--accent");
+    expect(styleContent).toContain(".h-section");
     // Index-specific CSS still present inline
     expect(styleContent).toContain(".filter-chip");
-    // Full framework rules NOT inlined (they live in /theme.css)
-    expect(styleContent).not.toContain(".h-section");
   });
 });
 
@@ -428,16 +428,15 @@ describe("renderGlobalIndex", () => {
     expect(eyebrowContent).toContain("cesium");
   });
 
-  test("inline <style> includes fallback css", () => {
+  test("inline <style> includes full theme CSS", () => {
     const html = renderGlobalIndex({ projects: [], theme });
     const styleMatch = /<style>([\s\S]*?)<\/style>/i.exec(html);
     expect(styleMatch).not.toBeNull();
     const styleContent = styleMatch?.[1] ?? "";
-    // Fallback CSS present (minified, no CSS vars)
-    expect(styleContent).toContain(":root{");
+    // Full theme tokens + framework rules baked in
+    expect(styleContent).toContain(":root");
     expect(styleContent).toContain("system-ui");
-    // Full framework rules NOT inlined
-    expect(styleContent).not.toContain(".h-section");
+    expect(styleContent).toContain(".h-section");
   });
 });
 

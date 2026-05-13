@@ -14,6 +14,7 @@ const main = defineCommand({
   subCommands: {
     ls: () => import("./commands/ls.ts").then((m) => m.lsCmd),
     open: () => import("./commands/open.ts").then((m) => m.openCmd),
+    export: () => import("./commands/export.ts").then((m) => m.exportCmd),
     serve: () => import("./commands/serve.ts").then((m) => m.serveCmd),
     stop: () => import("./commands/stop.ts").then((m) => m.stopCmd),
     restart: () => import("./commands/restart.ts").then((m) => m.restartCmd),

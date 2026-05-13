@@ -48,8 +48,8 @@ unreleased changes).
 ### CLI
 
 The CLI puts a `cesium` binary on your `PATH` for browsing, opening, and
-managing artifacts (`cesium ls`, `cesium open`, `cesium serve`, `cesium prune`,
-`cesium theme`).
+managing artifacts (`cesium ls`, `cesium open`, `cesium export`, `cesium serve`,
+`cesium prune`, `cesium theme`).
 
 **Recommended: install with [mise](https://mise.jdx.dev/)** so cesium is pinned
 in your config and tracks with the rest of your toolchain. Add to your
@@ -292,14 +292,23 @@ cesium open a7K9 --print  # just print the URL
 
 ### Share an artifact
 
-Each artifact is a single self-contained `.html` file — no external resources.
-Three ways to share:
+Each artifact is a single self-contained `.html` file — the full theme CSS is
+baked into a `<style>` tag at generation time, so it renders correctly when
+opened anywhere. Four ways to share:
 
+- **Pipe it anywhere** — `cesium export <id-prefix>` dumps the file to stdout;
+  `cesium export <id-prefix> --out plan.html` writes it to disk. The output
+  is a portable HTML file you can attach to email, drop in a chat, or commit
+  to a repo. Opens correctly with no server running.
 - **Same machine** — copy or attach the `file://` path printed in the terminal.
 - **Over SSH** — forward the port with `ssh -L 3030:localhost:3030 your-host`,
   then send the `http://localhost:3030/...` URL.
 - **On a trusted LAN** — set `"hostname": "0.0.0.0"` in `cesium.json` and share
   the LAN URL. Only do this on networks you trust.
+
+When an artifact is served by the cesium HTTP server, a `<link>` to the live
+`theme.css` overrides the baked-in `<style>` so theme changes apply retroactively
+to served pages. Standalone copies keep their generation-time look forever.
 
 ### Clean up old artifacts
 
