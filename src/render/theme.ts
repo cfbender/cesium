@@ -972,14 +972,14 @@ textarea.cs-text { font-family: var(--mono); }
 
 /* session-ended banner */
 .cs-banner-ended {
-  position: sticky;
-  top: 0;
-  padding: 0.75rem 1.25rem;
-  background: color-mix(in srgb, var(--accent) 20%, var(--bg));
-  border-bottom: 1.5px solid var(--accent);
-  text-align: center;
+  max-width: var(--content-width, 70ch);
+  margin: 16px auto 24px;
+  padding: 0.5rem 0.875rem;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  border-radius: 8px;
+  text-align: left;
   font-weight: 600;
-  z-index: 10;
+  font-size: 0.9rem;
 }
 
 /* ─── annotate affordances (.cs-anchor-*) ─────────────────────────────────── */
@@ -1108,20 +1108,17 @@ textarea.cs-text { font-family: var(--mono); }
 
 /* ─── comment rail (.cs-comment-rail) ─────────────────────────────────────── */
 
+/* Body is the absolute-positioning context for the rail */
+body { position: relative; }
+
 .cs-comment-rail {
-  position: fixed;
+  position: absolute;
   right: 24px;
-  top: 96px;
+  top: 0;
   width: 280px;
-  max-height: 80vh;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   z-index: 50;
-  /* custom scrollbar for aesthetics */
-  scrollbar-width: thin;
-  scrollbar-color: var(--rule) transparent;
 }
 @media (max-width: 900px) {
   .cs-comment-rail {
@@ -1132,6 +1129,9 @@ textarea.cs-text { font-family: var(--mono); }
   }
 }
 .cs-comment-bubble {
+  position: absolute;
+  left: 0;
+  right: 0;
   background: var(--surface);
   border: 1.5px solid var(--rule);
   border-radius: 10px;
@@ -1141,7 +1141,30 @@ textarea.cs-text { font-family: var(--mono); }
   gap: 6px;
   transition: border-color 120ms;
 }
+/* connector pseudo-element: dotted line from bubble leading edge leftward */
+.cs-comment-bubble::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: -24px;
+  width: 24px;
+  border-top: 1px dotted var(--rule);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.cs-comment-bubble:hover::before,
+.cs-comment-bubble-active::before {
+  opacity: 1;
+}
 .cs-comment-bubble:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--rule)); }
+.cs-comment-bubble-active {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+}
+/* anchor highlight when its bubble is active */
+.cs-anchor-active {
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+  transition: background-color 120ms;
+}
 .cs-comment-bubble-head {
   display: flex;
   align-items: center;
@@ -1276,15 +1299,14 @@ body.cs-annotate-active {
 
 /* ─── banner for annotate offline mode ────────────────────────────────────── */
 .cs-banner-offline {
-  position: sticky;
-  top: 0;
-  padding: 0.75rem 1.25rem;
-  background: color-mix(in srgb, var(--muted) 15%, var(--bg));
-  border-bottom: 1.5px solid var(--rule);
-  text-align: center;
+  max-width: var(--content-width, 70ch);
+  margin: 16px auto 24px;
+  padding: 0.5rem 0.875rem;
+  background: color-mix(in srgb, var(--muted) 8%, var(--bg));
+  border-radius: 8px;
+  text-align: left;
   font-size: 0.9rem;
   color: var(--ink-soft);
-  z-index: 10;
 }
 
 /* diff block */

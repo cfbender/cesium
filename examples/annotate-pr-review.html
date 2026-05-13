@@ -940,14 +940,14 @@
 
       /* session-ended banner */
       .cs-banner-ended {
-        position: sticky;
-        top: 0;
-        padding: 0.75rem 1.25rem;
-        background: color-mix(in srgb, var(--accent) 20%, var(--bg));
-        border-bottom: 1.5px solid var(--accent);
-        text-align: center;
+        max-width: var(--content-width, 70ch);
+        margin: 16px auto 24px;
+        padding: 0.5rem 0.875rem;
+        background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+        border-radius: 8px;
+        text-align: left;
         font-weight: 600;
-        z-index: 10;
+        font-size: 0.9rem;
       }
 
       /* ─── annotate affordances (.cs-anchor-*) ─────────────────────────────────── */
@@ -1095,20 +1095,19 @@
 
       /* ─── comment rail (.cs-comment-rail) ─────────────────────────────────────── */
 
+      /* Body is the absolute-positioning context for the rail */
+      body {
+        position: relative;
+      }
+
       .cs-comment-rail {
-        position: fixed;
+        position: absolute;
         right: 24px;
-        top: 96px;
+        top: 0;
         width: 280px;
-        max-height: 80vh;
-        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 10px;
         z-index: 50;
-        /* custom scrollbar for aesthetics */
-        scrollbar-width: thin;
-        scrollbar-color: var(--rule) transparent;
       }
       @media (max-width: 900px) {
         .cs-comment-rail {
@@ -1119,6 +1118,9 @@
         }
       }
       .cs-comment-bubble {
+        position: absolute;
+        left: 0;
+        right: 0;
         background: var(--surface);
         border: 1.5px solid var(--rule);
         border-radius: 10px;
@@ -1128,8 +1130,31 @@
         gap: 6px;
         transition: border-color 120ms;
       }
+      /* connector pseudo-element: dotted line from bubble leading edge leftward */
+      .cs-comment-bubble::before {
+        content: "";
+        position: absolute;
+        top: 14px;
+        left: -24px;
+        width: 24px;
+        border-top: 1px dotted var(--rule);
+        opacity: 0;
+        transition: opacity 120ms;
+      }
+      .cs-comment-bubble:hover::before,
+      .cs-comment-bubble-active::before {
+        opacity: 1;
+      }
       .cs-comment-bubble:hover {
         border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+      .cs-comment-bubble-active {
+        border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+      /* anchor highlight when its bubble is active */
+      .cs-anchor-active {
+        background-color: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+        transition: background-color 120ms;
       }
       .cs-comment-bubble-head {
         display: flex;
@@ -1278,15 +1303,14 @@
 
       /* ─── banner for annotate offline mode ────────────────────────────────────── */
       .cs-banner-offline {
-        position: sticky;
-        top: 0;
-        padding: 0.75rem 1.25rem;
-        background: color-mix(in srgb, var(--muted) 15%, var(--bg));
-        border-bottom: 1.5px solid var(--rule);
-        text-align: center;
+        max-width: var(--content-width, 70ch);
+        margin: 16px auto 24px;
+        padding: 0.5rem 0.875rem;
+        background: color-mix(in srgb, var(--muted) 8%, var(--bg));
+        border-radius: 8px;
+        text-align: left;
         font-size: 0.9rem;
         color: var(--ink-soft);
-        z-index: 10;
       }
 
       /* diff block */
@@ -2192,6 +2216,7 @@
                   article.remove();
                   updateCount();
                   updateVerdictButtons();
+                  positionBubbles();
                 })
                 .catch(function (err) {
                   // Restore
@@ -2212,12 +2237,103 @@
             if (!rail) return;
             var bubble = buildBubble(comment);
             rail.appendChild(bubble);
+            positionBubbles();
           }
 
           function mountAllSeededComments() {
             for (var i = 0; i < state.comments.length; i++) {
               mountBubble(state.comments[i]);
             }
+          }
+
+          // ─── Position bubbles aligned to anchors (marginalia style) ─────────────
+          function positionBubbles() {
+            var rail = getRail();
+            if (!rail) return;
+            var railParent = rail.offsetParent || document.body;
+            var railParentTop =
+              railParent instanceof HTMLElement
+                ? railParent.getBoundingClientRect().top +
+                  (window.scrollY || window.pageYOffset || 0)
+                : 0;
+            var bubbles = rail.querySelectorAll("[data-anchor]");
+            for (var i = 0; i < bubbles.length; i++) {
+              var bubble = bubbles[i];
+              if (!(bubble instanceof HTMLElement)) continue;
+              var anchorKey = bubble.getAttribute("data-anchor") || "";
+              var anchorEl = document.querySelector('[data-cesium-anchor="' + anchorKey + '"]');
+              if (anchorEl instanceof HTMLElement) {
+                var anchorTop =
+                  anchorEl.getBoundingClientRect().top +
+                  (window.scrollY || window.pageYOffset || 0) -
+                  railParentTop;
+                bubble.style.top = anchorTop + "px";
+                bubble.classList.remove("cs-comment-bubble-orphan");
+              } else {
+                bubble.style.top = "0px";
+                bubble.classList.add("cs-comment-bubble-orphan");
+              }
+            }
+          }
+
+          // ─── Mutual hover linking ────────────────────────────────────────────────
+          function wireHoverLinking() {
+            var rail = getRail();
+            if (!rail) return;
+
+            // Bubble → anchor
+            rail.addEventListener("mouseover", function (e) {
+              var bubble = e.target instanceof Element ? e.target.closest("[data-anchor]") : null;
+              if (!(bubble instanceof HTMLElement)) return;
+              var anchorKey = bubble.getAttribute("data-anchor") || "";
+              var anchorEl = document.querySelector('[data-cesium-anchor="' + anchorKey + '"]');
+              bubble.classList.add("cs-comment-bubble-active");
+              if (anchorEl instanceof HTMLElement) {
+                anchorEl.classList.add("cs-anchor-active");
+              }
+            });
+            rail.addEventListener("mouseout", function (e) {
+              var bubble = e.target instanceof Element ? e.target.closest("[data-anchor]") : null;
+              if (!(bubble instanceof HTMLElement)) return;
+              var anchorKey = bubble.getAttribute("data-anchor") || "";
+              var anchorEl = document.querySelector('[data-cesium-anchor="' + anchorKey + '"]');
+              bubble.classList.remove("cs-comment-bubble-active");
+              if (anchorEl instanceof HTMLElement) {
+                anchorEl.classList.remove("cs-anchor-active");
+              }
+            });
+
+            // Anchor → bubble
+            var anchors = document.querySelectorAll("[data-cesium-anchor]");
+            for (var i = 0; i < anchors.length; i++) {
+              (function (anchorEl) {
+                var anchorKey = anchorEl.getAttribute("data-cesium-anchor") || "";
+                anchorEl.addEventListener("mouseenter", function () {
+                  var bubble = rail.querySelector('[data-anchor="' + anchorKey + '"]');
+                  if (bubble instanceof HTMLElement) {
+                    bubble.classList.add("cs-comment-bubble-active");
+                  }
+                  anchorEl.classList.add("cs-anchor-active");
+                });
+                anchorEl.addEventListener("mouseleave", function () {
+                  var bubble = rail.querySelector('[data-anchor="' + anchorKey + '"]');
+                  if (bubble instanceof HTMLElement) {
+                    bubble.classList.remove("cs-comment-bubble-active");
+                  }
+                  anchorEl.classList.remove("cs-anchor-active");
+                });
+              })(anchors[i]);
+            }
+          }
+
+          // ─── Resize debounce ─────────────────────────────────────────────────────
+          var resizeTimer = null;
+          function onResize() {
+            if (resizeTimer !== null) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function () {
+              resizeTimer = null;
+              positionBubbles();
+            }, 150);
           }
 
           // ─── Popup ──────────────────────────────────────────────────────────────
@@ -2529,6 +2645,8 @@
               showSessionEndedBanner("Review closed.");
               mountAllSeededComments();
               updateCount();
+              requestAnimationFrame(positionBubbles);
+              window.addEventListener("resize", onResize);
               return;
             }
 
@@ -2537,6 +2655,9 @@
               mountAllSeededComments();
               updateCount();
               freezeUi();
+              requestAnimationFrame(positionBubbles);
+              window.addEventListener("resize", onResize);
+              wireHoverLinking();
               return;
             }
 
@@ -2546,6 +2667,9 @@
             updateCount();
             updateVerdictButtons();
             wireVerdictButtons();
+            requestAnimationFrame(positionBubbles);
+            window.addEventListener("resize", onResize);
+            wireHoverLinking();
           });
         }
 

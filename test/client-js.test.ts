@@ -254,4 +254,29 @@ describe("getClientJs — annotate wiring", () => {
   test("does NOT contain any external http:// URLs", () => {
     expect(getClientJs()).not.toMatch(/https?:\/\//);
   });
+
+  test("contains positionBubbles helper for anchor alignment", () => {
+    expect(getClientJs()).toContain("positionBubbles");
+  });
+
+  test("contains cs-anchor-active class for hover linking", () => {
+    expect(getClientJs()).toContain("cs-anchor-active");
+  });
+
+  test("contains cs-comment-bubble-active class for mutual hover", () => {
+    expect(getClientJs()).toContain("cs-comment-bubble-active");
+  });
+
+  test("contains resize debounce for bubble repositioning", () => {
+    expect(getClientJs()).toContain("onResize");
+    expect(getClientJs()).toContain("resizeTimer");
+  });
+
+  test("contains wireHoverLinking helper", () => {
+    expect(getClientJs()).toContain("wireHoverLinking");
+  });
+
+  test("positionBubbles is called on requestAnimationFrame after DOMContentLoaded", () => {
+    expect(getClientJs()).toContain("requestAnimationFrame(positionBubbles)");
+  });
 });

@@ -497,6 +497,7 @@ export function getClientJs(): string {
             article.remove();
             updateCount();
             updateVerdictButtons();
+            positionBubbles();
           })
           .catch(function (err) {
             // Restore
@@ -514,12 +515,104 @@ export function getClientJs(): string {
       if (!rail) return;
       var bubble = buildBubble(comment);
       rail.appendChild(bubble);
+      positionBubbles();
     }
 
     function mountAllSeededComments() {
       for (var i = 0; i < state.comments.length; i++) {
         mountBubble(state.comments[i]);
       }
+    }
+
+    // ─── Position bubbles aligned to anchors (marginalia style) ─────────────
+    function positionBubbles() {
+      var rail = getRail();
+      if (!rail) return;
+      var railParent = rail.offsetParent || document.body;
+      var railParentTop = railParent instanceof HTMLElement
+        ? railParent.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0)
+        : 0;
+      var bubbles = rail.querySelectorAll("[data-anchor]");
+      for (var i = 0; i < bubbles.length; i++) {
+        var bubble = bubbles[i];
+        if (!(bubble instanceof HTMLElement)) continue;
+        var anchorKey = bubble.getAttribute("data-anchor") || "";
+        var anchorEl = document.querySelector("[data-cesium-anchor=\\"" + anchorKey + "\\"]");
+        if (anchorEl instanceof HTMLElement) {
+          var anchorTop = anchorEl.getBoundingClientRect().top
+            + (window.scrollY || window.pageYOffset || 0)
+            - railParentTop;
+          bubble.style.top = anchorTop + "px";
+          bubble.classList.remove("cs-comment-bubble-orphan");
+        } else {
+          bubble.style.top = "0px";
+          bubble.classList.add("cs-comment-bubble-orphan");
+        }
+      }
+    }
+
+    // ─── Mutual hover linking ────────────────────────────────────────────────
+    function wireHoverLinking() {
+      var rail = getRail();
+      if (!rail) return;
+
+      // Bubble → anchor
+      rail.addEventListener("mouseover", function (e) {
+        var bubble = e.target instanceof Element
+          ? e.target.closest("[data-anchor]")
+          : null;
+        if (!(bubble instanceof HTMLElement)) return;
+        var anchorKey = bubble.getAttribute("data-anchor") || "";
+        var anchorEl = document.querySelector("[data-cesium-anchor=\\"" + anchorKey + "\\"]");
+        bubble.classList.add("cs-comment-bubble-active");
+        if (anchorEl instanceof HTMLElement) {
+          anchorEl.classList.add("cs-anchor-active");
+        }
+      });
+      rail.addEventListener("mouseout", function (e) {
+        var bubble = e.target instanceof Element
+          ? e.target.closest("[data-anchor]")
+          : null;
+        if (!(bubble instanceof HTMLElement)) return;
+        var anchorKey = bubble.getAttribute("data-anchor") || "";
+        var anchorEl = document.querySelector("[data-cesium-anchor=\\"" + anchorKey + "\\"]");
+        bubble.classList.remove("cs-comment-bubble-active");
+        if (anchorEl instanceof HTMLElement) {
+          anchorEl.classList.remove("cs-anchor-active");
+        }
+      });
+
+      // Anchor → bubble
+      var anchors = document.querySelectorAll("[data-cesium-anchor]");
+      for (var i = 0; i < anchors.length; i++) {
+        (function (anchorEl) {
+          var anchorKey = anchorEl.getAttribute("data-cesium-anchor") || "";
+          anchorEl.addEventListener("mouseenter", function () {
+            var bubble = rail.querySelector("[data-anchor=\\"" + anchorKey + "\\"]");
+            if (bubble instanceof HTMLElement) {
+              bubble.classList.add("cs-comment-bubble-active");
+            }
+            anchorEl.classList.add("cs-anchor-active");
+          });
+          anchorEl.addEventListener("mouseleave", function () {
+            var bubble = rail.querySelector("[data-anchor=\\"" + anchorKey + "\\"]");
+            if (bubble instanceof HTMLElement) {
+              bubble.classList.remove("cs-comment-bubble-active");
+            }
+            anchorEl.classList.remove("cs-anchor-active");
+          });
+        })(anchors[i]);
+      }
+    }
+
+    // ─── Resize debounce ─────────────────────────────────────────────────────
+    var resizeTimer = null;
+    function onResize() {
+      if (resizeTimer !== null) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        resizeTimer = null;
+        positionBubbles();
+      }, 150);
     }
 
     // ─── Popup ──────────────────────────────────────────────────────────────
@@ -821,6 +914,8 @@ export function getClientJs(): string {
         showSessionEndedBanner("Review closed.");
         mountAllSeededComments();
         updateCount();
+        requestAnimationFrame(positionBubbles);
+        window.addEventListener("resize", onResize);
         return;
       }
 
@@ -829,6 +924,9 @@ export function getClientJs(): string {
         mountAllSeededComments();
         updateCount();
         freezeUi();
+        requestAnimationFrame(positionBubbles);
+        window.addEventListener("resize", onResize);
+        wireHoverLinking();
         return;
       }
 
@@ -838,6 +936,9 @@ export function getClientJs(): string {
       updateCount();
       updateVerdictButtons();
       wireVerdictButtons();
+      requestAnimationFrame(positionBubbles);
+      window.addEventListener("resize", onResize);
+      wireHoverLinking();
     });
   }
 

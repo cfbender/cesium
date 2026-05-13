@@ -411,8 +411,30 @@ describe("frameworkRulesCss — annotate cs-* classes (Phase 5)", () => {
     expect(css).toContain("var(--rule)");
   });
 
-  test("comment rail is fixed-positioned on wide viewports", () => {
-    expect(frameworkRulesCss()).toContain("position: fixed");
+  test("comment rail is absolute-positioned on wide viewports", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain(".cs-comment-rail");
+    expect(css).toContain("position: absolute");
+    expect(css).not.toContain(".cs-comment-rail {\n  position: fixed");
+  });
+
+  test("cs-banner-offline no longer uses position: sticky", () => {
+    const css = frameworkRulesCss();
+    expect(css).not.toContain("position: sticky");
+  });
+
+  test("cs-banner-offline has max-width constraint", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("cs-banner-offline");
+    expect(css).toContain("max-width");
+  });
+
+  test("cs-anchor-active class is present", () => {
+    expect(frameworkRulesCss()).toContain(".cs-anchor-active");
+  });
+
+  test("cs-comment-bubble-active class is present", () => {
+    expect(frameworkRulesCss()).toContain(".cs-comment-bubble-active");
   });
 
   test("comment rail collapses on narrow viewports (max-width: 900px)", () => {
