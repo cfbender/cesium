@@ -35,6 +35,24 @@ export interface RenderCtx {
   path: string;
   /** Shiki highlight theme derived from the active cesium theme preset. */
   highlightTheme: HighlightTheme;
+  /**
+   * Anchor id for this block's outermost element, e.g. "block-3".
+   * Null for the divider block (no anchor) and for child blocks rendered inside a section
+   * (they live inside the section's anchored container).
+   */
+  anchor: string | null;
+}
+
+/**
+ * Returns a single attribute snippet ' data-cesium-anchor="block-N"' (with leading space),
+ * or empty string when ctx.anchor is null. Renderers splice this into the opening tag
+ * of their outermost element.
+ *
+ * The anchor value is safe by construction (matches block-\d+(\.line-\d+)?) — no escaping needed.
+ */
+export function anchorAttr(ctx: RenderCtx): string {
+  if (ctx.anchor === null) return "";
+  return ` data-cesium-anchor="${ctx.anchor}"`;
 }
 
 function makeRootCtx(highlightTheme: HighlightTheme = "claret-dark"): RenderCtx {
@@ -43,6 +61,7 @@ function makeRootCtx(highlightTheme: HighlightTheme = "claret-dark"): RenderCtx 
     depth: 0,
     path: "blocks",
     highlightTheme,
+    anchor: null,
   };
 }
 
@@ -97,6 +116,7 @@ export async function renderBlocks(
     const blockCtx: RenderCtx = {
       ...ctx,
       path: `blocks[${i}]`,
+      anchor: block.type === "divider" ? null : `block-${i}`,
     };
     // eslint-disable-next-line no-await-in-loop -- sequential render required; section counter is a shared mutable ref
     parts.push(await renderBlock(block, blockCtx));

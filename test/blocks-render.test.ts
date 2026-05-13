@@ -10,7 +10,7 @@ import type { Block } from "../src/render/blocks/types.ts";
 
 function makeCtx(path = "blocks[0]"): RenderCtx {
   const counter: SectionCounter = { value: 1 };
-  return { sectionCounter: counter, depth: 0, path, highlightTheme: "vitesse-dark" };
+  return { sectionCounter: counter, depth: 0, path, highlightTheme: "vitesse-dark", anchor: null };
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
@@ -74,6 +74,7 @@ describe("section renderer", () => {
       depth: 0,
       path: "blocks[0]",
       highlightTheme: "vitesse-dark",
+      anchor: null,
     };
     const block: Block = { type: "section", title: "Goals", children: [] };
     const result = await renderBlock(block, ctx);
@@ -103,6 +104,7 @@ describe("section renderer", () => {
       depth: 0,
       path: "blocks[0]",
       highlightTheme: "vitesse-dark",
+      anchor: null,
     };
     const block: Block = { type: "section", title: "Custom", num: "A", children: [] };
     const result = await renderBlock(block, ctx);
@@ -479,11 +481,11 @@ describe("renderBlocks", () => {
     const result = await renderBlocks(blocks);
 
     expect(result).toContain('<h1 class="h-display">Phase 2 Summary</h1>');
-    expect(result).toContain('<aside class="tldr">');
-    expect(result).toContain("<section>");
-    expect(result).toContain('<aside class="callout warn">');
-    expect(result).toContain('<figure class="code">');
-    expect(result).toContain('<table class="compare-table">');
+    expect(result).toContain('class="tldr"');
+    expect(result).toContain("<section");
+    expect(result).toContain('class="callout warn"');
+    expect(result).toContain('class="code"');
+    expect(result).toContain('class="compare-table"');
     // shiki highlights TypeScript code
     expect(result).toContain('<span style="color:');
   });
@@ -648,6 +650,7 @@ describe("code block highlight theme threading", () => {
       depth: 0,
       path: "blocks[0]",
       highlightTheme: "claret-dark",
+      anchor: null,
     };
     const block: Block = { type: "code", lang: "typescript", code: "const x = 1;" };
     const result = await renderBlock(block, ctx);
@@ -663,6 +666,7 @@ describe("code block highlight theme threading", () => {
       depth: 0,
       path: "blocks[0]",
       highlightTheme: "claret-light",
+      anchor: null,
     };
     const block: Block = { type: "code", lang: "typescript", code: "const x = 1;" };
     const result = await renderBlock(block, ctx);
@@ -683,12 +687,14 @@ describe("code block highlight theme threading", () => {
         depth: 0,
         path: "blocks[0]",
         highlightTheme: "claret-dark",
+        anchor: null,
       }),
       renderBlock(block, {
         sectionCounter: { value: 1 },
         depth: 0,
         path: "blocks[0]",
         highlightTheme: "claret-light",
+        anchor: null,
       }),
     ]);
     expect(dark).not.toBe(light);

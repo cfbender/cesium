@@ -4,13 +4,14 @@
 import type { PillRowBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 
-export function renderPillRow(block: PillRowBlock, _ctx: RenderCtx): string {
+export function renderPillRow(block: PillRowBlock, ctx: RenderCtx): string {
   const pills = block.items
     .map((item) => `  <span class="${item.kind}">${escapeHtml(item.text)}</span>`)
     .join("\n");
-  return `<div class="pill-row">\n${pills}\n</div>`;
+  return `<div class="pill-row"${anchorAttr(ctx)}>\n${pills}\n</div>`;
 }
 
 export const meta: BlockMeta = {

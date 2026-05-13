@@ -4,10 +4,11 @@
 import type { DiagramBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 import { scrub } from "../../scrub.ts";
 
-export function renderDiagram(block: DiagramBlock, _ctx: RenderCtx): string {
+export function renderDiagram(block: DiagramBlock, ctx: RenderCtx): string {
   const payload = block.svg ?? block.html ?? "";
   const scrubResult = scrub(payload);
   const scrubbed = scrubResult.html;
@@ -19,7 +20,7 @@ export function renderDiagram(block: DiagramBlock, _ctx: RenderCtx): string {
     parts.push(`<figcaption>${escapeHtml(block.caption)}</figcaption>`);
   }
 
-  return `<figure class="diagram">\n${parts.join("\n")}\n</figure>`;
+  return `<figure class="diagram"${anchorAttr(ctx)}>\n${parts.join("\n")}\n</figure>`;
 }
 
 export const meta: BlockMeta = {

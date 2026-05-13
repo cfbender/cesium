@@ -4,9 +4,10 @@
 import type { ListBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { renderMarkdown } from "../markdown.ts";
 
-export function renderList(block: ListBlock, _ctx: RenderCtx): string {
+export function renderList(block: ListBlock, ctx: RenderCtx): string {
   const style = block.style ?? "bullet";
 
   const items = block.items
@@ -17,7 +18,7 @@ export function renderList(block: ListBlock, _ctx: RenderCtx): string {
     .join("\n");
 
   if (style === "number") {
-    return `<ol>\n${items}\n</ol>`;
+    return `<ol${anchorAttr(ctx)}>\n${items}\n</ol>`;
   } else if (style === "check") {
     const checkItems = block.items
       .map((item) => {
@@ -25,9 +26,9 @@ export function renderList(block: ListBlock, _ctx: RenderCtx): string {
         return `  <li class="check">${content}</li>`;
       })
       .join("\n");
-    return `<ul class="check-list">\n${checkItems}\n</ul>`;
+    return `<ul class="check-list"${anchorAttr(ctx)}>\n${checkItems}\n</ul>`;
   } else {
-    return `<ul>\n${items}\n</ul>`;
+    return `<ul${anchorAttr(ctx)}>\n${items}\n</ul>`;
   }
 }
 

@@ -4,10 +4,11 @@
 import type { TldrBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { renderMarkdown } from "../markdown.ts";
 
-export function renderTldr(block: TldrBlock, _ctx: RenderCtx): string {
-  return `<aside class="tldr">\n${renderMarkdown(block.markdown)}\n</aside>`;
+export function renderTldr(block: TldrBlock, ctx: RenderCtx): string {
+  return `<aside class="tldr"${anchorAttr(ctx)}>\n${renderMarkdown(block.markdown)}\n</aside>`;
 }
 
 export const meta: BlockMeta = {

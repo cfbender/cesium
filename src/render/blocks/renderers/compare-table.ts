@@ -4,10 +4,11 @@
 import type { CompareTableBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 import { renderMarkdown } from "../markdown.ts";
 
-export function renderCompareTable(block: CompareTableBlock, _ctx: RenderCtx): string {
+export function renderCompareTable(block: CompareTableBlock, ctx: RenderCtx): string {
   const headerCells = block.headers.map((h) => `      <th>${escapeHtml(h)}</th>`).join("\n");
 
   const bodyRows = block.rows
@@ -23,7 +24,7 @@ export function renderCompareTable(block: CompareTableBlock, _ctx: RenderCtx): s
     .join("\n");
 
   return (
-    `<table class="compare-table">\n` +
+    `<table class="compare-table"${anchorAttr(ctx)}>\n` +
     `  <thead>\n    <tr>\n${headerCells}\n    </tr>\n  </thead>\n` +
     `  <tbody>\n${bodyRows}\n  </tbody>\n` +
     `</table>`

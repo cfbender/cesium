@@ -800,18 +800,18 @@ test("blocks mode: full document structure renders expected HTML", async () => {
   expect(html).toContain('<h1 class="h-display">Block Mode Report</h1>');
   expect(html).toContain('class="eyebrow"');
   // Tldr
-  expect(html).toContain('<aside class="tldr">');
+  expect(html).toContain('class="tldr"');
   // Section
-  expect(html).toContain("<section>");
+  expect(html).toContain("<section");
   expect(html).toContain('class="h-section"');
   expect(html).toContain('class="section-num"');
   // Callout
-  expect(html).toContain('<aside class="callout warn">');
+  expect(html).toContain('class="callout warn"');
   // Code
-  expect(html).toContain('<figure class="code">');
+  expect(html).toContain('class="code"');
   expect(html).toContain('class="lang-typescript"');
   // Compare table
-  expect(html).toContain('<table class="compare-table">');
+  expect(html).toContain('class="compare-table"');
 });
 
 test("blocks mode: embedded metadata round-trip returns expected fields", async () => {

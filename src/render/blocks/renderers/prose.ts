@@ -4,10 +4,16 @@
 import type { ProseBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { renderMarkdown } from "../markdown.ts";
 
-export function renderProse(block: ProseBlock, _ctx: RenderCtx): string {
-  return renderMarkdown(block.markdown);
+export function renderProse(block: ProseBlock, ctx: RenderCtx): string {
+  const markdown = renderMarkdown(block.markdown);
+  const anchor = anchorAttr(ctx);
+  if (anchor === "") return markdown;
+  // Inject the anchor attribute into the outermost element's opening tag.
+  // renderMarkdown produces HTML starting with a tag like <p>, <ul>, <ol>, <blockquote>, <hr>.
+  return markdown.replace(/^(<\w+)/, `$1${anchor}`);
 }
 
 export const meta: BlockMeta = {

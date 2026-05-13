@@ -4,16 +4,17 @@
 import type { CalloutBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 import { renderMarkdown } from "../markdown.ts";
 
-export function renderCallout(block: CalloutBlock, _ctx: RenderCtx): string {
+export function renderCallout(block: CalloutBlock, ctx: RenderCtx): string {
   const titleHtml =
     block.title !== undefined && block.title !== ""
       ? `<strong>${escapeHtml(block.title)}</strong> `
       : "";
   const contentHtml = renderMarkdown(block.markdown);
-  return `<aside class="callout ${block.variant}">\n${titleHtml}${contentHtml}\n</aside>`;
+  return `<aside class="callout ${block.variant}"${anchorAttr(ctx)}>\n${titleHtml}${contentHtml}\n</aside>`;
 }
 
 export const meta: BlockMeta = {

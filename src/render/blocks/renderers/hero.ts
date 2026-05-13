@@ -4,9 +4,10 @@
 import type { HeroBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 
-export function renderHero(block: HeroBlock, _ctx: RenderCtx): string {
+export function renderHero(block: HeroBlock, ctx: RenderCtx): string {
   const parts: string[] = [];
 
   if (block.eyebrow !== undefined && block.eyebrow !== "") {
@@ -26,7 +27,7 @@ export function renderHero(block: HeroBlock, _ctx: RenderCtx): string {
     parts.push(`  <dl class="kv">\n${rows}\n  </dl>`);
   }
 
-  return `<header>\n${parts.join("\n")}\n</header>`;
+  return `<header${anchorAttr(ctx)}>\n${parts.join("\n")}\n</header>`;
 }
 
 export const meta: BlockMeta = {

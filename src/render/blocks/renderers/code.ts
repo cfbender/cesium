@@ -4,8 +4,21 @@
 import type { CodeBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml, escapeAttr } from "../escape.ts";
 import { highlightCode } from "../highlight.ts";
+
+/**
+ * Inject data-cesium-anchor attributes onto each <span class="line"> in highlighted HTML.
+ * Counter is 1-indexed. The anchor value is safe by construction — no escaping needed.
+ */
+function injectLineAnchors(html: string, blockAnchor: string): string {
+  let lineNum = 0;
+  return html.replace(/<span class="line">/g, () => {
+    lineNum++;
+    return `<span class="line" data-cesium-anchor="${blockAnchor}.line-${lineNum}">`;
+  });
+}
 
 export async function renderCode(block: CodeBlock, ctx: RenderCtx): Promise<string> {
   const parts: string[] = [];
@@ -16,9 +29,11 @@ export async function renderCode(block: CodeBlock, ctx: RenderCtx): Promise<stri
   }
 
   const highlighted = await highlightCode(block.code, block.lang, ctx.highlightTheme);
-  parts.push(`  <pre><code class="lang-${escapeAttr(block.lang)}">${highlighted}</code></pre>`);
+  const withAnchors =
+    ctx.anchor !== null ? injectLineAnchors(highlighted, ctx.anchor) : highlighted;
+  parts.push(`  <pre><code class="lang-${escapeAttr(block.lang)}">${withAnchors}</code></pre>`);
 
-  return `<figure class="code">\n${parts.join("\n")}\n</figure>`;
+  return `<figure class="code"${anchorAttr(ctx)}>\n${parts.join("\n")}\n</figure>`;
 }
 
 export const meta: BlockMeta = {

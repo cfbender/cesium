@@ -3,6 +3,7 @@
 
 import type { DiffBlock, BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml, escapeAttr } from "../escape.ts";
 import { highlightCode } from "../highlight.ts";
 import { parseUnifiedDiff } from "../diff/parse-unified.ts";
@@ -195,7 +196,7 @@ export async function renderDiff(block: DiffBlock, ctx: RenderCtx): Promise<stri
           : "";
       const header = filename !== "" ? `<header class="diff-header">${filename}</header>\n` : "";
       return (
-        `<figure class="diff-block fallback" data-lang="${escapeAttr(lang)}">\n` +
+        `<figure class="diff-block fallback" data-lang="${escapeAttr(lang)}"${anchorAttr(ctx)}>\n` +
         header +
         `  <pre><code>${escaped}</code></pre>\n` +
         `</figure>`
@@ -266,13 +267,22 @@ export async function renderDiff(block: DiffBlock, ctx: RenderCtx): Promise<stri
   let rightHighIdx = 0;
   const leftRows: string[] = [];
   const rightRows: string[] = [];
+  // Per-line anchor counter — 1-indexed, increments for every <li> emitted in source order.
+  let lineNum = 0;
 
   for (const entry of entries) {
     if (entry.kind === "hunk-sep") {
       const sepLabel = `… @ ${entry.newStart}`;
-      const sepHtml = `<li class="diff-line hunk-sep"><span class="num"></span><span class="content">${escapeHtml(sepLabel)}</span></li>`;
-      leftRows.push(sepHtml);
-      rightRows.push(sepHtml);
+      const leftLineAnchor =
+        ctx.anchor !== null ? ` data-cesium-anchor="${ctx.anchor}.line-${++lineNum}"` : "";
+      const rightLineAnchor =
+        ctx.anchor !== null ? ` data-cesium-anchor="${ctx.anchor}.line-${++lineNum}"` : "";
+      leftRows.push(
+        `<li class="diff-line hunk-sep"${leftLineAnchor}><span class="num"></span><span class="content">${escapeHtml(sepLabel)}</span></li>`,
+      );
+      rightRows.push(
+        `<li class="diff-line hunk-sep"${rightLineAnchor}><span class="num"></span><span class="content">${escapeHtml(sepLabel)}</span></li>`,
+      );
       continue;
     }
 
@@ -282,9 +292,11 @@ export async function renderDiff(block: DiffBlock, ctx: RenderCtx): Promise<stri
       const hl =
         leftHighlighted[leftHighIdx] ?? `<span class="line">${escapeHtml(entry.text)}</span>`;
       leftHighIdx++;
-      const lineNum = entry.beforeLineNum !== null ? String(entry.beforeLineNum) : "";
+      const displayNum = entry.beforeLineNum !== null ? String(entry.beforeLineNum) : "";
+      const lineAnchor =
+        ctx.anchor !== null ? ` data-cesium-anchor="${ctx.anchor}.line-${++lineNum}"` : "";
       leftRows.push(
-        `<li class="diff-line ${kind}"><span class="num">${escapeHtml(lineNum)}</span><span class="content">${hl}</span></li>`,
+        `<li class="diff-line ${kind}"${lineAnchor}><span class="num">${escapeHtml(displayNum)}</span><span class="content">${hl}</span></li>`,
       );
     }
 
@@ -292,9 +304,11 @@ export async function renderDiff(block: DiffBlock, ctx: RenderCtx): Promise<stri
       const hl =
         rightHighlighted[rightHighIdx] ?? `<span class="line">${escapeHtml(entry.text)}</span>`;
       rightHighIdx++;
-      const lineNum = entry.afterLineNum !== null ? String(entry.afterLineNum) : "";
+      const displayNum = entry.afterLineNum !== null ? String(entry.afterLineNum) : "";
+      const lineAnchor =
+        ctx.anchor !== null ? ` data-cesium-anchor="${ctx.anchor}.line-${++lineNum}"` : "";
       rightRows.push(
-        `<li class="diff-line ${kind}"><span class="num">${escapeHtml(lineNum)}</span><span class="content">${hl}</span></li>`,
+        `<li class="diff-line ${kind}"${lineAnchor}><span class="num">${escapeHtml(displayNum)}</span><span class="content">${hl}</span></li>`,
       );
     }
   }
@@ -339,7 +353,7 @@ export async function renderDiff(block: DiffBlock, ctx: RenderCtx): Promise<stri
     `  </ol>`;
 
   return (
-    `<figure class="diff-block" data-lang="${escapeAttr(lang)}">\n` +
+    `<figure class="diff-block" data-lang="${escapeAttr(lang)}"${anchorAttr(ctx)}>\n` +
     `  ${headerHtml}\n` +
     `  <div class="diff-grid">\n` +
     `${leftOl}\n` +

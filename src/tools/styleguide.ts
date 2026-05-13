@@ -8,7 +8,13 @@ import type { RenderCtx, SectionCounter } from "../render/blocks/render.ts";
 
 function makeCtx(): RenderCtx {
   const counter: SectionCounter = { value: 1 };
-  return { sectionCounter: counter, depth: 0, path: "blocks[0]", highlightTheme: "claret-dark" };
+  return {
+    sectionCounter: counter,
+    depth: 0,
+    path: "blocks[0]",
+    highlightTheme: "claret-dark",
+    anchor: null,
+  };
 }
 
 /** Escape a string for safe insertion inside a markdown fenced code block. */

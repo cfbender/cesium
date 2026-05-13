@@ -4,9 +4,10 @@
 import type { RiskTableBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 
-export function renderRiskTable(block: RiskTableBlock, _ctx: RenderCtx): string {
+export function renderRiskTable(block: RiskTableBlock, ctx: RenderCtx): string {
   const headerRow =
     "  <thead>\n    <tr>\n" +
     "      <th>Risk</th>\n      <th>Likelihood</th>\n      <th>Impact</th>\n      <th>Mitigation</th>\n" +
@@ -26,7 +27,7 @@ export function renderRiskTable(block: RiskTableBlock, _ctx: RenderCtx): string 
     .join("\n");
 
   return (
-    `<table class="risk-table">\n` +
+    `<table class="risk-table"${anchorAttr(ctx)}>\n` +
     `${headerRow}\n` +
     `  <tbody>\n${bodyRows}\n  </tbody>\n` +
     `</table>`

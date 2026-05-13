@@ -4,7 +4,7 @@
 import type { SectionBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
-import { renderBlock } from "../render.ts";
+import { renderBlock, anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 
 export async function renderSection(block: SectionBlock, ctx: RenderCtx): Promise<string> {
@@ -30,11 +30,13 @@ export async function renderSection(block: SectionBlock, ctx: RenderCtx): Promis
   // Render children with incremented depth.
   // Non-section children are grouped into <div class="card"> wrappers for visual polish.
   // Nested section children are emitted at top level (they carry their own card structure).
+  // anchor: null — child blocks do not get their own block-N anchors; only the section is anchored.
   const childCtx: RenderCtx = {
     sectionCounter: ctx.sectionCounter,
     depth: ctx.depth + 1,
     path: `${ctx.path}.children`,
     highlightTheme: ctx.highlightTheme,
+    anchor: null,
   };
 
   let buffer: string[] = [];
@@ -65,7 +67,7 @@ export async function renderSection(block: SectionBlock, ctx: RenderCtx): Promis
     parts.push(`  <div class="card">\n${buffer.join("\n")}\n  </div>`);
   }
 
-  return `<section>\n${parts.join("\n")}\n</section>`;
+  return `<section${anchorAttr(ctx)}>\n${parts.join("\n")}\n</section>`;
 }
 
 export const meta: BlockMeta = {

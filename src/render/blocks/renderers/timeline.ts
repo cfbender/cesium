@@ -4,9 +4,10 @@
 import type { TimelineBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { escapeHtml } from "../escape.ts";
 
-export function renderTimeline(block: TimelineBlock, _ctx: RenderCtx): string {
+export function renderTimeline(block: TimelineBlock, ctx: RenderCtx): string {
   const items = block.items
     .map((item) => {
       const dateHtml =
@@ -22,7 +23,7 @@ export function renderTimeline(block: TimelineBlock, _ctx: RenderCtx): string {
     })
     .join("\n");
 
-  return `<ul class="timeline">\n${items}\n</ul>`;
+  return `<ul class="timeline"${anchorAttr(ctx)}>\n${items}\n</ul>`;
 }
 
 export const meta: BlockMeta = {

@@ -4,11 +4,17 @@
 import type { RawHtmlBlock } from "../types.ts";
 import type { BlockMeta } from "../types.ts";
 import type { RenderCtx } from "../render.ts";
+import { anchorAttr } from "../render.ts";
 import { scrub } from "../../scrub.ts";
 
-export function renderRawHtml(block: RawHtmlBlock, _ctx: RenderCtx): string {
+export function renderRawHtml(block: RawHtmlBlock, ctx: RenderCtx): string {
   const scrubResult = scrub(block.html);
-  return scrubResult.html;
+  const html = scrubResult.html;
+  const anchor = anchorAttr(ctx);
+  if (anchor === "") return html;
+  // Inject anchor into the outermost element's opening tag.
+  // The scrubbed payload starts with an element tag (e.g. <div, <p, <table, etc.).
+  return html.replace(/^(<\w+)/, `$1${anchor}`);
 }
 
 export const meta: BlockMeta = {
