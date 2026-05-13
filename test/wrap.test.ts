@@ -1018,8 +1018,8 @@ describe("wrapDocument — annotate scaffold (Phase 5)", () => {
     );
     expect(footerMatch).not.toBeNull();
     const footerContent = footerMatch?.[1] ?? "";
-    // Verdict buttons should exist
-    expect(footerContent).toContain('class="cs-verdict cs-verdict-approve"');
+    // Verdict buttons should exist with cs-verdict-btn class
+    expect(footerContent).toContain('class="cs-verdict-btn cs-verdict-approve"');
     // No disabled on verdict buttons when status is open
     expect(footerContent).not.toContain("disabled");
   });

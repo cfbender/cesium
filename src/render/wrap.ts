@@ -102,18 +102,18 @@ function renderVerdictButtons(verdictMode: VerdictMode, isOpen: boolean): string
   const buttons: string[] = [];
 
   buttons.push(
-    `<button type="button" class="cs-verdict cs-verdict-approve" data-verdict="approve"${disabled}>Approve</button>`,
+    `<button type="button" class="cs-verdict-btn cs-verdict-approve" data-verdict="approve"${disabled}>Approve</button>`,
   );
 
   if (verdictMode === "approve-or-reject" || verdictMode === "full") {
     buttons.push(
-      `<button type="button" class="cs-verdict cs-verdict-request_changes" data-verdict="request_changes"${disabled}>Request changes</button>`,
+      `<button type="button" class="cs-verdict-btn cs-verdict-request_changes" data-verdict="request_changes"${disabled}>Request changes</button>`,
     );
   }
 
   if (verdictMode === "full") {
     buttons.push(
-      `<button type="button" class="cs-verdict cs-verdict-comment" data-verdict="comment"${disabled}>Comment</button>`,
+      `<button type="button" class="cs-verdict-btn cs-verdict-comment" data-verdict="comment"${disabled}>Comment</button>`,
     );
   }
 

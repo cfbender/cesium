@@ -984,46 +984,59 @@ textarea.cs-text { font-family: var(--mono); }
 
 /* ─── annotate affordances (.cs-anchor-*) ─────────────────────────────────── */
 
-/* affordance base — hidden by default, shown on anchor hover/focus */
+/* annotatable blocks establish a positioning context for the absolute buttons */
+[data-cesium-anchor] { position: relative; }
+
+/* affordance base — shared styles for both block and line buttons */
 .cs-anchor-affordance {
-  display: none;
   cursor: pointer;
-  border: none;
-  background: none;
-  padding: 0;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 4px 8px;
   line-height: 1;
   color: var(--muted);
-  transition: color 120ms, background 120ms, opacity 120ms;
-  min-width: 36px;
-  min-height: 36px;
+  transition: color 120ms, background 120ms, opacity 120ms, border-color 120ms;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  font-size: 16px;
-  flex-shrink: 0;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  font-weight: 500;
+  gap: 4px;
 }
 .cs-anchor-affordance:hover {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 }
-/* show affordance on anchor hover / focus-within */
-[data-cesium-anchor]:hover > .cs-anchor-affordance,
-[data-cesium-anchor]:focus-within > .cs-anchor-affordance {
-  display: inline-flex;
+/* show hover rule still needed for line affordances */
+[data-cesium-anchor]:hover > .cs-anchor-affordance-line,
+[data-cesium-anchor]:focus-within > .cs-anchor-affordance-line {
+  visibility: visible;
 }
 
-/* line affordance — tight gutter "+" icon */
+/* line affordance — gutter icon, hidden until line hover */
 .cs-anchor-affordance-line {
-  font-size: 14px;
-  min-width: 24px;
-  min-height: 24px;
-  margin-right: 4px;
+  display: inline-flex;
+  position: absolute;
+  left: -28px;
+  top: 0;
+  visibility: hidden;
+  padding: 2px 4px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 4px;
 }
 
-/* block affordance — pencil icon to the left of block-level elements */
+/* block affordance — always-visible "Comment" button, top-right corner */
 .cs-anchor-affordance-block {
-  font-size: 15px;
-  margin-right: 8px;
+  display: inline-flex;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 36px;
+  min-height: 28px;
+  z-index: 1;
 }
 
 /* ─── annotate comment popup (.cs-comment-popup) ───────────────────────────── */
@@ -1225,6 +1238,43 @@ body { position: relative; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+
+/* ─── floating selection menu (.cs-selection-menu) ───────────────────────── */
+
+.cs-selection-menu {
+  position: fixed;
+  z-index: 100;
+  background: var(--surface);
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 18%, transparent);
+  pointer-events: none;
+}
+.cs-selection-comment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 120ms, border-color 120ms, color 120ms;
+  min-width: 36px;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.cs-selection-comment-btn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ─── verdict footer (.cs-verdict-footer) ─────────────────────────────────── */

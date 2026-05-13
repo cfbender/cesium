@@ -952,49 +952,105 @@
 
       /* ─── annotate affordances (.cs-anchor-*) ─────────────────────────────────── */
 
-      /* affordance base — hidden by default, shown on anchor hover/focus */
+      /* annotatable blocks establish a positioning context for the absolute buttons */
+      [data-cesium-anchor] {
+        position: relative;
+      }
+
+      /* affordance base — shared styles for both block and line buttons */
       .cs-anchor-affordance {
-        display: none;
         cursor: pointer;
-        border: none;
-        background: none;
-        padding: 0;
+        border: 1px solid var(--rule);
+        background: var(--surface);
+        padding: 4px 8px;
         line-height: 1;
         color: var(--muted);
         transition:
           color 120ms,
           background 120ms,
-          opacity 120ms;
-        min-width: 36px;
-        min-height: 36px;
+          opacity 120ms,
+          border-color 120ms;
         align-items: center;
         justify-content: center;
-        border-radius: 6px;
-        font-size: 16px;
-        flex-shrink: 0;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-family: inherit;
+        font-weight: 500;
+        gap: 4px;
       }
       .cs-anchor-affordance:hover {
         color: var(--accent);
-        background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
       }
-      /* show affordance on anchor hover / focus-within */
-      [data-cesium-anchor]:hover > .cs-anchor-affordance,
-      [data-cesium-anchor]:focus-within > .cs-anchor-affordance {
-        display: inline-flex;
+      /* show hover rule still needed for line affordances */
+      [data-cesium-anchor]:hover > .cs-anchor-affordance-line,
+      [data-cesium-anchor]:focus-within > .cs-anchor-affordance-line {
+        visibility: visible;
       }
 
-      /* line affordance — tight gutter "+" icon */
+      /* line affordance — gutter icon, hidden until line hover */
       .cs-anchor-affordance-line {
-        font-size: 14px;
-        min-width: 24px;
-        min-height: 24px;
-        margin-right: 4px;
+        display: inline-flex;
+        position: absolute;
+        left: -28px;
+        top: 0;
+        visibility: hidden;
+        padding: 2px 4px;
+        min-width: 20px;
+        min-height: 20px;
+        border-radius: 4px;
       }
 
-      /* block affordance — pencil icon to the left of block-level elements */
+      /* block affordance — always-visible "Comment" button, top-right corner */
       .cs-anchor-affordance-block {
-        font-size: 15px;
-        margin-right: 8px;
+        display: inline-flex;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        min-width: 36px;
+        min-height: 28px;
+        z-index: 1;
+      }
+
+      /* ─── floating selection menu (.cs-selection-menu) ───────────────────────── */
+
+      .cs-selection-menu {
+        position: fixed;
+        z-index: 100;
+        background: var(--surface);
+        border: 1.5px solid var(--rule);
+        border-radius: 8px;
+        padding: 4px;
+        box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 18%, transparent);
+        pointer-events: none;
+      }
+      .cs-selection-comment-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        color: var(--ink-soft);
+        font-family: inherit;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        pointer-events: auto;
+        transition:
+          background 120ms,
+          border-color 120ms,
+          color 120ms;
+        min-width: 36px;
+        min-height: 32px;
+        white-space: nowrap;
+      }
+      .cs-selection-comment-btn:hover {
+        background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+        border-color: var(--accent);
+        color: var(--accent);
       }
 
       /* ─── annotate comment popup (.cs-comment-popup) ───────────────────────────── */
@@ -1689,25 +1745,17 @@
       <aside class="cs-comment-rail" data-cesium-comment-rail aria-label="Review comments"></aside>
       <footer class="cs-verdict-footer">
         <span class="cs-comment-count" data-cesium-comment-count>0 comments</span>
-        <button
-          type="button"
-          class="cs-verdict-btn cs-verdict cs-verdict-approve"
-          data-verdict="approve"
-        >
+        <button type="button" class="cs-verdict-btn cs-verdict-approve" data-verdict="approve">
           Approve
         </button>
         <button
           type="button"
-          class="cs-verdict-btn cs-verdict cs-verdict-request_changes"
+          class="cs-verdict-btn cs-verdict-request_changes"
           data-verdict="request_changes"
         >
           Request changes
         </button>
-        <button
-          type="button"
-          class="cs-verdict-btn cs-verdict cs-verdict-comment"
-          data-verdict="comment"
-        >
+        <button type="button" class="cs-verdict-btn cs-verdict-comment" data-verdict="comment">
           Comment
         </button>
       </footer>
@@ -1727,11 +1775,7 @@
         function readMeta() {
           var el = document.getElementById("cesium-meta");
           if (!el) return null;
-          try {
-            return JSON.parse(el.textContent || "");
-          } catch (e) {
-            return null;
-          }
+          try { return JSON.parse(el.textContent || ""); } catch (e) { return null; }
         }
         var meta = readMeta();
         var interactive = meta && meta.interactive;
@@ -1759,7 +1803,7 @@
           document.body.insertBefore(banner, document.body.firstChild);
           // Disable all interactive controls
           var disabled = document.querySelectorAll(
-            ".cs-submit, .cs-skip, .cs-pick, .cs-confirm, .cs-react",
+            ".cs-submit, .cs-skip, .cs-pick, .cs-confirm, .cs-react"
           );
           for (var i = 0; i < disabled.length; i++) {
             var el = disabled[i];
@@ -1790,7 +1834,9 @@
 
         // ─── Section replacement ────────────────────────────────────────────────────
         function replaceSection(qid, replacementHtml) {
-          var section = document.querySelector('section[data-question-id="' + qid + '"]');
+          var section = document.querySelector(
+            "section[data-question-id=\"" + qid + "\"]"
+          );
           if (!section) return;
           var tmp = document.createElement("div");
           tmp.innerHTML = replacementHtml;
@@ -1932,12 +1978,11 @@
 
           function updateSubmitState() {
             if (submitBtn instanceof HTMLButtonElement && input) {
-              var val =
-                input instanceof HTMLInputElement
-                  ? input.value
-                  : input instanceof HTMLTextAreaElement
-                    ? input.value
-                    : "";
+              var val = input instanceof HTMLInputElement
+                ? input.value
+                : input instanceof HTMLTextAreaElement
+                ? input.value
+                : "";
               submitBtn.disabled = val.trim() === "";
             }
           }
@@ -1980,7 +2025,9 @@
 
           if (submitBtn) {
             submitBtn.addEventListener("click", function () {
-              var value = sliderInput instanceof HTMLInputElement ? Number(sliderInput.value) : 0;
+              var value = sliderInput instanceof HTMLInputElement
+                ? Number(sliderInput.value)
+                : 0;
               submitAnswer(section, qid, { type: "slider", value: value });
             });
           }
@@ -1996,14 +2043,12 @@
             (function (btn) {
               btn.addEventListener("click", function () {
                 var decision = btn.dataset["value"] || "";
-                var comment =
-                  commentArea instanceof HTMLTextAreaElement && commentArea.value !== ""
-                    ? commentArea.value
-                    : undefined;
-                var value =
-                  comment !== undefined
-                    ? { type: "react", decision: decision, comment: comment }
-                    : { type: "react", decision: decision };
+                var comment = commentArea instanceof HTMLTextAreaElement && commentArea.value !== ""
+                  ? commentArea.value
+                  : undefined;
+                var value = comment !== undefined
+                  ? { type: "react", decision: decision, comment: comment }
+                  : { type: "react", decision: decision };
                 submitAnswer(section, qid, value);
               });
             })(btns[i]);
@@ -2038,6 +2083,15 @@
         // ═══════════════════════════════════════════════════════════════════════════
 
         function wireAnnotate(interactiveData) {
+          // ─── Status branch: frozen path for post-verdict artifacts ───────────────
+          //
+          // wireAnnotateFrozen is defined below but hoisted (function declaration).
+          // It handles positioning and hover linking only — no API calls.
+          if (interactiveData && interactiveData.status !== "open") {
+            wireAnnotateFrozen(interactiveData);
+            return;
+          }
+
           // ─── Helpers ────────────────────────────────────────────────────────────
           function escapeHtml(str) {
             return String(str)
@@ -2068,15 +2122,12 @@
               if (r.status === 410) {
                 showSessionEndedBanner("Review closed.");
                 return r.json().then(function (data) {
-                  throw new Error(
-                    data && data.status ? "session ended: " + data.status : "session ended",
-                  );
+                  throw new Error(data && data.status ? "session ended: " + data.status : "session ended");
                 });
               }
               return r.json().then(function (data) {
                 if (!r.ok) {
-                  var msg =
-                    (data && (data.message || data.reason || data.error)) || "HTTP " + r.status;
+                  var msg = (data && (data.message || data.reason || data.error)) || ("HTTP " + r.status);
                   throw new Error(msg);
                 }
                 return data;
@@ -2089,15 +2140,12 @@
               if (r.status === 410) {
                 showSessionEndedBanner("Review closed.");
                 return r.json().then(function (data) {
-                  throw new Error(
-                    data && data.status ? "session ended: " + data.status : "session ended",
-                  );
+                  throw new Error(data && data.status ? "session ended: " + data.status : "session ended");
                 });
               }
               return r.json().then(function (data) {
                 if (!r.ok) {
-                  var msg =
-                    (data && (data.message || data.reason || data.error)) || "HTTP " + r.status;
+                  var msg = (data && (data.message || data.reason || data.error)) || ("HTTP " + r.status);
                   throw new Error(msg);
                 }
                 return data;
@@ -2107,10 +2155,9 @@
 
           // ─── State ──────────────────────────────────────────────────────────────
           var state = {
-            comments:
-              interactiveData && Array.isArray(interactiveData.comments)
-                ? interactiveData.comments.slice()
-                : [],
+            comments: (interactiveData && Array.isArray(interactiveData.comments))
+              ? interactiveData.comments.slice()
+              : [],
             verdictMode: (interactiveData && interactiveData.verdictMode) || "approve",
             status: (interactiveData && interactiveData.status) || "open",
           };
@@ -2129,7 +2176,7 @@
           // ─── Verdict button enablement ───────────────────────────────────────────
           function updateVerdictButtons() {
             var hasComments = state.comments.length > 0;
-            var btns = document.querySelectorAll("button.cs-verdict[data-verdict]");
+            var btns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
             for (var i = 0; i < btns.length; i++) {
               var btn = btns[i];
               if (!(btn instanceof HTMLButtonElement)) continue;
@@ -2155,9 +2202,7 @@
               "position:fixed;top:0;left:0;right:0;padding:0.75rem 1.25rem;" +
               "text-align:center;z-index:200;";
             document.body.insertBefore(banner, document.body.firstChild);
-            setTimeout(function () {
-              if (banner.parentNode) banner.remove();
-            }, 6000);
+            setTimeout(function () { if (banner.parentNode) banner.remove(); }, 6000);
           }
 
           // ─── Comment rail ────────────────────────────────────────────────────────
@@ -2222,10 +2267,7 @@
                   // Restore
                   article.classList.remove("cs-saving");
                   delBtn.disabled = false;
-                  showBannerError(
-                    "Could not delete comment: " +
-                      (err instanceof Error ? err.message : String(err)),
-                  );
+                  showBannerError("Could not delete comment: " + (err instanceof Error ? err.message : String(err)));
                 });
             });
 
@@ -2251,22 +2293,19 @@
             var rail = getRail();
             if (!rail) return;
             var railParent = rail.offsetParent || document.body;
-            var railParentTop =
-              railParent instanceof HTMLElement
-                ? railParent.getBoundingClientRect().top +
-                  (window.scrollY || window.pageYOffset || 0)
-                : 0;
+            var railParentTop = railParent instanceof HTMLElement
+              ? railParent.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0)
+              : 0;
             var bubbles = rail.querySelectorAll("[data-anchor]");
             for (var i = 0; i < bubbles.length; i++) {
               var bubble = bubbles[i];
               if (!(bubble instanceof HTMLElement)) continue;
               var anchorKey = bubble.getAttribute("data-anchor") || "";
-              var anchorEl = document.querySelector('[data-cesium-anchor="' + anchorKey + '"]');
+              var anchorEl = document.querySelector("[data-cesium-anchor=\"" + anchorKey + "\"]");
               if (anchorEl instanceof HTMLElement) {
-                var anchorTop =
-                  anchorEl.getBoundingClientRect().top +
-                  (window.scrollY || window.pageYOffset || 0) -
-                  railParentTop;
+                var anchorTop = anchorEl.getBoundingClientRect().top
+                  + (window.scrollY || window.pageYOffset || 0)
+                  - railParentTop;
                 bubble.style.top = anchorTop + "px";
                 bubble.classList.remove("cs-comment-bubble-orphan");
               } else {
@@ -2283,20 +2322,24 @@
 
             // Bubble → anchor
             rail.addEventListener("mouseover", function (e) {
-              var bubble = e.target instanceof Element ? e.target.closest("[data-anchor]") : null;
+              var bubble = e.target instanceof Element
+                ? e.target.closest("[data-anchor]")
+                : null;
               if (!(bubble instanceof HTMLElement)) return;
               var anchorKey = bubble.getAttribute("data-anchor") || "";
-              var anchorEl = document.querySelector('[data-cesium-anchor="' + anchorKey + '"]');
+              var anchorEl = document.querySelector("[data-cesium-anchor=\"" + anchorKey + "\"]");
               bubble.classList.add("cs-comment-bubble-active");
               if (anchorEl instanceof HTMLElement) {
                 anchorEl.classList.add("cs-anchor-active");
               }
             });
             rail.addEventListener("mouseout", function (e) {
-              var bubble = e.target instanceof Element ? e.target.closest("[data-anchor]") : null;
+              var bubble = e.target instanceof Element
+                ? e.target.closest("[data-anchor]")
+                : null;
               if (!(bubble instanceof HTMLElement)) return;
               var anchorKey = bubble.getAttribute("data-anchor") || "";
-              var anchorEl = document.querySelector('[data-cesium-anchor="' + anchorKey + '"]');
+              var anchorEl = document.querySelector("[data-cesium-anchor=\"" + anchorKey + "\"]");
               bubble.classList.remove("cs-comment-bubble-active");
               if (anchorEl instanceof HTMLElement) {
                 anchorEl.classList.remove("cs-anchor-active");
@@ -2309,14 +2352,14 @@
               (function (anchorEl) {
                 var anchorKey = anchorEl.getAttribute("data-cesium-anchor") || "";
                 anchorEl.addEventListener("mouseenter", function () {
-                  var bubble = rail.querySelector('[data-anchor="' + anchorKey + '"]');
+                  var bubble = rail.querySelector("[data-anchor=\"" + anchorKey + "\"]");
                   if (bubble instanceof HTMLElement) {
                     bubble.classList.add("cs-comment-bubble-active");
                   }
                   anchorEl.classList.add("cs-anchor-active");
                 });
                 anchorEl.addEventListener("mouseleave", function () {
-                  var bubble = rail.querySelector('[data-anchor="' + anchorKey + '"]');
+                  var bubble = rail.querySelector("[data-anchor=\"" + anchorKey + "\"]");
                   if (bubble instanceof HTMLElement) {
                     bubble.classList.remove("cs-comment-bubble-active");
                   }
@@ -2350,7 +2393,9 @@
             var tmpl = document.getElementById("cs-annotate-comment-popup");
             if (!(tmpl instanceof HTMLTemplateElement)) return;
             var clone = tmpl.content.cloneNode(true);
-            var popup = clone instanceof DocumentFragment ? clone.firstElementChild : null;
+            var popup = clone instanceof DocumentFragment
+              ? clone.firstElementChild
+              : null;
             if (!popup) return;
             if (!(popup instanceof HTMLElement)) return;
 
@@ -2358,18 +2403,21 @@
             popup.style.position = "absolute";
             popup.style.zIndex = "200";
 
-            // Capture selection
+            // Capture selection — also check data-prefill-text (set by selection menu)
             var sel = window.getSelection ? window.getSelection() : null;
             var selText = "";
             if (sel && sel.rangeCount > 0 && sel.toString().trim() !== "") {
               var range = sel.getRangeAt(0);
               // Check containment: range must intersect anchor element
-              if (
-                anchorEl.contains(range.commonAncestorContainer) ||
-                range.commonAncestorContainer === anchorEl
-              ) {
+              if (anchorEl.contains(range.commonAncestorContainer)
+                  || range.commonAncestorContainer === anchorEl) {
                 selText = sel.toString().slice(0, 4096);
               }
+            }
+            // Fallback: selection menu prefill (text captured before selection was cleared)
+            if (!selText) {
+              var prefill = anchorEl.getAttribute("data-prefill-text");
+              if (prefill && prefill.trim()) selText = prefill;
             }
             if (!selText) {
               selText = (anchorEl.textContent || "").trim().slice(0, 300);
@@ -2439,10 +2487,7 @@
                 if (!(textarea instanceof HTMLTextAreaElement)) return;
                 var commentText = textarea.value;
                 if (!commentText.trim()) return;
-                if (!apiBase) {
-                  closePopup();
-                  return;
-                }
+                if (!apiBase) { closePopup(); return; }
 
                 // Disable buttons during save
                 saveBtn.disabled = true;
@@ -2509,6 +2554,11 @@
           // ─── Inject affordances ──────────────────────────────────────────────────
           function injectAffordances() {
             var anchors = document.querySelectorAll("[data-cesium-anchor]");
+
+            // Chat-bubble SVG glyph (inline, ~16px, currentColor)
+            var bubbleGlyphLg = '<svg class="cs-comment-glyph" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="14" height="10" rx="2.5"/><path d="M4 14l2-3"/></svg>';
+            var bubbleGlyphSm = '<svg class="cs-comment-glyph" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="14" height="10" rx="2.5"/><path d="M4 14l2-3"/></svg>';
+
             for (var i = 0; i < anchors.length; i++) {
               var anchorEl = anchors[i];
               if (!(anchorEl instanceof HTMLElement)) continue;
@@ -2524,7 +2574,14 @@
                 : "cs-anchor-affordance cs-anchor-affordance-block";
               btn.setAttribute("aria-label", "Add comment");
               btn.setAttribute("data-anchor", anchorStr);
-              btn.textContent = isLine ? "+" : "✏️";
+
+              if (isLine) {
+                // Line affordance: icon only, gutter-positioned, visibility:hidden until hover
+                btn.innerHTML = bubbleGlyphSm;
+              } else {
+                // Block affordance: "Comment" button, always visible, top-right of block
+                btn.innerHTML = bubbleGlyphLg + " Comment";
+              }
 
               // Wire click: open popup for this anchor
               (function (el, aStr, affordBtn) {
@@ -2538,9 +2595,113 @@
             }
           }
 
+          // ─── Floating selection menu ─────────────────────────────────────────────
+          function wireSelectionMenu() {
+            // Skip in frozen or offline mode
+            if (!apiBase) return;
+
+            // Create menu element (injected once into <body>)
+            var menu = document.createElement("div");
+            menu.className = "cs-selection-menu";
+            menu.setAttribute("role", "toolbar");
+            menu.hidden = true;
+            menu.innerHTML = '<button type="button" class="cs-selection-comment-btn">' +
+              '<svg class="cs-comment-glyph" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="14" height="10" rx="2.5"/><path d="M4 14l2-3"/></svg>' +
+              ' Comment</button>';
+            document.body.appendChild(menu);
+
+            var selectionCommentBtn = menu.querySelector(".cs-selection-comment-btn");
+
+            // Prevent clearing selection when clicking the button
+            menu.addEventListener("mousedown", function (e) {
+              e.preventDefault();
+            });
+
+            function findAnchorEl(node) {
+              var el = node instanceof Element ? node : node.parentElement;
+              while (el) {
+                if (el.hasAttribute("data-cesium-anchor")) return el;
+                el = el.parentElement;
+              }
+              return null;
+            }
+
+            function hideMenu() {
+              menu.hidden = true;
+            }
+
+            function showMenuNearSelection() {
+              // Don't show if popup already open
+              if (activePopup !== null) { hideMenu(); return; }
+
+              var sel = window.getSelection ? window.getSelection() : null;
+              if (!sel || sel.rangeCount === 0) { hideMenu(); return; }
+
+              var text = sel.toString().trim();
+              if (text.length < 3) { hideMenu(); return; }
+
+              var range = sel.getRangeAt(0);
+              var commonNode = range.commonAncestorContainer;
+              var anchorEl = findAnchorEl(commonNode);
+              if (!anchorEl) { hideMenu(); return; }
+
+              // Position at bottom-right of selection rect
+              var rect = range.getBoundingClientRect();
+              if (!rect || rect.width === 0 && rect.height === 0) { hideMenu(); return; }
+
+              menu.hidden = false;
+              var menuRect = menu.getBoundingClientRect();
+              var top = rect.bottom + window.scrollY + 6;
+              var left = rect.right + window.scrollX - menuRect.width;
+              // Clamp to viewport
+              var vpW = window.innerWidth || document.documentElement.clientWidth;
+              if (left + menuRect.width > vpW - 8) left = vpW - menuRect.width - 8;
+              if (left < 8) left = 8;
+              menu.style.top = top + "px";
+              menu.style.left = left + "px";
+
+              // Store resolved anchor for click handler
+              menu.setAttribute("data-resolved-anchor", anchorEl.getAttribute("data-cesium-anchor") || "");
+              menu.setAttribute("data-resolved-text", text.slice(0, 4096));
+            }
+
+            document.addEventListener("selectionchange", function () {
+              // selectionchange fires frequently; use a short debounce
+              showMenuNearSelection();
+            });
+
+            // Also reposition on mouseup (for initial selection end)
+            document.addEventListener("mouseup", function () {
+              setTimeout(showMenuNearSelection, 10);
+            });
+
+            if (selectionCommentBtn instanceof HTMLButtonElement) {
+              selectionCommentBtn.addEventListener("click", function () {
+                var anchorStr = menu.getAttribute("data-resolved-anchor") || "";
+                var selText = menu.getAttribute("data-resolved-text") || "";
+                var anchorEl = anchorStr
+                  ? document.querySelector("[data-cesium-anchor=\"" + anchorStr + "\"]")
+                  : null;
+                hideMenu();
+                if (!anchorEl || !(anchorEl instanceof HTMLElement)) return;
+                // Store the selText so openPopup can use it
+                var sel = window.getSelection ? window.getSelection() : null;
+                // openPopup reads the live selection — if it was cleared by focus
+                // change we inject it back via a temporary attribute
+                anchorEl.setAttribute("data-prefill-text", selText);
+                openPopup(anchorEl, anchorStr);
+                anchorEl.removeAttribute("data-prefill-text");
+              });
+            }
+
+            // Hide when popup opens (activePopup watcher via close/open hooks handled inline above)
+            // Hide menu when selection is cleared or moves outside anchored content
+          }
+          }
+
           // ─── Verdict button wiring ───────────────────────────────────────────────
           function wireVerdictButtons() {
-            var btns = document.querySelectorAll("button.cs-verdict[data-verdict]");
+            var btns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
             for (var i = 0; i < btns.length; i++) {
               (function (btn) {
                 btn.addEventListener("click", function () {
@@ -2580,42 +2741,35 @@
                     cancelConfirmBtn.remove();
                   });
 
-                  btn.addEventListener(
-                    "click",
-                    function onConfirm() {
-                      clearTimeout(cancelConfirmTimeout);
-                      cancelConfirmBtn.remove();
+                  btn.addEventListener("click", function onConfirm() {
+                    clearTimeout(cancelConfirmTimeout);
+                    cancelConfirmBtn.remove();
 
-                      // Disable all verdict buttons
-                      var allVerdictBtns = document.querySelectorAll("button.cs-verdict");
-                      for (var j = 0; j < allVerdictBtns.length; j++) {
-                        var vb = allVerdictBtns[j];
-                        if (vb instanceof HTMLButtonElement) vb.disabled = true;
-                      }
-                      btn.textContent = "Submitting…";
-                      btn.removeEventListener("click", onConfirm);
+                    // Disable all verdict buttons
+                    var allVerdictBtns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
+                    for (var j = 0; j < allVerdictBtns.length; j++) {
+                      var vb = allVerdictBtns[j];
+                      if (vb instanceof HTMLButtonElement) vb.disabled = true;
+                    }
+                    btn.textContent = "Submitting…";
+                    btn.removeEventListener("click", onConfirm);
 
-                      apiPost(apiBase + "/verdict", { verdict: verdictValue })
-                        .then(function () {
-                          window.location.reload();
-                        })
-                        .catch(function (err) {
-                          // Re-enable buttons on error
-                          for (var j2 = 0; j2 < allVerdictBtns.length; j2++) {
-                            var vb2 = allVerdictBtns[j2];
-                            if (vb2 instanceof HTMLButtonElement) vb2.disabled = false;
-                          }
-                          btn.removeAttribute("data-confirming");
-                          btn.textContent = originalText;
-                          updateVerdictButtons();
-                          showBannerError(
-                            "Could not submit verdict: " +
-                              (err instanceof Error ? err.message : String(err)),
-                          );
-                        });
-                    },
-                    { once: true },
-                  );
+                    apiPost(apiBase + "/verdict", { verdict: verdictValue })
+                      .then(function () {
+                        window.location.reload();
+                      })
+                      .catch(function (err) {
+                        // Re-enable buttons on error
+                        for (var j2 = 0; j2 < allVerdictBtns.length; j2++) {
+                          var vb2 = allVerdictBtns[j2];
+                          if (vb2 instanceof HTMLButtonElement) vb2.disabled = false;
+                        }
+                        btn.removeAttribute("data-confirming");
+                        btn.textContent = originalText;
+                        updateVerdictButtons();
+                        showBannerError("Could not submit verdict: " + (err instanceof Error ? err.message : String(err)));
+                      });
+                  }, { once: true });
                 });
               })(btns[i]);
             }
@@ -2629,26 +2783,55 @@
               var a = affordances[i];
               if (a instanceof HTMLElement) a.style.display = "none";
             }
-            var vBtns = document.querySelectorAll("button.cs-verdict");
+            var vBtns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
             for (var j = 0; j < vBtns.length; j++) {
               var vb = vBtns[j];
               if (vb instanceof HTMLButtonElement) vb.disabled = true;
             }
           }
 
+          // ─── wireAnnotateFrozen: read-only path for post-verdict artifacts ────────
+          //
+          // Runs when status !== "open". The client script is kept in the document
+          // so that positionBubbles() and wireHoverLinking() can still run.
+          // All interactive affordances are hidden by CSS (data-cesium-status="complete").
+          function wireAnnotateFrozen(frozenData) {
+            document.addEventListener("DOMContentLoaded", function () {
+              // skip frozen: API wiring is intentionally not registered here.
+              // affordances are hidden by CSS; verdict footer is hidden by CSS.
+              document.body.classList.add("cs-annotate-active");
+
+              showSessionEndedBanner("This review is closed.");
+
+              var rail = getRail();
+
+              // If the rail is already populated server-side, skip client-side mounting.
+              // Defensive: if the rail is empty but interactive.comments has entries
+              // (e.g. older artifact), fall back to mounting from state.
+              if (rail && rail.querySelector(".cs-comment-bubble")) {
+                // Rail pre-populated by setVerdict — positioning only
+                requestAnimationFrame(positionBubbles);
+              } else {
+                // Fallback: mount from state (older artifact without server-side render)
+                var comments = (frozenData && Array.isArray(frozenData.comments))
+                  ? frozenData.comments
+                  : [];
+                for (var i = 0; i < comments.length; i++) {
+                  mountBubble(comments[i]);
+                }
+                requestAnimationFrame(positionBubbles);
+              }
+
+              window.addEventListener("resize", onResize);
+              wireHoverLinking();
+              // NOTE: no injectAffordances, no wireVerdictButtons, no API calls.
+            });
+          }
+
           // ─── DOMContentLoaded: main init ─────────────────────────────────────────
           document.addEventListener("DOMContentLoaded", function () {
             // Add body class for padding-bottom (fallback for browsers without :has)
             document.body.classList.add("cs-annotate-active");
-
-            if (state.status !== "open") {
-              showSessionEndedBanner("Review closed.");
-              mountAllSeededComments();
-              updateCount();
-              requestAnimationFrame(positionBubbles);
-              window.addEventListener("resize", onResize);
-              return;
-            }
 
             if (!apiBase) {
               // Offline: render seeded comments but hide affordances, disable verdict btns
@@ -2667,6 +2850,7 @@
             updateCount();
             updateVerdictButtons();
             wireVerdictButtons();
+            wireSelectionMenu();
             requestAnimationFrame(positionBubbles);
             window.addEventListener("resize", onResize);
             wireHoverLinking();
@@ -2680,6 +2864,7 @@
           // ask (or legacy without kind) — existing wiring
           document.addEventListener("DOMContentLoaded", wireAsk);
         }
+
       })();
     </script>
 

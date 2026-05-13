@@ -191,6 +191,18 @@ describe("getClientJs — annotate wiring", () => {
     expect(getClientJs()).toContain("cs-anchor-affordance");
   });
 
+  test("block-level affordance contains 'Comment' text", () => {
+    expect(getClientJs()).toContain('" Comment"');
+  });
+
+  test("floating selection menu is present (cs-selection-menu)", () => {
+    expect(getClientJs()).toContain("cs-selection-menu");
+  });
+
+  test("selection menu wires selectionchange event", () => {
+    expect(getClientJs()).toContain("selectionchange");
+  });
+
   test("contains humanizeAnchor helper", () => {
     expect(getClientJs()).toContain("humanizeAnchor");
   });
@@ -209,6 +221,16 @@ describe("getClientJs — annotate wiring", () => {
 
   test("contains verdict button enablement logic", () => {
     expect(getClientJs()).toContain("updateVerdictButtons");
+  });
+
+  test("verdict button selector uses cs-verdict-btn (not standalone cs-verdict)", () => {
+    const js = getClientJs();
+    // New selector targets .cs-verdict-btn[data-verdict]
+    expect(js).toContain("cs-verdict-btn[data-verdict]");
+    // Old bare .cs-verdict selector should not appear (only as substring of cs-verdict-btn etc.)
+    // We assert the specific old querySelector pattern is gone
+    expect(js).not.toContain('"button.cs-verdict[data-verdict]"');
+    expect(js).not.toContain("'button.cs-verdict[data-verdict]'");
   });
 
   test("contains comment count update", () => {

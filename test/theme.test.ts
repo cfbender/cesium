@@ -386,11 +386,38 @@ describe("frameworkRulesCss — annotate cs-* classes (Phase 5)", () => {
 
   test("contains anchor affordance hover show rule", () => {
     const css = frameworkRulesCss();
-    expect(css).toContain("[data-cesium-anchor]:hover > .cs-anchor-affordance");
+    expect(css).toContain("[data-cesium-anchor]:hover > .cs-anchor-affordance-line");
   });
 
   test("contains focus-within show rule for accessibility", () => {
     expect(frameworkRulesCss()).toContain("focus-within");
+  });
+
+  test("[data-cesium-anchor] has position: relative", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("[data-cesium-anchor]");
+    expect(css).toContain("position: relative");
+  });
+
+  test("cs-anchor-affordance-block uses position: absolute with top and right", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain(".cs-anchor-affordance-block");
+    expect(css).toContain("position: absolute");
+    expect(css).toContain("top:");
+    expect(css).toContain("right:");
+  });
+
+  test("cs-anchor-affordance-line uses visibility: hidden and position: absolute", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain(".cs-anchor-affordance-line");
+    expect(css).toContain("visibility: hidden");
+    expect(css).toContain("position: absolute");
+  });
+
+  test("cs-selection-menu is present with position: fixed", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain(".cs-selection-menu");
+    expect(css).toContain("position: fixed");
   });
 
   test("contains verdict-btn disabled state", () => {

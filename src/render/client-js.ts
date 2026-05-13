@@ -421,7 +421,7 @@ export function getClientJs(): string {
     // ─── Verdict button enablement ───────────────────────────────────────────
     function updateVerdictButtons() {
       var hasComments = state.comments.length > 0;
-      var btns = document.querySelectorAll("button.cs-verdict[data-verdict]");
+      var btns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
       for (var i = 0; i < btns.length; i++) {
         var btn = btns[i];
         if (!(btn instanceof HTMLButtonElement)) continue;
@@ -648,7 +648,7 @@ export function getClientJs(): string {
       popup.style.position = "absolute";
       popup.style.zIndex = "200";
 
-      // Capture selection
+      // Capture selection — also check data-prefill-text (set by selection menu)
       var sel = window.getSelection ? window.getSelection() : null;
       var selText = "";
       if (sel && sel.rangeCount > 0 && sel.toString().trim() !== "") {
@@ -658,6 +658,11 @@ export function getClientJs(): string {
             || range.commonAncestorContainer === anchorEl) {
           selText = sel.toString().slice(0, 4096);
         }
+      }
+      // Fallback: selection menu prefill (text captured before selection was cleared)
+      if (!selText) {
+        var prefill = anchorEl.getAttribute("data-prefill-text");
+        if (prefill && prefill.trim()) selText = prefill;
       }
       if (!selText) {
         selText = (anchorEl.textContent || "").trim().slice(0, 300);
@@ -794,6 +799,11 @@ export function getClientJs(): string {
     // ─── Inject affordances ──────────────────────────────────────────────────
     function injectAffordances() {
       var anchors = document.querySelectorAll("[data-cesium-anchor]");
+
+      // Chat-bubble SVG glyph (inline, ~16px, currentColor)
+      var bubbleGlyphLg = '<svg class="cs-comment-glyph" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="14" height="10" rx="2.5"/><path d="M4 14l2-3"/></svg>';
+      var bubbleGlyphSm = '<svg class="cs-comment-glyph" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="14" height="10" rx="2.5"/><path d="M4 14l2-3"/></svg>';
+
       for (var i = 0; i < anchors.length; i++) {
         var anchorEl = anchors[i];
         if (!(anchorEl instanceof HTMLElement)) continue;
@@ -809,7 +819,14 @@ export function getClientJs(): string {
           : "cs-anchor-affordance cs-anchor-affordance-block";
         btn.setAttribute("aria-label", "Add comment");
         btn.setAttribute("data-anchor", anchorStr);
-        btn.textContent = isLine ? "+" : "\u270f\ufe0f";
+
+        if (isLine) {
+          // Line affordance: icon only, gutter-positioned, visibility:hidden until hover
+          btn.innerHTML = bubbleGlyphSm;
+        } else {
+          // Block affordance: "Comment" button, always visible, top-right of block
+          btn.innerHTML = bubbleGlyphLg + " Comment";
+        }
 
         // Wire click: open popup for this anchor
         (function (el, aStr, affordBtn) {
@@ -823,9 +840,113 @@ export function getClientJs(): string {
       }
     }
 
+    // ─── Floating selection menu ─────────────────────────────────────────────
+    function wireSelectionMenu() {
+      // Skip in frozen or offline mode
+      if (!apiBase) return;
+
+      // Create menu element (injected once into <body>)
+      var menu = document.createElement("div");
+      menu.className = "cs-selection-menu";
+      menu.setAttribute("role", "toolbar");
+      menu.hidden = true;
+      menu.innerHTML = '<button type="button" class="cs-selection-comment-btn">' +
+        '<svg class="cs-comment-glyph" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="14" height="10" rx="2.5"/><path d="M4 14l2-3"/></svg>' +
+        ' Comment</button>';
+      document.body.appendChild(menu);
+
+      var selectionCommentBtn = menu.querySelector(".cs-selection-comment-btn");
+
+      // Prevent clearing selection when clicking the button
+      menu.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+      });
+
+      function findAnchorEl(node) {
+        var el = node instanceof Element ? node : node.parentElement;
+        while (el) {
+          if (el.hasAttribute("data-cesium-anchor")) return el;
+          el = el.parentElement;
+        }
+        return null;
+      }
+
+      function hideMenu() {
+        menu.hidden = true;
+      }
+
+      function showMenuNearSelection() {
+        // Don't show if popup already open
+        if (activePopup !== null) { hideMenu(); return; }
+
+        var sel = window.getSelection ? window.getSelection() : null;
+        if (!sel || sel.rangeCount === 0) { hideMenu(); return; }
+
+        var text = sel.toString().trim();
+        if (text.length < 3) { hideMenu(); return; }
+
+        var range = sel.getRangeAt(0);
+        var commonNode = range.commonAncestorContainer;
+        var anchorEl = findAnchorEl(commonNode);
+        if (!anchorEl) { hideMenu(); return; }
+
+        // Position at bottom-right of selection rect
+        var rect = range.getBoundingClientRect();
+        if (!rect || rect.width === 0 && rect.height === 0) { hideMenu(); return; }
+
+        menu.hidden = false;
+        var menuRect = menu.getBoundingClientRect();
+        var top = rect.bottom + window.scrollY + 6;
+        var left = rect.right + window.scrollX - menuRect.width;
+        // Clamp to viewport
+        var vpW = window.innerWidth || document.documentElement.clientWidth;
+        if (left + menuRect.width > vpW - 8) left = vpW - menuRect.width - 8;
+        if (left < 8) left = 8;
+        menu.style.top = top + "px";
+        menu.style.left = left + "px";
+
+        // Store resolved anchor for click handler
+        menu.setAttribute("data-resolved-anchor", anchorEl.getAttribute("data-cesium-anchor") || "");
+        menu.setAttribute("data-resolved-text", text.slice(0, 4096));
+      }
+
+      document.addEventListener("selectionchange", function () {
+        // selectionchange fires frequently; use a short debounce
+        showMenuNearSelection();
+      });
+
+      // Also reposition on mouseup (for initial selection end)
+      document.addEventListener("mouseup", function () {
+        setTimeout(showMenuNearSelection, 10);
+      });
+
+      if (selectionCommentBtn instanceof HTMLButtonElement) {
+        selectionCommentBtn.addEventListener("click", function () {
+          var anchorStr = menu.getAttribute("data-resolved-anchor") || "";
+          var selText = menu.getAttribute("data-resolved-text") || "";
+          var anchorEl = anchorStr
+            ? document.querySelector("[data-cesium-anchor=\\"" + anchorStr + "\\"]")
+            : null;
+          hideMenu();
+          if (!anchorEl || !(anchorEl instanceof HTMLElement)) return;
+          // Store the selText so openPopup can use it
+          var sel = window.getSelection ? window.getSelection() : null;
+          // openPopup reads the live selection — if it was cleared by focus
+          // change we inject it back via a temporary attribute
+          anchorEl.setAttribute("data-prefill-text", selText);
+          openPopup(anchorEl, anchorStr);
+          anchorEl.removeAttribute("data-prefill-text");
+        });
+      }
+
+      // Hide when popup opens (activePopup watcher via close/open hooks handled inline above)
+      // Hide menu when selection is cleared or moves outside anchored content
+    }
+    }
+
     // ─── Verdict button wiring ───────────────────────────────────────────────
     function wireVerdictButtons() {
-      var btns = document.querySelectorAll("button.cs-verdict[data-verdict]");
+      var btns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
       for (var i = 0; i < btns.length; i++) {
         (function (btn) {
           btn.addEventListener("click", function () {
@@ -870,7 +991,7 @@ export function getClientJs(): string {
               cancelConfirmBtn.remove();
 
               // Disable all verdict buttons
-              var allVerdictBtns = document.querySelectorAll("button.cs-verdict");
+              var allVerdictBtns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
               for (var j = 0; j < allVerdictBtns.length; j++) {
                 var vb = allVerdictBtns[j];
                 if (vb instanceof HTMLButtonElement) vb.disabled = true;
@@ -907,7 +1028,7 @@ export function getClientJs(): string {
         var a = affordances[i];
         if (a instanceof HTMLElement) a.style.display = "none";
       }
-      var vBtns = document.querySelectorAll("button.cs-verdict");
+      var vBtns = document.querySelectorAll("button.cs-verdict-btn[data-verdict]");
       for (var j = 0; j < vBtns.length; j++) {
         var vb = vBtns[j];
         if (vb instanceof HTMLButtonElement) vb.disabled = true;
@@ -974,6 +1095,7 @@ export function getClientJs(): string {
       updateCount();
       updateVerdictButtons();
       wireVerdictButtons();
+      wireSelectionMenu();
       requestAnimationFrame(positionBubbles);
       window.addEventListener("resize", onResize);
       wireHoverLinking();
