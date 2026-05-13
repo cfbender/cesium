@@ -1,6 +1,6 @@
 {
   "name": "@cfbender/cesium",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Beautiful self-contained HTML artifacts from your opencode agent.",
   "keywords": [
     "agent",

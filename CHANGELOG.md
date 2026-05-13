@@ -1,5 +1,86 @@
 # Changelog
 
+## v0.7.0 — 2026-05-13
+
+Headlining feature: a new `cesium_annotate` tool that publishes
+PR-style review artifacts. The user opens the URL, leaves per-line and
+per-block comments — by clicking the "Comment" button on any block, by
+highlighting text to summon a floating menu, or by clicking the gutter
+affordance on any diff or code line — and submits a final verdict:
+Approve, Request changes, or Comment. The agent calls `cesium_wait` and
+receives the structured feedback back. Use it whenever you'd otherwise
+ask the user to read a substantial proposal and paste line references
+into chat — diffs, plans, PRDs, code proposals, RFCs, audits, design docs.
+
+The companion breaking change: `cesium_publish` no longer accepts an
+`html` field. Block input is the only mode. The catalog of 16 block
+types covers every shape published artifacts use in practice, and the
+html escape valve was attracting traffic that should have been
+block-rendered. The `raw_html` block remains for genuinely bespoke
+regions inside an otherwise-structured document.
+
+- **feat:** New `cesium_annotate` tool. Args: `title`, `blocks`,
+  `verdictMode` (`"approve"` | `"approve-or-reject"` | `"full"`),
+  `perLineFor` (default `["diff", "code"]`), `requireVerdict`, plus the
+  usual `summary` / `tags` / `expiresAt`. Returns the same
+  `{ id, httpUrl, terminalSummary, … }` shape as `cesium_ask`.
+- **feat:** `cesium_wait` now surfaces `comments` and `verdict` fields
+  (plus a `kind: "annotate"` discriminator) when polling an annotate
+  session. Existing ask sessions still return `answers` / `remaining`
+  exactly as before.
+- **feat:** Render-time `data-cesium-anchor` attributes on every
+  annotatable block (`block-N`) and on each line of `diff` and `code`
+  blocks (`block-N.line-M`). Anchor IDs are stable and validated against
+  `/^block-\d+(\.line-\d+)?$/` on both ends of the wire.
+- **feat:** Three new API routes — `POST /comments`, `DELETE
+/comments/:id`, `POST /verdict` — alongside the existing answer/state
+  routes. Per-artifact file locking serializes concurrent writes; the
+  embedded `cesium-meta` JSON remains the source of truth.
+- **feat:** Client UI with always-visible "Comment" buttons in the
+  top-right of every annotatable block, hover-revealed gutter
+  affordances on diff and code lines (no layout shift), a floating
+  selection menu that captures highlighted text as comment context, and
+  a sticky verdict footer with comment-count gating.
+- **feat:** Frozen post-verdict rendering. After the user submits a
+  verdict, the artifact is rewritten with a verdict pill near the title,
+  comment bubbles populated server-side at their anchor positions, and
+  the interactive scaffold suppressed via CSS. The client script is
+  retained — its sole post-verdict job is bubble positioning and
+  bidirectional hover linking.
+- **feat:** `cesium_annotate` artifacts get their own top-level
+  `kind: "annotate"` value, so the index UI and filter chips treat them
+  as a distinct class.
+- **feat:** Two new reference fixtures —
+  `examples/annotate-pr-review.html` (open session) and
+  `examples/annotate-pr-review-closed.html` (frozen post-verdict). Both
+  open standalone via `file://` and demonstrate the full surface.
+- **feat:** Project and global index eyebrows are now clickable links to
+  the parent index — a small navigation nicety that closes the breadcrumb
+  loop.
+- **breaking:** `cesium_publish` no longer accepts `html`. Use `blocks`,
+  with `raw_html` for genuinely bespoke regions. The validator rejects
+  `html` input with a clear error message. Artifacts already on disk are
+  unaffected — they continue to render exactly as before.
+- **breaking:** The `inputMode` field on `ArtifactMeta` is removed. All
+  new artifacts are blocks-based by definition; the discriminator no
+  longer carries information.
+- **internal:** New `InteractiveAnnotateData` discriminated variant
+  alongside `InteractiveAskData`, gated by a `kind` field. A tolerant
+  reader (`coerceInteractiveData`) treats existing ask-only artifacts
+  without a `kind` field as `kind: "ask"`, so no on-disk rewrite is
+  required.
+- **internal:** Prompt fragment grew a routing-rules section so agents
+  consistently reach for `cesium_annotate` when reviewing generated
+  content rather than asking for chat-based feedback.
+- **tests:** ~200 new tests across schema, anchor stamping, tool
+  handler, mutate, API, client JS, frozen rendering, and a full
+  publish → comment → delete → verdict → wait end-to-end lifecycle.
+  Total suite is now 1530+ tests.
+
+Old `cesium_ask` artifacts on disk are not affected by any of this — the
+discriminator was added with a tolerant reader specifically for backward
+compatibility. The annotate flow lives entirely on the new code paths.
+
 ## v0.6.2 — 2026-05-13
 
 Prompt fix. The `diff` block was missing from the agent-facing quick reference
