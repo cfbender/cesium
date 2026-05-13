@@ -39,7 +39,7 @@ cesium/
 │   │   ├── index-gen.ts  # generates index.html from cache
 │   │   └── lock.ts       # file-lock around index writes
 │   ├── server/
-│   │   ├── http.ts       # Bun HTTP server (127.0.0.1:3030, rooted at state dir)
+│   │   ├── http.ts       # Bun HTTP server (127.0.0.1:3030, rooted at state dir; Hono app)
 │   │   └── lifecycle.ts  # lazy start, idle shutdown, PID file management
 │   └── prompt/
 │       └── system-fragment.md  # injected into agent sessions with cesium tools

@@ -12,8 +12,7 @@ const blocks: Block[] = [
     type: "hero",
     eyebrow: "v0.5.2-dev",
     title: "Diff block — first dogfood",
-    subtitle:
-      "Split-view code diffs with bezier connectors. Both input arms exercised below.",
+    subtitle: "Split-view code diffs with bezier connectors. Both input arms exercised below.",
     meta: [
       { k: "Status", v: "Visual review" },
       { k: "Block type", v: "diff" },
@@ -57,8 +56,7 @@ const blocks: Block[] = [
         type: "diff",
         filename: "src/cache.ts",
         lang: "typescript",
-        before:
-          "export function get(key) {\n  return store.get(key);\n}",
+        before: "export function get(key) {\n  return store.get(key);\n}",
         after:
           "export function get(key) {\n  if (!key) throw new Error('key required');\n  metrics.increment('cache.get');\n  trace.span('cache.get', { key });\n  return store.get(key);\n}",
       },
@@ -70,8 +68,7 @@ const blocks: Block[] = [
     children: [
       {
         type: "prose",
-        markdown:
-          "Three lines removed. Mirror of the above — teardrop pointing into the right.",
+        markdown: "Three lines removed. Mirror of the above — teardrop pointing into the right.",
       },
       {
         type: "diff",
@@ -96,8 +93,7 @@ const blocks: Block[] = [
         type: "diff",
         filename: "src/router.ts",
         lang: "typescript",
-        caption:
-          "Reproduced from a git diff output — patch arm, no before/after text supplied.",
+        caption: "Reproduced from a git diff output — patch arm, no before/after text supplied.",
         patch:
           "@@ -12,7 +12,9 @@\n export function route(req) {\n   const handler = routes.get(req.path);\n-  if (!handler) return notFound();\n-  return handler(req);\n+  if (!handler) {\n+    return notFound(req);\n+  }\n+  return await handler(req);\n }\n",
       },

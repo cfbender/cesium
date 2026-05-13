@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startServer, type ServerHandle } from "../src/server/http.ts";
-import { createApiHandler } from "../src/server/api.ts";
+import { createApiApp } from "../src/server/api.ts";
 import { atomicWrite } from "../src/storage/write.ts";
 import { wrapDocument, type ArtifactMeta } from "../src/render/wrap.ts";
 import { defaultTheme } from "../src/render/theme.ts";
@@ -23,7 +23,7 @@ beforeEach(async () => {
   mkdirSync(artifactsDir, { recursive: true });
 
   handle = await startServer({ stateDir, port: 0 });
-  handle.addHandler(createApiHandler({ stateDir }));
+  handle.app.route("/", createApiApp({ stateDir }));
 });
 
 afterEach(async () => {

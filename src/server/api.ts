@@ -1,12 +1,15 @@
-// API route handler for interactive artifact submissions and state queries.
+// API routes for interactive artifact submissions and state queries, exposed
+// as a Hono sub-app. Mounted by lifecycle.ts via `handle.app.route("/", apiApp)`.
 //
 // Routes:
 //   POST /api/sessions/:projectSlug/:filename/answers/:questionId
 //   GET  /api/sessions/:projectSlug/:filename/state
 //
-// Wire into startServer via handle.addHandler() before the static file fallback.
+// Any other /api/* path returns a JSON 404 (rather than falling through to the
+// static file handler, which would return the HTML 404 page).
 
 import { join, resolve, relative } from "node:path";
+import { Hono } from "hono";
 import { submitAnswer, getState } from "../storage/mutate.ts";
 import type { AnswerValue } from "../render/validate.ts";
 
@@ -19,150 +22,133 @@ export interface ApiHandlerOptions {
 const FILENAME_RE = /^[^/\\]+\.html$/;
 const DANGEROUS_RE = /[/\\]|\.\./;
 
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+interface ResolvedArtifact {
+  /** Absolute path to the artifact file. */
+  artifactPath: string;
 }
 
-export function createApiHandler(
-  options: ApiHandlerOptions,
-): (req: Request) => Promise<Response | undefined> {
+/**
+ * Validate the slug/filename pair and resolve the artifact's absolute path,
+ * enforcing containment under <stateDir>/projects/<slug>/artifacts/. Returns
+ * a Hono `Response` on validation failure, or the resolved path on success.
+ */
+function resolveArtifact(
+  stateDir: string,
+  projectSlug: string,
+  filename: string,
+): ResolvedArtifact | Response {
+  if (DANGEROUS_RE.test(projectSlug) || DANGEROUS_RE.test(filename)) {
+    return Response.json({ ok: false, error: "invalid path component" }, { status: 400 });
+  }
+  if (!FILENAME_RE.test(filename)) {
+    return Response.json({ ok: false, error: "filename must end with .html" }, { status: 400 });
+  }
+
+  const artifactsDir = join(stateDir, "projects", projectSlug, "artifacts");
+  const artifactPath = join(artifactsDir, filename);
+  const resolvedArtifactsDir = resolve(artifactsDir);
+  const resolvedArtifact = resolve(artifactPath);
+  const rel = relative(resolvedArtifactsDir, resolvedArtifact);
+  if (rel.startsWith("..") || rel.includes("/")) {
+    return Response.json({ ok: false, error: "invalid path" }, { status: 400 });
+  }
+  return { artifactPath: resolvedArtifact };
+}
+
+export function createApiApp(options: ApiHandlerOptions): Hono {
   const { stateDir } = options;
+  const app = new Hono();
 
-  return async (req: Request): Promise<Response | undefined> => {
-    const url = new URL(req.url);
-    const { pathname } = url;
+  // All API responses are dynamic — never let intermediaries cache them.
+  app.use("/api/*", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store");
+  });
 
-    // Only handle /api/ routes
-    if (!pathname.startsWith("/api/")) {
-      return undefined;
+  // POST /api/sessions/:projectSlug/:filename/answers/:questionId
+  app.post("/api/sessions/:projectSlug/:filename/answers/:questionId", async (c) => {
+    const { projectSlug, filename, questionId } = c.req.param();
+
+    const resolved = resolveArtifact(stateDir, projectSlug, filename);
+    if (resolved instanceof Response) return resolved;
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ ok: false, error: "invalid JSON body" }, 400);
     }
 
-    // ─── Route matching ────────────────────────────────────────────────────
-    // POST /api/sessions/:projectSlug/:filename/answers/:questionId
-    const answerMatch = /^\/api\/sessions\/([^/]+)\/([^/]+)\/answers\/([^/]+)$/.exec(pathname);
-    // GET  /api/sessions/:projectSlug/:filename/state
-    const stateMatch = /^\/api\/sessions\/([^/]+)\/([^/]+)\/state$/.exec(pathname);
-
-    const match = answerMatch ?? stateMatch;
-    if (match === null) {
-      // Unrecognized /api/ path
-      return jsonResponse({ ok: false, error: "not found" }, 404);
+    if (
+      body === null ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
+      !("value" in (body as Record<string, unknown>))
+    ) {
+      return c.json({ ok: false, error: 'body must contain a "value" field' }, 400);
     }
 
-    // The regexes both have ([^/]+) for groups 1 and 2, so a successful match
-    // always populates these capture groups.
-    const projectSlug = match[1] ?? "";
-    const filename = match[2] ?? "";
+    const value = (body as Record<string, unknown>)["value"] as AnswerValue;
 
-    // ─── Input validation ──────────────────────────────────────────────────
-    if (DANGEROUS_RE.test(projectSlug) || DANGEROUS_RE.test(filename)) {
-      return jsonResponse({ ok: false, error: "invalid path component" }, 400);
-    }
+    const outcome = await submitAnswer({
+      artifactPath: resolved.artifactPath,
+      questionId,
+      value,
+    });
 
-    if (!FILENAME_RE.test(filename)) {
-      return jsonResponse({ ok: false, error: "filename must end with .html" }, 400);
-    }
-
-    // ─── Path traversal defense ────────────────────────────────────────────
-    const artifactsDir = join(stateDir, "projects", projectSlug, "artifacts");
-    const artifactPath = join(artifactsDir, filename);
-
-    const resolvedArtifactsDir = resolve(artifactsDir);
-    const resolvedArtifact = resolve(artifactPath);
-    const rel = relative(resolvedArtifactsDir, resolvedArtifact);
-    if (rel.startsWith("..") || rel.includes("/")) {
-      return jsonResponse({ ok: false, error: "invalid path" }, 400);
-    }
-
-    // ─── Route dispatch ────────────────────────────────────────────────────
-
-    if (answerMatch !== null) {
-      // POST /api/sessions/:projectSlug/:filename/answers/:questionId
-      if (req.method !== "POST") {
-        return jsonResponse({ ok: false, error: "method not allowed" }, 404);
-      }
-
-      const questionId = answerMatch[3] ?? "";
-
-      // Parse body
-      let body: unknown;
-      try {
-        body = await req.json();
-      } catch {
-        return jsonResponse({ ok: false, error: "invalid JSON body" }, 400);
-      }
-
-      if (
-        body === null ||
-        typeof body !== "object" ||
-        Array.isArray(body) ||
-        !("value" in (body as Record<string, unknown>))
-      ) {
-        return jsonResponse({ ok: false, error: 'body must contain a "value" field' }, 400);
-      }
-
-      const value = (body as Record<string, unknown>)["value"] as AnswerValue;
-
-      const outcome = await submitAnswer({ artifactPath: resolvedArtifact, questionId, value });
-
-      if (outcome.ok) {
-        return jsonResponse(
-          {
-            ok: true,
-            status: outcome.status,
-            remaining: outcome.remaining,
-            replacementHtml: outcome.replacementHtml,
-          },
-          200,
-        );
-      }
-
-      switch (outcome.reason) {
-        case "not-found":
-        case "not-interactive":
-        case "unknown-question":
-          return jsonResponse({ ok: false, reason: outcome.reason }, 404);
-        case "session-ended":
-          return jsonResponse({ ok: false, status: outcome.status }, 410);
-        case "expired":
-          return jsonResponse({ ok: false, status: "expired" }, 410);
-        case "invalid-value":
-          return jsonResponse({ ok: false, message: outcome.message }, 422);
-      }
-
-      // Fallback (should not reach)
-      return jsonResponse({ ok: false, error: "internal error" }, 500);
-    }
-
-    if (stateMatch !== null) {
-      // GET /api/sessions/:projectSlug/:filename/state
-      if (req.method !== "GET") {
-        return jsonResponse({ ok: false, error: "method not allowed" }, 404);
-      }
-
-      const outcome = await getState(resolvedArtifact);
-
-      if (!outcome.ok) {
-        return jsonResponse({ ok: false, reason: outcome.reason }, 404);
-      }
-
-      return jsonResponse(
+    if (outcome.ok) {
+      return c.json(
         {
+          ok: true,
           status: outcome.status,
-          answers: outcome.answers,
           remaining: outcome.remaining,
+          replacementHtml: outcome.replacementHtml,
         },
         200,
       );
     }
 
-    // Should not reach here
-    return jsonResponse({ ok: false, error: "not found" }, 404);
-  };
+    switch (outcome.reason) {
+      case "not-found":
+      case "not-interactive":
+      case "unknown-question":
+        return c.json({ ok: false, reason: outcome.reason }, 404);
+      case "session-ended":
+        return c.json({ ok: false, status: outcome.status }, 410);
+      case "expired":
+        return c.json({ ok: false, status: "expired" }, 410);
+      case "invalid-value":
+        return c.json({ ok: false, message: outcome.message }, 422);
+    }
+
+    return c.json({ ok: false, error: "internal error" }, 500);
+  });
+
+  // GET /api/sessions/:projectSlug/:filename/state
+  app.get("/api/sessions/:projectSlug/:filename/state", async (c) => {
+    const { projectSlug, filename } = c.req.param();
+
+    const resolved = resolveArtifact(stateDir, projectSlug, filename);
+    if (resolved instanceof Response) return resolved;
+
+    const outcome = await getState(resolved.artifactPath);
+    if (!outcome.ok) {
+      return c.json({ ok: false, reason: outcome.reason }, 404);
+    }
+
+    return c.json(
+      {
+        status: outcome.status,
+        answers: outcome.answers,
+        remaining: outcome.remaining,
+      },
+      200,
+    );
+  });
+
+  // Catch-all under /api/* — keeps unmatched API paths as JSON 404 instead of
+  // falling through to the static file handler.
+  app.all("/api/*", (c) => c.json({ ok: false, error: "not found" }, 404));
+
+  return app;
 }

@@ -8,8 +8,8 @@ import { dirname } from "node:path";
 import { spawn } from "node:child_process";
 import { startServer, type ServerHandle } from "./http.ts";
 import { acquireLock } from "../storage/lock.ts";
-import { createApiHandler } from "./api.ts";
-import { createFaviconHandler } from "./favicon.ts";
+import { createApiApp } from "./api.ts";
+import { createFaviconApp } from "./favicon.ts";
 import { ensureThemeCss } from "../storage/assets.ts";
 import { defaultTheme, type ThemeTokens } from "../render/theme.ts";
 
@@ -279,11 +279,11 @@ export async function runServerForeground(cfg: LifecycleConfig): Promise<Running
     // Materialize theme.css before serving — self-heals on plugin upgrade
     await ensureThemeCss(stateDir, theme);
 
-    // Wire API handler before static file fallback
-    handle.addHandler(createApiHandler({ stateDir }));
+    // Mount API routes; unmatched paths fall through to the static handler
+    handle.app.route("/", createApiApp({ stateDir }));
     // /favicon.ico shim — browsers auto-request this even when the page
     // declares an SVG favicon. Serve the SVG bytes inline so we don't 404.
-    handle.addHandler(createFaviconHandler());
+    handle.app.route("/", createFaviconApp());
 
     const startedAt = new Date().toISOString();
 

@@ -49,7 +49,15 @@ const blocks: Block[] = [
     children: [
       {
         type: "compare_table",
-        headers: ["Feature", "Variant A", "Variant B", "Variant C", "Variant D", "Variant E", "Variant F"],
+        headers: [
+          "Feature",
+          "Variant A",
+          "Variant B",
+          "Variant C",
+          "Variant D",
+          "Variant E",
+          "Variant F",
+        ],
         rows: [
           ["Speed", "fast", "medium", "slow", "fast", "medium", "slow"],
           ["Memory", "low", "medium", "high", "low", "medium", "high"],

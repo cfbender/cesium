@@ -1,15 +1,25 @@
 // Bun HTTP server bound to 127.0.0.1 (default), serving the cesium state directory.
+//
+// Routing is owned by a Hono app exposed on the returned ServerHandle. Callers
+// (e.g. lifecycle.ts) mount sub-apps for /api/* and /favicon.ico via
+// `handle.app.route("/", subApp)`. Any path that does not match a registered
+// route falls through to the static file handler installed here via
+// `app.notFound` — this preserves the cesium-specific behavior (custom 404 page,
+// 1MB streaming threshold, MIME table) without forcing callers to think about
+// registration order.
 
 import { resolve, extname } from "node:path";
 import { readFile } from "node:fs/promises";
+import { Hono } from "hono";
 
 export interface ServerHandle {
   port: number;
   url: string; // "http://127.0.0.1:<port>"
+  /** Hono app — register routes via `handle.app.route(...)` before requests arrive. */
+  app: Hono;
   stop(): Promise<void>;
-  onRequest(handler: () => void): void; // for idle-tracking; lifecycle attaches a callback
-  /** Register a pre-static handler. Returns a Response to short-circuit, or undefined to fall through. */
-  addHandler(handler: (req: Request) => Promise<Response | undefined>): void;
+  /** Register an idle-tracker callback fired on every request. */
+  onRequest(handler: () => void): void;
 }
 
 export interface StartServerArgs {
@@ -57,120 +67,106 @@ const FORBIDDEN_HTML = `<!doctype html>
 <body><div class="box"><h1>403</h1><p>forbidden</p></div></body>
 </html>`;
 
+const ONE_MB = 1024 * 1024;
+
 function mimeFor(filePath: string): string {
   const ext = extname(filePath).toLowerCase();
   return MIME_TYPES[ext] ?? "application/octet-stream";
+}
+
+function htmlResponse(body: string, status: number): Response {
+  return new Response(body, {
+    status,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+// Static file handler: resolves the request path under stateDir, enforces
+// traversal containment, falls back to index.html for directories, streams
+// files >= 1MB, and returns the cesium 404 page on miss.
+async function serveStatic(req: Request, stateDirResolved: string): Promise<Response> {
+  if (req.method !== "GET") {
+    return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  const url = new URL(req.url);
+  let reqPath: string;
+  try {
+    reqPath = decodeURIComponent(url.pathname);
+  } catch {
+    return htmlResponse(NOT_FOUND_HTML, 404);
+  }
+
+  const joined = resolve(stateDirResolved, "." + reqPath);
+
+  // Path traversal defense: resolved path must be rooted at stateDir
+  if (!joined.startsWith(stateDirResolved + "/") && joined !== stateDirResolved) {
+    return htmlResponse(FORBIDDEN_HTML, 403);
+  }
+
+  const filePath = joined;
+  const trailingSlash = reqPath.endsWith("/");
+  const indexPath = filePath.endsWith("/") ? filePath + "index.html" : filePath + "/index.html";
+
+  let fileToServe = filePath;
+  let isDir = false;
+  if (trailingSlash || extname(filePath) === "") {
+    isDir = true;
+    fileToServe = filePath.endsWith("/") ? filePath + "index.html" : filePath + "/index.html";
+  }
+
+  const bunFile = Bun.file(fileToServe);
+  let exists = await bunFile.exists();
+
+  if (!exists && !isDir) {
+    // Try as directory index (e.g. /sub → /sub/index.html)
+    fileToServe = indexPath;
+    exists = await Bun.file(fileToServe).exists();
+    if (!exists) return htmlResponse(NOT_FOUND_HTML, 404);
+  } else if (!exists) {
+    return htmlResponse(NOT_FOUND_HTML, 404);
+  }
+
+  const contentType = mimeFor(fileToServe);
+  const finalFile = Bun.file(fileToServe);
+  const size = finalFile.size;
+
+  // Large files: stream; small files: read fully.
+  if (size >= ONE_MB) {
+    return new Response(finalFile.stream(), {
+      status: 200,
+      headers: { "Content-Type": contentType },
+    });
+  }
+
+  const buf = await readFile(fileToServe);
+  return new Response(buf, { status: 200, headers: { "Content-Type": contentType } });
 }
 
 export async function startServer(args: StartServerArgs): Promise<ServerHandle> {
   const { stateDir, port, hostname = "127.0.0.1" } = args;
   const stateDirResolved = resolve(stateDir);
   const requestHandlers: Array<() => void> = [];
-  const preHandlers: Array<(req: Request) => Promise<Response | undefined>> = [];
+
+  const app = new Hono();
+
+  // Idle-tracker middleware: fires registered callbacks on every request before
+  // dispatching to routes. Used by lifecycle.ts to reset the idle-shutdown timer.
+  app.use("*", async (_c, next) => {
+    for (const h of requestHandlers) {
+      h();
+    }
+    await next();
+  });
+
+  // Anything that doesn't match a registered route falls through to static
+  // file serving rooted at stateDir.
+  app.notFound((c) => serveStatic(c.req.raw, stateDirResolved));
 
   const server = Bun.serve({
     hostname,
     port,
-    async fetch(req) {
-      // Notify idle tracker
-      for (const h of requestHandlers) {
-        h();
-      }
-
-      // Run pre-static handlers (e.g. API routes) before serving static files
-      for (const handler of preHandlers) {
-        // eslint-disable-next-line no-await-in-loop -- middleware chain: first non-undefined wins, must run sequentially
-        const result = await handler(req);
-        if (result !== undefined) {
-          return result;
-        }
-      }
-
-      if (req.method !== "GET") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
-
-      const url = new URL(req.url);
-      // Decode and normalize the request path
-      let reqPath: string;
-      try {
-        reqPath = decodeURIComponent(url.pathname);
-      } catch {
-        return new Response(NOT_FOUND_HTML, {
-          status: 404,
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        });
-      }
-
-      // Resolve the absolute path under stateDir
-      // Use resolve with stateDir as root to prevent traversal
-      const joined = resolve(stateDirResolved, "." + reqPath);
-
-      // Path traversal defense: resolved path must be rooted at stateDir
-      if (!joined.startsWith(stateDirResolved + "/") && joined !== stateDirResolved) {
-        return new Response(FORBIDDEN_HTML, {
-          status: 403,
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        });
-      }
-
-      // Determine final file path: if directory, try index.html
-      let filePath = joined;
-      const trailingSlash = reqPath.endsWith("/");
-
-      // Check if it's a directory by trying index.html
-      const indexPath = filePath.endsWith("/") ? filePath + "index.html" : filePath + "/index.html";
-
-      // Try as-is first, then as directory index
-      let fileToServe = filePath;
-      let isDir = false;
-
-      // If path has no extension or trailing slash, it might be a directory
-      if (trailingSlash || extname(filePath) === "") {
-        isDir = true;
-        fileToServe = filePath.endsWith("/") ? filePath + "index.html" : filePath + "/index.html";
-      }
-
-      const bunFile = Bun.file(fileToServe);
-      let exists = await bunFile.exists();
-
-      if (!exists && !isDir) {
-        // Try as directory index (e.g. /sub → /sub/index.html)
-        fileToServe = indexPath;
-        const bunFileIdx = Bun.file(fileToServe);
-        exists = await bunFileIdx.exists();
-        if (!exists) {
-          return new Response(NOT_FOUND_HTML, {
-            status: 404,
-            headers: { "Content-Type": "text/html; charset=utf-8" },
-          });
-        }
-      } else if (!exists) {
-        return new Response(NOT_FOUND_HTML, {
-          status: 404,
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        });
-      }
-
-      const contentType = mimeFor(fileToServe);
-      const finalFile = Bun.file(fileToServe);
-      const size = finalFile.size;
-
-      // Large files (>= 1MB): stream; small files: read fully
-      const ONE_MB = 1024 * 1024;
-      if (size >= ONE_MB) {
-        return new Response(finalFile.stream(), {
-          status: 200,
-          headers: { "Content-Type": contentType },
-        });
-      }
-
-      const buf = await readFile(fileToServe);
-      return new Response(buf, {
-        status: 200,
-        headers: { "Content-Type": contentType },
-      });
-    },
+    fetch: app.fetch,
   });
 
   const actualPort = server.port;
@@ -183,14 +179,12 @@ export async function startServer(args: StartServerArgs): Promise<ServerHandle> 
   return {
     port: actualPort,
     url: serverUrl,
+    app,
     stop: async () => {
       await server.stop();
     },
     onRequest: (handler: () => void) => {
       requestHandlers.push(handler);
-    },
-    addHandler: (handler: (req: Request) => Promise<Response | undefined>) => {
-      preHandlers.push(handler);
     },
   };
 }
