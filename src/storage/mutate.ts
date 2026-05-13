@@ -5,6 +5,8 @@
 //
 // getState: reads the artifact and returns its current status/answers without
 // acquiring a lock (read-only, no mutation).
+//
+// addComment / removeComment / setVerdict: annotate-specific mutators.
 
 import { readFile } from "node:fs/promises";
 import { parseFragment, serialize, defaultTreeAdapter as ta } from "parse5";
@@ -12,12 +14,21 @@ import type { DefaultTreeAdapterTypes } from "parse5";
 import { atomicWrite } from "./write.ts";
 import { withLock } from "./lock.ts";
 import { renderAnswered } from "../render/controls.ts";
-import { validateAnswerValue, coerceInteractiveData } from "../render/validate.ts";
+import {
+  validateAnswerValue,
+  validateCommentValue,
+  validateVerdictValue,
+  coerceInteractiveData,
+} from "../render/validate.ts";
 import type {
   Question,
   AnswerValue,
+  Comment,
+  Verdict,
+  VerdictMode,
   InteractiveData,
   InteractiveAskData,
+  InteractiveAnnotateData,
 } from "../render/validate.ts";
 
 type ChildNode = DefaultTreeAdapterTypes.ChildNode;
@@ -40,12 +51,62 @@ export type SubmitAnswerOutcome =
   | { ok: false; reason: "unknown-question"; questionId: string }
   | { ok: false; reason: "invalid-value"; message: string };
 
+export type AddCommentInput = {
+  artifactPath: string;
+  anchor: string;
+  selectedText: string;
+  comment: string;
+};
+
+export type AddCommentOutcome =
+  | { ok: true; comment: Comment }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "not-interactive" }
+  | { ok: false; reason: "session-ended"; status: "complete" | "expired" | "cancelled" }
+  | { ok: false; reason: "expired" }
+  | { ok: false; reason: "invalid-value"; message: string };
+
+export type RemoveCommentInput = {
+  artifactPath: string;
+  commentId: string;
+};
+
+export type RemoveCommentOutcome =
+  | { ok: true }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "not-interactive" }
+  | { ok: false; reason: "comment-not-found" }
+  | { ok: false; reason: "session-ended"; status: "complete" | "expired" | "cancelled" }
+  | { ok: false; reason: "expired" };
+
+export type SetVerdictInput = {
+  artifactPath: string;
+  verdict: Verdict;
+};
+
+export type SetVerdictOutcome =
+  | { ok: true; status: "complete"; verdict: { value: Verdict; decidedAt: string } }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "not-interactive" }
+  | { ok: false; reason: "session-ended"; status: "complete" | "expired" | "cancelled" }
+  | { ok: false; reason: "expired" }
+  | { ok: false; reason: "invalid-value"; message: string };
+
 export type StateOutcome =
   | {
       ok: true;
-      status: InteractiveData["status"];
+      kind: "ask";
+      status: InteractiveAskData["status"];
       answers: Record<string, AnswerValue>;
       remaining: string[];
+    }
+  | {
+      ok: true;
+      kind: "annotate";
+      status: InteractiveAnnotateData["status"];
+      comments: Comment[];
+      verdict: InteractiveAnnotateData["verdict"];
+      verdictMode: VerdictMode;
     }
   | { ok: false; reason: "not-found" | "not-interactive" };
 
@@ -270,7 +331,7 @@ export async function submitAnswer(input: SubmitAnswerInput): Promise<SubmitAnsw
       return { ok: false, reason: "not-interactive" };
     }
 
-    // TODO(Phase 4): handle annotate artifact submission
+    // submitAnswer only handles ask artifacts; annotate uses addComment/setVerdict
     if (coerced.kind !== "ask") {
       return { ok: false, reason: "not-interactive" };
     }
@@ -380,22 +441,261 @@ export async function getState(artifactPath: string): Promise<StateOutcome> {
     return { ok: false, reason: "not-interactive" };
   }
 
-  // TODO(Phase 4): handle annotate artifact state retrieval
-  if (coerced.kind !== "ask") {
-    return { ok: false, reason: "not-interactive" };
+  if (coerced.kind === "ask") {
+    const interactive: InteractiveAskData = coerced;
+
+    // Extract answer values (drop the answeredAt wrapper)
+    const answers: Record<string, AnswerValue> = {};
+    for (const [id, entry] of Object.entries(interactive.answers)) {
+      answers[id] = entry.value;
+    }
+
+    const remaining = interactive.questions
+      .map((q) => q.id)
+      .filter((id) => interactive.answers[id] === undefined);
+
+    return { ok: true, kind: "ask", status: interactive.status, answers, remaining };
   }
 
-  const interactive: InteractiveAskData = coerced;
+  // kind === "annotate"
+  const interactive: InteractiveAnnotateData = coerced;
+  return {
+    ok: true,
+    kind: "annotate",
+    status: interactive.status,
+    comments: interactive.comments,
+    verdict: interactive.verdict,
+    verdictMode: interactive.verdictMode,
+  };
+}
 
-  // Extract answer values (drop the answeredAt wrapper)
-  const answers: Record<string, AnswerValue> = {};
-  for (const [id, entry] of Object.entries(interactive.answers)) {
-    answers[id] = entry.value;
+// ─── nanoid ──────────────────────────────────────────────────────────────────
+
+function defaultNanoid(): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let result = "";
+  for (const byte of bytes) {
+    result += alphabet[byte % alphabet.length];
+  }
+  return result;
+}
+
+// ─── Shared annotate-session guard ───────────────────────────────────────────
+//
+// Reads, parses, and validates an annotate artifact under an already-held lock.
+// Returns either the coerced data + raw html, or an early-return outcome.
+
+type AnnotateReadResult =
+  | { ok: true; html: string; interactive: InteractiveAnnotateData }
+  | { ok: false; outcome: AddCommentOutcome | RemoveCommentOutcome | SetVerdictOutcome };
+
+async function readAnnotateArtifact(artifactPath: string): Promise<AnnotateReadResult> {
+  let html: string;
+  try {
+    html = await readFile(artifactPath, "utf8");
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") return { ok: false, outcome: { ok: false, reason: "not-found" } };
+    throw err;
   }
 
-  const remaining = interactive.questions
-    .map((q) => q.id)
-    .filter((id) => interactive.answers[id] === undefined);
+  const meta = parseEmbeddedMeta(html);
+  const coerced = coerceInteractiveData(meta === null ? null : meta["interactive"]);
+  if (coerced === null || coerced.kind !== "annotate") {
+    return { ok: false, outcome: { ok: false, reason: "not-interactive" } };
+  }
 
-  return { ok: true, status: interactive.status, answers, remaining };
+  const interactive = coerced;
+
+  // Session-ended check
+  if (interactive.status === "complete" || interactive.status === "cancelled") {
+    return {
+      ok: false,
+      outcome: { ok: false, reason: "session-ended", status: interactive.status },
+    };
+  }
+  if (interactive.status === "expired") {
+    return {
+      ok: false,
+      outcome: { ok: false, reason: "session-ended", status: "expired" },
+    };
+  }
+
+  return { ok: true, html, interactive };
+}
+
+// ─── addComment ──────────────────────────────────────────────────────────────
+
+export async function addComment(input: AddCommentInput): Promise<AddCommentOutcome> {
+  const { artifactPath, anchor, selectedText, comment } = input;
+  const lockPath = `${artifactPath}.lock`;
+
+  return withLock({ lockPath }, async () => {
+    const read = await readAnnotateArtifact(artifactPath);
+    if (!read.ok) return read.outcome as AddCommentOutcome;
+
+    let { html } = read;
+    const { interactive } = read;
+
+    // Check expiresAt
+    if (interactive.status === "open" && Date.parse(interactive.expiresAt) < Date.now()) {
+      interactive.status = "expired";
+      html = patchMetaInHtml(html, interactive);
+      await atomicWrite(artifactPath, html);
+      return { ok: false, reason: "expired" };
+    }
+
+    // Validate comment value
+    const validated = validateCommentValue({ anchor, selectedText, comment });
+    if (!validated.ok) {
+      return { ok: false, reason: "invalid-value", message: validated.error };
+    }
+
+    // Construct and append the comment
+    const newComment: Comment = {
+      id: defaultNanoid(),
+      anchor: validated.value.anchor,
+      selectedText: validated.value.selectedText,
+      comment: validated.value.comment,
+      createdAt: new Date().toISOString(),
+    };
+
+    interactive.comments.push(newComment);
+
+    // Patch meta JSON only — body mutation happens in Phase 5/6
+    html = patchMetaInHtml(html, interactive);
+    await atomicWrite(artifactPath, html);
+
+    return { ok: true, comment: newComment };
+  });
+}
+
+// ─── removeComment ────────────────────────────────────────────────────────────
+
+export async function removeComment(input: RemoveCommentInput): Promise<RemoveCommentOutcome> {
+  const { artifactPath, commentId } = input;
+  const lockPath = `${artifactPath}.lock`;
+
+  return withLock({ lockPath }, async () => {
+    const read = await readAnnotateArtifact(artifactPath);
+    if (!read.ok) return read.outcome as RemoveCommentOutcome;
+
+    let { html } = read;
+    const { interactive } = read;
+
+    // Check expiresAt
+    if (interactive.status === "open" && Date.parse(interactive.expiresAt) < Date.now()) {
+      interactive.status = "expired";
+      html = patchMetaInHtml(html, interactive);
+      await atomicWrite(artifactPath, html);
+      return { ok: false, reason: "expired" };
+    }
+
+    // Find the comment
+    const idx = interactive.comments.findIndex((c) => c.id === commentId);
+    if (idx === -1) {
+      return { ok: false, reason: "comment-not-found" };
+    }
+
+    // Remove it
+    interactive.comments = interactive.comments.filter((c) => c.id !== commentId);
+
+    html = patchMetaInHtml(html, interactive);
+    await atomicWrite(artifactPath, html);
+
+    return { ok: true };
+  });
+}
+
+// ─── setVerdict ───────────────────────────────────────────────────────────────
+
+function setAnnotateScaffoldStatus(html: string, status: string): string {
+  // Use parse5 to find <section class="cs-annotate-scaffold"> and set
+  // data-cesium-status="<status>". Defensive: if absent, return html unchanged.
+  const doc = parseFragment(html);
+  const nodes = ta.getChildNodes(doc) as ChildNode[];
+
+  function findScaffold(children: ChildNode[]): Element | null {
+    for (const node of children) {
+      if (ta.isElementNode(node)) {
+        const el = node as Element;
+        const tag = ta.getTagName(el);
+        if (tag === "section") {
+          const attrs = ta.getAttrList(el);
+          const hasScaffold = attrs.some((a) => a.name === "data-cesium-annotate-scaffold");
+          if (hasScaffold) return el;
+        }
+        const found = findScaffold(ta.getChildNodes(el) as ChildNode[]);
+        if (found !== null) return found;
+      }
+    }
+    return null;
+  }
+
+  const scaffold = findScaffold(nodes);
+  if (scaffold === null) return html; // defensive: absent → no-op
+
+  const attrs = ta.getAttrList(scaffold);
+  const existing = attrs.find((a) => a.name === "data-cesium-status");
+  if (existing !== undefined) {
+    existing.value = status;
+  } else {
+    attrs.push({ name: "data-cesium-status", value: status });
+  }
+
+  return serialize(doc);
+}
+
+export async function setVerdict(input: SetVerdictInput): Promise<SetVerdictOutcome> {
+  const { artifactPath, verdict } = input;
+  const lockPath = `${artifactPath}.lock`;
+
+  return withLock({ lockPath }, async () => {
+    const read = await readAnnotateArtifact(artifactPath);
+    if (!read.ok) return read.outcome as SetVerdictOutcome;
+
+    let { html } = read;
+    const { interactive } = read;
+
+    // Check expiresAt
+    if (interactive.status === "open" && Date.parse(interactive.expiresAt) < Date.now()) {
+      interactive.status = "expired";
+      html = patchMetaInHtml(html, interactive);
+      await atomicWrite(artifactPath, html);
+      return { ok: false, reason: "expired" };
+    }
+
+    // Validate verdict against the artifact's verdictMode
+    const validated = validateVerdictValue({ verdict }, interactive.verdictMode);
+    if (!validated.ok) {
+      return { ok: false, reason: "invalid-value", message: validated.error };
+    }
+
+    const decidedAt = new Date().toISOString();
+    const completedAt = new Date().toISOString();
+
+    // Update interactive data
+    interactive.verdict = { value: validated.value, decidedAt };
+    interactive.status = "complete";
+    interactive.completedAt = completedAt;
+
+    // Patch meta JSON
+    html = patchMetaInHtml(html, interactive);
+
+    // Strip the client script — session is over
+    html = removeClientScriptFromHtml(html);
+
+    // Mark scaffold as complete via parse5
+    html = setAnnotateScaffoldStatus(html, "complete");
+
+    await atomicWrite(artifactPath, html);
+
+    return {
+      ok: true,
+      status: "complete",
+      verdict: { value: validated.value, decidedAt },
+    };
+  });
 }

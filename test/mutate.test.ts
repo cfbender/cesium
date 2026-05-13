@@ -610,6 +610,7 @@ describe("getState", () => {
     const outcome = await getState(path);
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) throw new Error();
+    if (outcome.kind !== "ask") throw new Error("expected ask kind");
     expect(outcome.status).toBe("open");
     expect(outcome.answers).toEqual({});
     expect(outcome.remaining).toEqual(["q1"]);
@@ -626,6 +627,7 @@ describe("getState", () => {
     const outcome = await getState(path);
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) throw new Error();
+    if (outcome.kind !== "ask") throw new Error("expected ask kind");
     expect(outcome.status).toBe("complete");
     expect(outcome.answers["q1"]).toBeDefined();
     expect(outcome.remaining).toHaveLength(0);
