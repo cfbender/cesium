@@ -220,6 +220,14 @@ describe("PUBLISH_KINDS — ask", () => {
   });
 });
 
+// ─── PUBLISH_KINDS includes "annotate" ─────────────────────────────────────────
+
+describe("PUBLISH_KINDS — annotate", () => {
+  test("includes annotate", () => {
+    expect(PUBLISH_KINDS).toContain("annotate");
+  });
+});
+
 // ─── validateQuestion ──────────────────────────────────────────────────────────
 
 describe("validateQuestion — valid types", () => {
@@ -699,7 +707,6 @@ describe("validateAnnotateInput — happy path", () => {
   test("accepts full valid input with all optional fields", () => {
     const r = validateAnnotateInput({
       title: "Full Annotate",
-      body: "<p>Please review.</p>",
       blocks: [VALID_PROSE_BLOCK],
       verdictMode: "full",
       perLineFor: ["diff", "code"],
@@ -716,6 +723,19 @@ describe("validateAnnotateInput — happy path", () => {
       expect(r.value.summary).toBe("A summary");
       expect(r.value.tags).toEqual(["review"]);
       expect(r.value.expiresAt).toBe("2099-12-31T23:59:59Z");
+    }
+  });
+
+  test("blocks-only policy: stray body field is silently ignored, not an error", () => {
+    const r = validateAnnotateInput({
+      title: "Blocks only test",
+      body: "<p>ignored</p>",
+      blocks: [VALID_PROSE_BLOCK],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // body must not appear on the returned value
+      expect("body" in r.value).toBe(false);
     }
   });
 

@@ -5,7 +5,13 @@ import { buildThemeCss } from "../storage/theme-write.ts";
 import { renderControl, renderAnswered } from "./controls.ts";
 import { getClientJs } from "./client-js.ts";
 import { faviconLinkTag } from "./favicon.ts";
-import type { InteractiveData, InteractiveAskData, Question } from "./validate.ts";
+import type {
+  InteractiveData,
+  InteractiveAskData,
+  InteractiveAnnotateData,
+  Question,
+  VerdictMode,
+} from "./validate.ts";
 
 export interface ArtifactMeta {
   id: string;
@@ -90,15 +96,60 @@ function renderQuestionSection(q: Question, interactive: InteractiveAskData): st
   return renderControl(q);
 }
 
-function renderInteractive(interactive: InteractiveData): string {
-  // TODO(Phase 3): render annotate scaffold
-  if (interactive.kind !== "ask") {
-    return "<!-- annotate scaffold rendered in Phase 3 -->";
+function renderVerdictButtons(verdictMode: VerdictMode, isOpen: boolean): string {
+  const disabled = isOpen ? "" : ' disabled aria-disabled="true"';
+  const buttons: string[] = [];
+
+  buttons.push(
+    `<button type="button" class="cs-verdict cs-verdict-approve" data-verdict="approve"${disabled}>Approve</button>`,
+  );
+
+  if (verdictMode === "approve-or-reject" || verdictMode === "full") {
+    buttons.push(
+      `<button type="button" class="cs-verdict cs-verdict-request_changes" data-verdict="request_changes"${disabled}>Request changes</button>`,
+    );
   }
-  const sections = interactive.questions
-    .map((q) => renderQuestionSection(q, interactive))
-    .join("\n");
-  return `\n<section class="cs-questions">\n${sections}\n</section>`;
+
+  if (verdictMode === "full") {
+    buttons.push(
+      `<button type="button" class="cs-verdict cs-verdict-comment" data-verdict="comment"${disabled}>Comment</button>`,
+    );
+  }
+
+  return buttons.join("\n      ");
+}
+
+function renderAnnotateScaffold(interactive: InteractiveAnnotateData): string {
+  const isOpen = interactive.status === "open";
+  const verdictButtons = renderVerdictButtons(interactive.verdictMode, isOpen);
+
+  return `<section class="cs-annotate-scaffold" data-cesium-annotate-scaffold data-cesium-verdict-mode="${interactive.verdictMode}" data-cesium-status="${interactive.status}">
+  <template id="cs-annotate-comment-popup">
+    <div class="cs-comment-popup" role="dialog" aria-label="Add a comment">
+      <textarea class="cs-comment-input" placeholder="Add a comment\u2026"></textarea>
+      <div class="cs-comment-actions">
+        <button type="button" class="cs-comment-save" disabled>Save</button>
+        <button type="button" class="cs-comment-cancel">Cancel</button>
+      </div>
+    </div>
+  </template>
+  <aside class="cs-comment-rail" data-cesium-comment-rail aria-label="Review comments"></aside>
+  <footer class="cs-verdict-footer">
+    <span class="cs-comment-count" data-cesium-comment-count>0 comments</span>
+    ${verdictButtons}
+  </footer>
+</section>`;
+}
+
+function renderInteractive(interactive: InteractiveData): string {
+  if (interactive.kind === "ask") {
+    const sections = interactive.questions
+      .map((q) => renderQuestionSection(q, interactive))
+      .join("\n");
+    return `\n<section class="cs-questions">\n${sections}\n</section>`;
+  }
+  // interactive.kind === "annotate"
+  return `\n${renderAnnotateScaffold(interactive)}`;
 }
 
 function renderBackNav(meta: ArtifactMeta): string {

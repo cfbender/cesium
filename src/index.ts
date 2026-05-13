@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import type { Plugin, Hooks } from "@opencode-ai/plugin";
 import { createPublishTool } from "./tools/publish.ts";
 import { createAskTool } from "./tools/ask.ts";
+import { createAnnotateTool } from "./tools/annotate.ts";
 import { createWaitTool } from "./tools/wait.ts";
 import { createStyleguideTool } from "./tools/styleguide.ts";
 import { createCritiqueTool } from "./tools/critique.ts";
@@ -27,6 +28,7 @@ export const CesiumPlugin: Plugin = async (ctx): Promise<Hooks> => {
     tool: {
       cesium_publish: createPublishTool(ctx),
       cesium_ask: createAskTool(ctx),
+      cesium_annotate: createAnnotateTool(ctx),
       cesium_wait: createWaitTool(ctx),
       cesium_styleguide: createStyleguideTool(ctx),
       cesium_critique: createCritiqueTool(ctx),

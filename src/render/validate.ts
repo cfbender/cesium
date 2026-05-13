@@ -29,7 +29,8 @@ export type PublishKind =
   | "audit"
   | "rfc"
   | "other"
-  | "ask";
+  | "ask"
+  | "annotate";
 
 export const PUBLISH_KINDS: readonly PublishKind[] = [
   "plan",
@@ -42,6 +43,7 @@ export const PUBLISH_KINDS: readonly PublishKind[] = [
   "rfc",
   "other",
   "ask",
+  "annotate",
 ];
 
 // ─── Interactive artifact types ────────────────────────────────────────────────
@@ -439,9 +441,9 @@ export function validateAskInput(input: unknown): AskValidationResult {
 
 // ─── AnnotateInput validation ──────────────────────────────────────────────────
 
+// annotate is blocks-only by design — no html/body escape valve.
 export interface AnnotateInput {
   title: string;
-  body?: string;
   blocks: Block[];
   verdictMode?: VerdictMode;
   perLineFor?: ("diff" | "code")[];
@@ -472,10 +474,7 @@ export function validateAnnotateInput(input: unknown): ValidationResult<Annotate
   }
   const title = raw["title"];
 
-  // body — optional string
-  if ("body" in raw && raw["body"] !== undefined && typeof raw["body"] !== "string") {
-    return { ok: false, error: "body must be a string" };
-  }
+  // annotate is blocks-only — stray `body` is silently ignored, not an error.
 
   // blocks — required, non-empty array
   if (!("blocks" in raw) || !Array.isArray(raw["blocks"]) || raw["blocks"].length === 0) {
@@ -558,7 +557,6 @@ export function validateAnnotateInput(input: unknown): ValidationResult<Annotate
   }
 
   const result: AnnotateInput = { title, blocks: blocksResult.blocks };
-  if (typeof raw["body"] === "string") result.body = raw["body"];
   if (isVerdictMode(raw["verdictMode"])) result.verdictMode = raw["verdictMode"];
   if (Array.isArray(raw["perLineFor"]))
     result.perLineFor = raw["perLineFor"] as ("diff" | "code")[];
