@@ -289,13 +289,14 @@ describe("renderProjectIndex", () => {
     expect(html).not.toContain('<link rel="icon"');
   });
 
-  test("eyebrow header includes inline favicon emblem next to 'cesium · project'", () => {
+  test("eyebrow header is a link to the global index with favicon emblem next to 'cesium · project'", () => {
     const html = renderProjectIndex({ projectSlug: "p", projectName: "P", entries: [], theme });
-    // Emblem + label live inside an .eyebrow.cesium-eyebrow row
-    expect(html).toContain('<p class="eyebrow cesium-eyebrow">');
+    // Emblem + label live inside an .eyebrow.cesium-eyebrow row that links to all projects
+    expect(html).toContain('<a class="eyebrow cesium-eyebrow" href="../../index.html">');
     expect(html).toContain("cesium · project");
     // Inline svg precedes the text label
-    const eyebrowMatch = /<p class="eyebrow cesium-eyebrow">([\s\S]*?)<\/p>/.exec(html);
+    const eyebrowMatch =
+      /<a class="eyebrow cesium-eyebrow" href="\.\.\/\.\.\/index\.html">([\s\S]*?)<\/a>/.exec(html);
     expect(eyebrowMatch).not.toBeNull();
     const eyebrowContent = eyebrowMatch?.[1] ?? "";
     expect(eyebrowContent).toContain("<svg");
@@ -417,10 +418,11 @@ describe("renderGlobalIndex", () => {
     expect(html).not.toContain('<link rel="icon"');
   });
 
-  test("eyebrow header includes inline favicon emblem next to 'cesium'", () => {
+  test("eyebrow header is a self-link with favicon emblem next to 'cesium'", () => {
     const html = renderGlobalIndex({ projects: [], theme });
-    expect(html).toContain('<p class="eyebrow cesium-eyebrow">');
-    const eyebrowMatch = /<p class="eyebrow cesium-eyebrow">([\s\S]*?)<\/p>/.exec(html);
+    expect(html).toContain('<a class="eyebrow cesium-eyebrow" href="index.html">');
+    const eyebrowMatch =
+      /<a class="eyebrow cesium-eyebrow" href="index\.html">([\s\S]*?)<\/a>/.exec(html);
     expect(eyebrowMatch).not.toBeNull();
     const eyebrowContent = eyebrowMatch?.[1] ?? "";
     expect(eyebrowContent).toContain("<svg");

@@ -94,6 +94,8 @@ function indexCss(): string {
   /* the eyebrow text is uppercased + tracked; the emblem sits flush left */
 }
 .cesium-eyebrow svg { display: block; }
+a.cesium-eyebrow { color: inherit; text-decoration: none; transition: opacity 0.15s; }
+a.cesium-eyebrow:hover { opacity: 0.7; }
 .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; align-items: center; }
 .filter-chip {
   display: inline-block; font-family: var(--sans); font-size: 0.8em; font-weight: 500;
@@ -365,7 +367,7 @@ ${cardsHtml}
 </head>
 <body>
 <div class="page">
-  <p class="eyebrow cesium-eyebrow">${faviconEmblemSvg(18)}<span>cesium · project</span></p>
+  <a class="eyebrow cesium-eyebrow" href="../../index.html">${faviconEmblemSvg(18)}<span>cesium · project</span></a>
   <h1 class="h-display">${esc(projectName)}</h1>
   ${subhead}
   ${filterRow}
@@ -454,7 +456,7 @@ export function renderGlobalIndex(args: RenderGlobalIndexArgs): string {
 </head>
 <body>
 <div class="page">
-  <p class="eyebrow cesium-eyebrow">${faviconEmblemSvg(18)}<span>cesium</span></p>
+  <a class="eyebrow cesium-eyebrow" href="index.html">${faviconEmblemSvg(18)}<span>cesium</span></a>
   <h1 class="h-display">All projects</h1>
   ${subhead}
   ${bodyContent}
