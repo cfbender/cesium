@@ -36,7 +36,7 @@ Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["@cfbender/cesium"]
+  "plugin": ["@cfbender/cesium@latest"]
 }
 ```
 
