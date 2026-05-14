@@ -8,6 +8,13 @@ describe("getClientJs", () => {
     expect(js.length).toBeGreaterThan(100);
   });
 
+  test("is syntactically valid JavaScript (parses without error)", () => {
+    const js = getClientJs();
+    // Use Function constructor to parse without executing.
+    // Throws SyntaxError if the script is malformed.
+    expect(() => new Function(js)).not.toThrow();
+  });
+
   test("contains fetch( for network calls", () => {
     expect(getClientJs()).toContain("fetch(");
   });

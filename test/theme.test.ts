@@ -464,8 +464,16 @@ describe("frameworkRulesCss — annotate cs-* classes (Phase 5)", () => {
     expect(frameworkRulesCss()).toContain(".cs-comment-bubble-active");
   });
 
-  test("comment rail collapses on narrow viewports (max-width: 900px)", () => {
-    expect(frameworkRulesCss()).toContain("max-width: 900px");
+  test("comment rail collapses on narrow viewports (below 1448px page+rail threshold)", () => {
+    // Rail falls back to static layout below the side-by-side threshold so it
+    // does not overlap the per-block Comment affordance button.
+    expect(frameworkRulesCss()).toContain("max-width: 1447px");
+  });
+
+  test("page shifts left when annotate is active and viewport has room for rail", () => {
+    const css = frameworkRulesCss();
+    expect(css).toContain("min-width: 1448px");
+    expect(css).toContain("body.cs-annotate-active .page");
   });
 
   test("verdict footer is fixed-positioned at bottom", () => {

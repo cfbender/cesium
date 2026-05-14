@@ -1133,12 +1133,36 @@ body { position: relative; }
   flex-direction: column;
   z-index: 50;
 }
-@media (max-width: 900px) {
+/* When annotate is active and viewport has room for page + rail side-by-side,
+   shift .page leftward so its right edge (and the .cs-anchor-affordance-block
+   button parked at right: 8px of each annotatable block) does not slide under
+   the rail. Required viewport width: 1120 (page) + 24 (gap) + 280 (rail) +
+   24 (right gutter) = 1448px. */
+@media (min-width: 1448px) {
+  body.cs-annotate-active .page,
+  body:has(.cs-annotate-scaffold) .page {
+    margin-right: 328px; /* rail width (280) + outer gutter (24) + inner gap (24) */
+    margin-left: auto;
+  }
+}
+/* Below 1448px, fall back to a static rail below content. The previous
+   breakpoint at 900px left a wide intermediate zone where the absolute rail
+   overlapped the right edge of .page and covered the per-block Comment button. */
+@media (max-width: 1447px) {
   .cs-comment-rail {
     position: static;
     width: 100%;
     max-height: none;
     margin-top: 24px;
+  }
+  /* In static-rail mode, bubbles flow naturally; positionBubbles() sets
+     top: <px> which we override since bubbles should stack normally. */
+  .cs-comment-rail .cs-comment-bubble {
+    position: static;
+    margin-bottom: 12px;
+  }
+  .cs-comment-rail .cs-comment-bubble::before {
+    display: none;
   }
 }
 .cs-comment-bubble {

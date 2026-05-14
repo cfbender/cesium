@@ -942,7 +942,6 @@ export function getClientJs(): string {
       // Hide when popup opens (activePopup watcher via close/open hooks handled inline above)
       // Hide menu when selection is cleared or moves outside anchored content
     }
-    }
 
     // ─── Verdict button wiring ───────────────────────────────────────────────
     function wireVerdictButtons() {
