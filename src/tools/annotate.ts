@@ -26,6 +26,7 @@ import {
   type LifecycleConfig,
 } from "../server/lifecycle.ts";
 import { buildTerminalSummary, resolveDisplayHost } from "./publish.ts";
+import { getSessionModel } from "../session-model.ts";
 
 export interface AnnotateToolOverrides {
   loadConfig?: () => CesiumConfig;
@@ -84,7 +85,7 @@ export function createAnnotateTool(
       tags: tool.schema.array(tool.schema.string()).optional(),
       expiresAt: tool.schema.string().optional(),
     },
-    async execute(args, _context) {
+    async execute(args, context) {
       // 1. Validate top-level input shape
       const validation = validateAnnotateInput(args);
       if (!validation.ok) {
@@ -181,8 +182,8 @@ export function createAnnotateTool(
         summary: input.summary ?? null,
         tags: input.tags ?? [],
         createdAt: createdAt.toISOString(),
-        model: null,
-        sessionId: null,
+        model: getSessionModel(context.sessionID),
+        sessionId: context.sessionID ?? null,
         projectSlug: identity.slug,
         projectName: identity.name,
         cwd: ctx.directory,

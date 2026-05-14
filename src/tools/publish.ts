@@ -31,6 +31,7 @@ import {
   type RunningInfo,
   type LifecycleConfig,
 } from "../server/lifecycle.ts";
+import { getSessionModel } from "../session-model.ts";
 
 export interface PublishToolOverrides {
   loadConfig?: () => CesiumConfig;
@@ -107,7 +108,7 @@ export function createPublishTool(
       tags: tool.schema.array(tool.schema.string()).optional(),
       supersedes: tool.schema.string().optional(),
     },
-    async execute(args, _context) {
+    async execute(args, context) {
       // 1. Validate input
       const validation = validatePublishInput(args);
       if (!validation.ok) {
@@ -190,8 +191,8 @@ export function createPublishTool(
         summary: input.summary ?? null,
         tags: input.tags ?? [],
         createdAt: createdAt.toISOString(),
-        model: null,
-        sessionId: null,
+        model: getSessionModel(context.sessionID),
+        sessionId: context.sessionID ?? null,
         projectSlug: identity.slug,
         projectName: identity.name,
         cwd: ctx.directory,

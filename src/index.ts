@@ -12,6 +12,7 @@ import { createStyleguideTool } from "./tools/styleguide.ts";
 import { createCritiqueTool } from "./tools/critique.ts";
 import { createStopTool } from "./tools/stop.ts";
 import { generateBlockFieldReference } from "./prompt/field-reference.ts";
+import { recordSessionModel } from "./session-model.ts";
 
 const rawFragment = await readFile(
   join(dirname(fileURLToPath(import.meta.url)), "prompt/system-fragment.md"),
@@ -36,6 +37,11 @@ export const CesiumPlugin: Plugin = async (ctx): Promise<Hooks> => {
     },
     "experimental.chat.system.transform": async (_input, output) => {
       output.system.push(PROMPT_FRAGMENT);
+    },
+    "chat.params": async (input, _output) => {
+      // Record the model resolved for this session so tool handlers can stamp
+      // it onto generated artifacts. Latest call wins (model can change mid-session).
+      recordSessionModel(input.sessionID, input.model.providerID, input.model.id);
     },
   };
 };

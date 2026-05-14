@@ -25,6 +25,7 @@ import {
   type LifecycleConfig,
 } from "../server/lifecycle.ts";
 import { buildTerminalSummary, resolveDisplayHost } from "./publish.ts";
+import { getSessionModel } from "../session-model.ts";
 
 export interface AskToolOverrides {
   loadConfig?: () => CesiumConfig;
@@ -106,7 +107,7 @@ export function createAskTool(
       expiresAt: tool.schema.string().optional(),
       requireAll: tool.schema.boolean().optional(),
     },
-    async execute(args, _context) {
+    async execute(args, context) {
       // 1. Validate input
       const validation = validateAskInput(args);
       if (!validation.ok) {
@@ -193,8 +194,8 @@ export function createAskTool(
         summary: input.summary ?? null,
         tags: input.tags ?? [],
         createdAt: createdAt.toISOString(),
-        model: null,
-        sessionId: null,
+        model: getSessionModel(context.sessionID),
+        sessionId: context.sessionID ?? null,
         projectSlug: identity.slug,
         projectName: identity.name,
         cwd: ctx.directory,
