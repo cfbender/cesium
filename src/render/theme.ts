@@ -1134,14 +1134,24 @@ body { position: relative; }
   z-index: 50;
 }
 /* When annotate is active and viewport has room for page + rail side-by-side,
-   shift .page leftward so its right edge (and the .cs-anchor-affordance-block
-   button parked at right: 8px of each annotatable block) does not slide under
-   the rail. Required viewport width: 1120 (page) + 24 (gap) + 280 (rail) +
-   24 (right gutter) = 1448px. */
+   shift the content area leftward so its right edge (and the
+   .cs-anchor-affordance-block button parked at right: 8px of each annotatable
+   block) does not slide under the rail.
+
+   Artifacts have no .page wrapper — content sits directly in <body>. So we
+   shrink the body content via padding-right. The legacy .page rule remains so
+   the same shift works on index pages.
+
+   Required viewport width: 1120 (page) + 24 (gap) + 280 (rail) + 24 (right
+   gutter) = 1448px. */
 @media (min-width: 1448px) {
+  body.cs-annotate-active,
+  body:has(.cs-annotate-scaffold) {
+    padding-right: 328px; /* rail width (280) + outer gutter (24) + inner gap (24) */
+  }
   body.cs-annotate-active .page,
   body:has(.cs-annotate-scaffold) .page {
-    margin-right: 328px; /* rail width (280) + outer gutter (24) + inner gap (24) */
+    margin-right: 0;
     margin-left: auto;
   }
 }

@@ -210,6 +210,17 @@ describe("getClientJs — annotate wiring", () => {
     expect(getClientJs()).toContain("selectionchange");
   });
 
+  test("selection menu positions in viewport coords (no scrollY/scrollX addition)", () => {
+    // The menu uses position: fixed, so coordinates must be viewport-relative.
+    // Adding window.scrollY/scrollX to top/left parks it off-screen after scroll.
+    const js = getClientJs();
+    // The fixed bug: "var top = rect.bottom + window.scrollY"
+    //                "var left = rect.right + window.scrollX - menuRect.width"
+    // Assert these specific buggy expressions do not reappear.
+    expect(js).not.toContain("rect.bottom + window.scrollY");
+    expect(js).not.toContain("rect.right + window.scrollX");
+  });
+
   test("contains humanizeAnchor helper", () => {
     expect(getClientJs()).toContain("humanizeAnchor");
   });

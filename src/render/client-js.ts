@@ -896,12 +896,21 @@ export function getClientJs(): string {
 
         menu.hidden = false;
         var menuRect = menu.getBoundingClientRect();
-        var top = rect.bottom + window.scrollY + 6;
-        var left = rect.right + window.scrollX - menuRect.width;
+        // The menu uses position: fixed, so coordinates are viewport-relative —
+        // do NOT add window.scrollX/scrollY here, or the menu gets parked at
+        // (rect + scrollY) which is off-screen as soon as the user scrolls.
+        var top = rect.bottom + 6;
+        var left = rect.right - menuRect.width;
         // Clamp to viewport
         var vpW = window.innerWidth || document.documentElement.clientWidth;
+        var vpH = window.innerHeight || document.documentElement.clientHeight;
         if (left + menuRect.width > vpW - 8) left = vpW - menuRect.width - 8;
         if (left < 8) left = 8;
+        // If the menu would fall below the viewport, flip above the selection.
+        if (top + menuRect.height > vpH - 8) {
+          top = rect.top - menuRect.height - 6;
+        }
+        if (top < 8) top = 8;
         menu.style.top = top + "px";
         menu.style.left = left + "px";
 

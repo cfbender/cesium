@@ -470,10 +470,13 @@ describe("frameworkRulesCss — annotate cs-* classes (Phase 5)", () => {
     expect(frameworkRulesCss()).toContain("max-width: 1447px");
   });
 
-  test("page shifts left when annotate is active and viewport has room for rail", () => {
+  test("content area shifts left when annotate is active and viewport has room for rail", () => {
     const css = frameworkRulesCss();
     expect(css).toContain("min-width: 1448px");
-    expect(css).toContain("body.cs-annotate-active .page");
+    // Artifacts have no .page wrapper — body itself must shrink so the per-block
+    // "Comment" affordance does not slide under the rail.
+    expect(css).toContain("body.cs-annotate-active");
+    expect(css).toContain("padding-right: 328px");
   });
 
   test("verdict footer is fixed-positioned at bottom", () => {
